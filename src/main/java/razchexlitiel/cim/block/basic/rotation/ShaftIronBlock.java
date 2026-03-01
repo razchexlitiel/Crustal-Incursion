@@ -122,6 +122,14 @@ public class ShaftIronBlock extends BaseEntityBlock {
                 shaftFacing = Direction.DOWN;
             }
         }
+        // 7. Конвертер - только сзади
+        else if (targetBlock instanceof RConverterBlock) {
+            Direction converterFacing = targetState.getValue(RConverterBlock.FACING);
+            if (clickedFace == converterFacing.getOpposite()) {
+                canPlace = true;
+                shaftFacing = clickedFace;
+            }
+        }
 
         if (!canPlace) {
             if (level.isClientSide) {

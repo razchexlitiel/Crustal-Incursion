@@ -146,6 +146,7 @@ public class CrustalIncursionMod {
             event.accept(ModBlocks.MOTOR_ELECTRO);
             event.accept(ModBlocks.WIND_GEN_FLUGER);
             event.accept(ModBlocks.GEAR_PORT);
+            event.accept(ModBlocks.RCONVERTER);
             event.accept(ModBlocks.ADDER);
             event.accept(ModBlocks.STOPPER);
             event.accept(ModBlocks.TACHOMETER);
@@ -209,6 +210,9 @@ public class CrustalIncursionMod {
             event.accept(ModItems.DEPTH_WORM_SPAWN_EGG);
             event.accept(ModBlocks.DEPTH_WORM_NEST);
             event.accept(ModBlocks.HIVE_SOIL);
+            event.accept(ModBlocks.SEQUOIA_PLANKS.get());
+            event.accept(ModBlocks.SEQUOIA_BARK.get());
+            event.accept(ModBlocks.SEQUOIA_HEARTWOOD.get());
             event.accept(ModBlocks.WASTE_LOG.get());
             event.accept(ModBlocks.NECROSIS_TEST.get());
 

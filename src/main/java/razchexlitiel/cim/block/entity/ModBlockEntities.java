@@ -36,6 +36,11 @@ public class ModBlockEntities {
                             .build(null)
             );
 
+    public static final RegistryObject<BlockEntityType<RConverterBlockEntity>> R_CONVERTER_BE =
+            BLOCK_ENTITIES.register("rconverter",
+                    () -> BlockEntityType.Builder.of(RConverterBlockEntity::new, ModBlocks.RCONVERTER.get()).build(null));
+
+
     public static final RegistryObject<BlockEntityType<TurretLightPlacerBlockEntity>> TURRET_LIGHT_PLACER_BE =
             BLOCK_ENTITIES.register("turret_light_placer",
                     () -> BlockEntityType.Builder.of(TurretLightPlacerBlockEntity::new, ModBlocks.TURRET_LIGHT_PLACER.get()).build(null));

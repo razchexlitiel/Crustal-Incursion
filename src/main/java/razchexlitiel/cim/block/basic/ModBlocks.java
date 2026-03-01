@@ -8,6 +8,7 @@ import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.block.*;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.BlockSetType;
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.ForgeRegistries;
@@ -127,6 +128,18 @@ public class ModBlocks {
             () -> new SlabBlock(BlockBehaviour.Properties.copy(CONCRETE_HAZARD_OLD.get())));
 
 
+    // ДВЕРИ
+    public static final RegistryObject<Block> SEQUOIA_DOOR = registerBlock("sequoia_door",
+            () -> new net.minecraft.world.level.block.DoorBlock(
+                    BlockBehaviour.Properties.copy(Blocks.DARK_OAK_DOOR).sound(SoundType.WOOD).noOcclusion(),
+                    BlockSetType.DARK_OAK));
+
+    // ЛЮКИ
+    public static final RegistryObject<Block> SEQUOIA_TRAPDOOR = registerBlock("sequoia_trapdoor",
+            () -> new net.minecraft.world.level.block.TrapDoorBlock( // <--- ВОТ ТУТ ИСПРАВЬ
+                    BlockBehaviour.Properties.copy(Blocks.DARK_OAK_DOOR).sound(SoundType.WOOD).noOcclusion(),
+                    BlockSetType.DARK_OAK));
+
 
     //БЛОКИ-ВРАЩЕНИЯ
     public static final RegistryObject<Block> MOTOR_ELECTRO = BLOCKS.register("motor_electro",
@@ -152,6 +165,9 @@ public class ModBlocks {
                     .strength(5.0f, 4.0f).requiresCorrectToolForDrops()));
     public static final RegistryObject<Block> ROTATION_METER = registerBlock("rotation_meter",
             () -> new RotationMeterBlock(BlockBehaviour.Properties.copy(Blocks.STONE)
+                    .strength(5.0f, 4.0f).requiresCorrectToolForDrops()));
+    public static final RegistryObject<Block> RCONVERTER = registerBlock("rconverter",
+            () -> new RConverterBlock(BlockBehaviour.Properties.copy(Blocks.STONE)
                     .strength(5.0f, 4.0f).requiresCorrectToolForDrops()));
 
     public static final RegistryObject<Block> SEQUOIA_BARK = registerBlock("sequoia_bark",

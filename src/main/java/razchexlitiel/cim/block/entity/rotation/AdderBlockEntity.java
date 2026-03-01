@@ -1,6 +1,5 @@
 package razchexlitiel.cim.block.entity.rotation;
 
-
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
@@ -15,17 +14,19 @@ import razchexlitiel.cim.api.rotation.RotationNetworkHelper;
 import razchexlitiel.cim.api.rotation.RotationSource;
 import razchexlitiel.cim.api.rotation.Rotational;
 import razchexlitiel.cim.api.rotation.RotationalNode;
-import razchexlitiel.cim.block.entity.ModBlockEntities;
 import razchexlitiel.cim.block.basic.rotation.AdderBlock;
-
+import razchexlitiel.cim.block.entity.ModBlockEntities;
 
 public class AdderBlockEntity extends BlockEntity implements RotationalNode {
 
     private long speed = 0;
     private long torque = 0;
 
-    // Инициализируем нулями, чтобы не было null
-    private RotationSource cachedSource = new RotationSource(0, 0);
+    // Кеширование для собственного источника (выход)
+    @Nullable
+    private RotationSource cachedSource;
+    private long cacheTimestamp;
+    private static final long CACHE_LIFETIME = 10;
 
     public AdderBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.ADDER_BE.get(), pos, state);
@@ -34,37 +35,36 @@ public class AdderBlockEntity extends BlockEntity implements RotationalNode {
     // ========== Rotational ==========
     @Override public long getSpeed() { return speed; }
     @Override public long getTorque() { return torque; }
-    @Override public void setSpeed(long speed) { this.speed = speed; updateCache(); setChanged(); sync(); invalidateNeighborCaches(); }
-    @Override public void setTorque(long torque) { this.torque = torque; updateCache(); setChanged(); sync(); invalidateNeighborCaches(); }
+    @Override public void setSpeed(long speed) { this.speed = speed; setChanged(); sync(); invalidateNeighborCaches(); }
+    @Override public void setTorque(long torque) { this.torque = torque; setChanged(); sync(); invalidateNeighborCaches(); }
     @Override public long getMaxSpeed() { return 0; }
     @Override public long getMaxTorque() { return 0; }
 
     // ========== RotationalNode ==========
-
-    // ВАЖНО: Сумматор всегда отдает свою текущую скорость как "кешированный источник"
-    @Override
+    @Override @Nullable
     public RotationSource getCachedSource() {
         return cachedSource;
     }
 
-    // ВАЖНО: Кеш сумматора всегда валиден, так как он сам источник
-    @Override
-    public boolean isCacheValid(long currentTime) {
-        return true;
-    }
-
     @Override
     public void setCachedSource(@Nullable RotationSource source, long gameTime) {
-        // Игнорируем внешнюю установку кеша, мы сами управляем им
+        this.cachedSource = source;
+        this.cacheTimestamp = gameTime;
     }
 
-    private void updateCache() {
-        this.cachedSource = new RotationSource(speed, torque);
+    @Override
+    public boolean isCacheValid(long currentTime) {
+        return cachedSource != null && (currentTime - cacheTimestamp) <= CACHE_LIFETIME;
     }
 
     @Override
     public void invalidateCache() {
-        // Пусто, чтобы избежать рекурсии. Мы сами обновляем соседей через tick.
+        if (cachedSource != null) {
+            cachedSource = null;
+            if (level != null && !level.isClientSide) {
+                invalidateNeighborCaches();
+            }
+        }
     }
 
     private void invalidateNeighborCaches() {
@@ -77,80 +77,74 @@ public class AdderBlockEntity extends BlockEntity implements RotationalNode {
         }
     }
 
-    // AdderBlockEntity.java
     @Override
     public boolean canProvideSource(@Nullable Direction fromDir) {
         if (fromDir == null) return false;
-
         BlockState state = getBlockState();
         Direction facing = state.getValue(AdderBlock.FACING);
         Direction outputSide = facing.getOpposite();
-
-        // ВАЖНО: Мы отдаем энергию ТОЛЬКО тому блоку,
-        // который пришел к нам СО СТОРОНЫ нашего выхода.
-        // Если вал стоит сбоку, fromDir будет равен лево/право, и мы вернем false.
+        // Сумматор отдаёт вращение только через выходную сторону
         return fromDir == outputSide;
     }
 
     @Override
     public Direction[] getPropagationDirections(@Nullable Direction fromDir) {
-        // Сумматор — это конечная точка для входящих валов и начальная для выходящего.
-        // Энергия не "течет" сквозь него транзитом, она пересчитывается в tick().
+        // Сумматор не пропускает вращение транзитом
         return new Direction[0];
     }
-
-
-
 
     // ========== Тик ==========
     public static void tick(Level level, BlockPos pos, BlockState state, AdderBlockEntity be) {
         if (level.isClientSide) return;
 
-        Direction facing = state.getValue(AdderBlock.FACING); // Куда смотрит "лицо"
-        Direction outputSide = facing.getOpposite();      // Выход (сзади)
-
-        // Определяем боковые стороны (входы)
+        Direction facing = state.getValue(AdderBlock.FACING);
         Direction left = facing.getCounterClockWise();
         Direction right = facing.getClockWise();
+        Direction outputSide = facing.getOpposite();
 
         long totalSpeed = 0;
         long totalTorque = 0;
+        boolean anyInput = false;
 
-        // Опрашиваем ТОЛЬКО левую и правую стороны
+        // Опрашиваем левую и правую стороны
         for (Direction dir : new Direction[]{left, right}) {
             BlockPos neighborPos = pos.relative(dir);
             BlockEntity neighbor = level.getBlockEntity(neighborPos);
             if (neighbor == null) continue;
 
-            RotationSource src = null;
-            // Проверяем, может ли сосед дать нам энергию в этом направлении
-            if (neighbor instanceof RotationalNode node && node.canProvideSource(dir.getOpposite())) {
-                if (neighbor instanceof Rotational rot) {
-                    src = new RotationSource(rot.getSpeed(), rot.getTorque());
-                }
-            }
-
-            // Если сосед не Rotational, пробуем глубокий поиск источника за ним
-            if (src == null) {
-                src = RotationNetworkHelper.findSource(neighbor, dir.getOpposite());
-            }
-
-            if (src != null) {
+            // Пытаемся найти источник, начиная с соседа, с направления от сумматора к соседу
+            RotationSource src = RotationNetworkHelper.findSource(neighbor, dir.getOpposite());
+            if (src != null && src.speed() > 0) {
                 totalSpeed += src.speed();
                 totalTorque = Math.max(totalTorque, src.torque());
+                anyInput = true;
             }
         }
 
-        // Логика обновления состояния (остается прежней)
+        // Если нет входов, обнуляем
+        if (!anyInput) {
+            totalSpeed = 0;
+            totalTorque = 0;
+        }
+
+        // Обновляем состояние, если изменилось
         boolean changed = false;
-        if (be.speed != totalSpeed) { be.speed = totalSpeed; changed = true; }
-        if (be.torque != totalTorque) { be.torque = totalTorque; changed = true; }
+        if (be.speed != totalSpeed) {
+            be.speed = totalSpeed;
+            changed = true;
+        }
+        if (be.torque != totalTorque) {
+            be.torque = totalTorque;
+            changed = true;
+        }
 
         if (changed) {
-            be.updateCache();
+            // Обновляем кеш для выходной стороны
+            be.setCachedSource(new RotationSource(be.speed, be.torque), level.getGameTime());
             be.setChanged();
             be.sync();
-            be.invalidateNeighborCaches(); // Будим только того, кто на выходе
+            // Инвалидируем кеш у соседа на выходе, чтобы он пересчитал источник
+            be.invalidateNeighborCaches();
         }
     }
 
@@ -167,7 +161,7 @@ public class AdderBlockEntity extends BlockEntity implements RotationalNode {
         super.load(tag);
         speed = tag.getLong("Speed");
         torque = tag.getLong("Torque");
-        cachedSource = null;
+        cachedSource = null; // сброс кеша при загрузке
     }
 
     @Override

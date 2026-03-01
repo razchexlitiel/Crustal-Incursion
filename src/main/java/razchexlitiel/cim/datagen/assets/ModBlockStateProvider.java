@@ -2,9 +2,7 @@ package razchexlitiel.cim.datagen.assets;
 
 import net.minecraft.data.PackOutput;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.SlabBlock;
-import net.minecraft.world.level.block.SnowLayerBlock;
+import net.minecraft.world.level.block.*;
 import net.minecraftforge.client.model.generators.BlockStateProvider;
 import net.minecraftforge.client.model.generators.ModelFile;
 import net.minecraftforge.client.model.generators.VariantBlockStateBuilder;
@@ -14,7 +12,7 @@ import net.minecraftforge.registries.RegistryObject;
 import razchexlitiel.cim.main.CrustalIncursionMod;
 import razchexlitiel.cim.block.basic.ModBlocks;
 import net.minecraft.world.level.block.SlabBlock;
-import net.minecraft.world.level.block.StairBlock;
+
 public class ModBlockStateProvider extends BlockStateProvider {
 
     private final ExistingFileHelper existingFileHelper;
@@ -98,6 +96,11 @@ public class ModBlockStateProvider extends BlockStateProvider {
 
 
 
+        doorBlockWithRenderType((net.minecraft.world.level.block.DoorBlock) ModBlocks.SEQUOIA_DOOR.get(),
+                modLoc("block/sequoia_door_bottom"), modLoc("block/sequoia_door_top"), "cutout");
+
+        trapdoorBlockWithRenderType((net.minecraft.world.level.block.TrapDoorBlock) ModBlocks.SEQUOIA_TRAPDOOR.get(),
+                modLoc("block/sequoia_trapdoor"), true, "cutout");
 
 
         stairsAndSlabs(ModBlocks.CONCRETE.get(), ModBlocks.CONCRETE_STAIRS.get(), ModBlocks.CONCRETE_SLAB.get());
@@ -257,5 +260,22 @@ public class ModBlockStateProvider extends BlockStateProvider {
         simpleBlockItem(block.get(), model);
     }
 
+    private void doorBlockWithItem(RegistryObject<? extends DoorBlock> door, ResourceLocation bottom, ResourceLocation top) {
+        doorBlock(door.get(), bottom, top);
+        ModelFile itemModel = models().withExistingParent(
+                door.getId().getPath(),           // имя модели предмета
+                modLoc("block/" + door.getId().getPath()) // родитель — модель блока
+        );
+        simpleBlockItem(door.get(), itemModel);
+    }
+
+    private void trapdoorBlockWithItem(RegistryObject<? extends TrapDoorBlock> trapdoor, ResourceLocation texture, boolean orientable) {
+        trapdoorBlock(trapdoor.get(), texture, orientable);
+        ModelFile itemModel = models().withExistingParent(
+                trapdoor.getId().getPath(),
+                modLoc("block/" + trapdoor.getId().getPath())
+        );
+        simpleBlockItem(trapdoor.get(), itemModel);
+    }
 
 }
