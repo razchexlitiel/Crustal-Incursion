@@ -162,6 +162,9 @@ public class ModBlocks {
     public static final RegistryObject<Block> ROTATION_METER = registerBlock("rotation_meter",
             () -> new RotationMeterBlock(BlockBehaviour.Properties.copy(Blocks.STONE)
                     .strength(5.0f, 4.0f).requiresCorrectToolForDrops()));
+    public static final RegistryObject<Block> RCONVERTER = registerBlock("rconverter",
+            () -> new RConverterBlock(BlockBehaviour.Properties.copy(Blocks.STONE)
+                    .strength(5.0f, 4.0f).requiresCorrectToolForDrops()));
 
     public static final RegistryObject<Block> SEQUOIA_BARK = registerBlock("sequoia_bark",
             () -> new Block(BlockBehaviour.Properties.copy(Blocks.OAK_PLANKS)));

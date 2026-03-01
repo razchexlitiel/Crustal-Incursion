@@ -29,6 +29,7 @@ import software.bernie.geckolib.animatable.GeoBlockEntity;
 import software.bernie.geckolib.core.animatable.instance.AnimatableInstanceCache;
 import software.bernie.geckolib.core.animation.AnimatableManager;
 import software.bernie.geckolib.core.animation.AnimationController;
+import software.bernie.geckolib.core.animation.AnimationState;
 import software.bernie.geckolib.core.animation.RawAnimation;
 import software.bernie.geckolib.core.object.PlayState;
 import software.bernie.geckolib.util.GeckoLibUtil;
@@ -118,7 +119,10 @@ public class MotorElectroBlockEntity extends BlockEntity implements
     // ========== Тик (Логика) ==========
 
     public static void tick(Level level, BlockPos pos, BlockState state, MotorElectroBlockEntity be) {
-        if (level.isClientSide) return;
+        if (level.isClientSide) {
+            be.handleClientAnimation(); // Добавили обработку анимации на клиенте
+            return;
+        }
 
         if (!be.isSwitchedOn) {
             if (be.speed != 0) {
@@ -130,16 +134,32 @@ public class MotorElectroBlockEntity extends BlockEntity implements
         }
 
         if (be.isGeneratorMode) {
-            be.speed = 0;
-            be.torque = 0;
+            // Оптимизация: используем кеш, как в валах
+            long currentTime = level.getGameTime();
+            if (!be.isCacheValid(currentTime)) {
+                RotationSource source = RotationNetworkHelper.findSource(be, null);
+                be.setCachedSource(source, currentTime);
+            }
 
-            RotationSource src = RotationNetworkHelper.findSource(be, null);
+            RotationSource src = be.getCachedSource();
+            long newSpeed = 0;
+            long newTorque = 0;
+
             if (src != null && src.speed() > 0) {
-                be.lastReceivedRotation = Math.abs(src.speed() * src.torque());
+                newSpeed = src.speed();
+                newTorque = src.torque();
+                be.lastReceivedRotation = Math.abs(newSpeed * newTorque);
                 long generated = (long) ((be.lastReceivedRotation / 20.0) * GEN_EFFICIENCY);
                 be.energyStored = Math.min(be.MAX_ENERGY, be.energyStored + generated);
             } else {
                 be.lastReceivedRotation = 0;
+            }
+
+            // Записываем скорость в be.speed, чтобы она улетела на клиент для анимации
+            if (be.speed != newSpeed || be.torque != newTorque) {
+                be.speed = newSpeed;
+                be.torque = newTorque;
+                be.updateState();
             }
 
             if (be.energyStored > 0) be.pushEnergyToNeighbors();
@@ -158,7 +178,6 @@ public class MotorElectroBlockEntity extends BlockEntity implements
                     be.updateState();
                 }
             } else {
-                // Энергия кончилась — плавно выключаемся, чтобы не стопорить валы
                 be.stopMotor();
                 be.updateState();
             }
@@ -190,7 +209,9 @@ public class MotorElectroBlockEntity extends BlockEntity implements
 
     @Override
     public void invalidateCache() {
-        // Оставляем пустым или вызываем обновление, если мотор зависит от других источников
+        if (this.cachedSource != null) {
+            this.cachedSource = null;
+        }
     }
 
     private void invalidateNeighborCaches() {
@@ -235,10 +256,30 @@ public class MotorElectroBlockEntity extends BlockEntity implements
     @Override public long getMaxSpeed() { return MAX_SPEED; }
     @Override public long getMaxTorque() { return MAX_TORQUE; }
 
-    @Override public @Nullable RotationSource getCachedSource() { return cachedSource; }
+    @Nullable
+    private static RotationSource getDirectSource(BlockEntity neighbor, Direction dir) {
+        if (neighbor instanceof MotorElectroBlockEntity motor) {
+            Direction motorFacing = motor.getBlockState().getValue(MotorElectroBlock.FACING);
+            // ВАЖНО: Если мотор в режиме генератора, он НЕ является источником!
+            if (motorFacing == dir.getOpposite() && !motor.isGeneratorMode()) {
+                return new RotationSource(motor.getSpeed(), motor.getTorque());
+            }
+        } else if (neighbor instanceof WindGenFlugerBlockEntity windGen) {
+            return new RotationSource(windGen.getSpeed(), windGen.getTorque());
+        }
+        return null;
+    }
+
+    @Override
+    public @Nullable RotationSource getCachedSource() {
+        return null;
+    }
+
     @Override public void setCachedSource(@Nullable RotationSource source, long gameTime) { this.cachedSource = source; this.cacheTimestamp = gameTime; }
     @Override public boolean isCacheValid(long currentTime) { return cachedSource != null && (currentTime - cacheTimestamp) <= CACHE_LIFETIME; }
-
+    public boolean isGeneratorMode() {
+        return this.isGeneratorMode;
+    }
     @Override
     public Direction[] getPropagationDirections(@Nullable Direction fromDir) {
         return new Direction[]{getBlockState().getValue(MotorElectroBlock.FACING)};
@@ -336,14 +377,29 @@ public class MotorElectroBlockEntity extends BlockEntity implements
     public ContainerData getDataAccess() { return data; }
 
     // ========== GeckoLib ==========
-
+    private void handleClientAnimation() {
+        float targetSpeed = (speed > 0) ? Math.max(0.1f, speed / 100f) : 0f;
+        if (targetSpeed > 0) {
+            ticksWithoutPower = 0;
+            if (currentAnimationSpeed < targetSpeed) currentAnimationSpeed = Math.min(currentAnimationSpeed + ACCELERATION, targetSpeed);
+            else if (currentAnimationSpeed > targetSpeed) currentAnimationSpeed = Math.max(currentAnimationSpeed - ACCELERATION, targetSpeed);
+        } else {
+            if (currentAnimationSpeed > 0) {
+                ticksWithoutPower++;
+                if (ticksWithoutPower > STOP_DELAY_TICKS) currentAnimationSpeed = Math.max(currentAnimationSpeed - DECELERATION, 0f);
+            } else ticksWithoutPower = 0;
+        }
+    }
     @Override public AnimatableInstanceCache getAnimatableInstanceCache() { return cache; }
-    @Override public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
-        controllers.add(new AnimationController<>(this, "rotation", 5, state -> {
-            if (isSwitchedOn && (isGeneratorMode ? lastReceivedRotation > 0 : speed > 0)) {
-                return state.setAndContinue(RawAnimation.begin().thenLoop("rotation"));
-            }
-            return PlayState.STOP;
-        }));
+    @Override
+    public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
+        controllers.add(new AnimationController<>(this, "rotation", 0, this::animationPredicate));
+    }
+
+    private <E extends GeoBlockEntity> PlayState animationPredicate(AnimationState<E> event) {
+        if (currentAnimationSpeed < MIN_ANIM_SPEED) return PlayState.STOP;
+        event.getController().setAnimation(RawAnimation.begin().thenLoop("rotation"));
+        event.getController().setAnimationSpeed(currentAnimationSpeed);
+        return PlayState.CONTINUE;
     }
 }
