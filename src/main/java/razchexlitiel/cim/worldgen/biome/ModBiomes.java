@@ -1,5 +1,8 @@
-package razchexlitiel.cim.worldgen;
+package razchexlitiel.cim.worldgen.biome;
 
+import net.minecraft.data.worldgen.BiomeDefaultFeatures;
+import net.minecraft.data.worldgen.placement.MiscOverworldPlacements;
+import net.minecraft.data.worldgen.placement.VegetationPlacements;
 import net.minecraft.world.level.levelgen.GenerationStep;
 import razchexlitiel.cim.main.CrustalIncursionMod;
 import net.minecraft.core.registries.Registries;
@@ -11,8 +14,8 @@ import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.biome.BiomeGenerationSettings;
 import net.minecraft.world.level.biome.BiomeSpecialEffects;
 import net.minecraft.world.level.biome.MobSpawnSettings;
+import razchexlitiel.cim.worldgen.ModPlacedFeatures;
 
-// Размещать в: src/main/java/com/smogline/worldgen/biome/ModBiomes.java
 public class ModBiomes {
 
     // 1. Уникальный ключ для нашей красивой рощи
@@ -32,7 +35,33 @@ public class ModBiomes {
         BiomeGenerationSettings.Builder biomeBuilder =
                 new BiomeGenerationSettings.Builder(context.lookup(Registries.PLACED_FEATURE), context.lookup(Registries.CONFIGURED_CARVER));
 
+        BiomeDefaultFeatures.addDefaultCarversAndLakes(biomeBuilder);
+
+        // ШАГ 2: Локальные изменения (Аметисты всегда ДО валунов)
+        BiomeDefaultFeatures.addDefaultCrystalFormations(biomeBuilder);
+        biomeBuilder.addFeature(GenerationStep.Decoration.LOCAL_MODIFICATIONS, MiscOverworldPlacements.FOREST_ROCK);
+
+        // ШАГ 3: Подземные структуры
+        BiomeDefaultFeatures.addDefaultMonsterRoom(biomeBuilder);
+
+        // ШАГ 4: Подземелье и руды
+        BiomeDefaultFeatures.addDefaultUndergroundVariety(biomeBuilder);
+        BiomeDefaultFeatures.addDefaultOres(biomeBuilder);
+        BiomeDefaultFeatures.addDefaultSoftDisks(biomeBuilder);
+
+        // ШАГ 5: Растительность (СТРОЖАЙШИЙ ПОРЯДОК!)
+        // 5.1 Сначала ВСЕГДА идут деревья
         biomeBuilder.addFeature(GenerationStep.Decoration.VEGETAL_DECORATION, ModPlacedFeatures.GIANT_SEQUOIA_PLACED_KEY);
+
+        // 5.2 Затем трава и папоротники
+        BiomeDefaultFeatures.addFerns(biomeBuilder);
+        biomeBuilder.addFeature(GenerationStep.Decoration.VEGETAL_DECORATION, VegetationPlacements.PATCH_GRASS_NORMAL);
+
+        // 5.3 Затем грибы
+        BiomeDefaultFeatures.addDefaultMushrooms(biomeBuilder);
+
+        // 5.4 В самом конце кусты (ягоды)
+        biomeBuilder.addFeature(GenerationStep.Decoration.VEGETAL_DECORATION, VegetationPlacements.PATCH_BERRY_COMMON);
 
         return new Biome.BiomeBuilder()
                 .hasPrecipitation(true)  // Дождь разрешен
@@ -41,12 +70,12 @@ public class ModBiomes {
 
                 // Визуальные эффекты: Делаем красиво
                 .specialEffects(new BiomeSpecialEffects.Builder()
-                        .waterColor(0x3F76E4)         // Классическая чистая вода
-                        .waterFogColor(0x050533)      // Глубокий цвет под водой
+                        .waterColor(4159204)
+                        .waterFogColor(329011)
                         .skyColor(0x78A7FF)           // Ясное, чистое голубое небо
                         .fogColor(0xC0D8FF)           // Легкий, свежий утренний туман
-                        .grassColorOverride(0x3E8E38) // Насыщенный, сочный зеленый цвет травы
-                        .foliageColorOverride(0x3E8E38)// Такой же цвет для ванильной листвы
+                        .grassColorOverride(9219125) // Насыщенный, сочный зеленый цвет травы
+                        .foliageColorOverride(9219125)
                         // Добавляем спокойную музыку из тайги для атмосферы
                         .backgroundMusic(Musics.createGameMusic(net.minecraft.sounds.SoundEvents.MUSIC_BIOME_OLD_GROWTH_TAIGA))
                         .build())

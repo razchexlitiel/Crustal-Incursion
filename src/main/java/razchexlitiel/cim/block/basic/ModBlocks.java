@@ -1,9 +1,13 @@
 package razchexlitiel.cim.block.basic;
 
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
+import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.block.*;
 import net.minecraft.world.level.block.state.BlockBehaviour;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BlockSetType;
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.registries.DeferredRegister;
@@ -176,6 +180,46 @@ public class ModBlocks {
     public static final RegistryObject<Block> SEQUOIA_PLANKS  = registerBlock("sequoia_planks",
             () -> new Block(BlockBehaviour.Properties.copy(Blocks.OAK_PLANKS).strength(0.5f, 4.0f).requiresCorrectToolForDrops()));
 
+    public static final RegistryObject<Block> SEQUOIA_ROOTS  = registerBlock("sequoia_roots",
+            () -> new Block(BlockBehaviour.Properties.copy(Blocks.OAK_PLANKS).strength(0.5f, 4.0f).requiresCorrectToolForDrops()));
+
+    public static final RegistryObject<Block> SEQUOIA_ROOTS_MOSSY  = registerBlock("sequoia_roots_mossy",
+            () -> new Block(BlockBehaviour.Properties.copy(Blocks.OAK_PLANKS).strength(0.5f, 4.0f).requiresCorrectToolForDrops()));
+
+    public static final RegistryObject<Block> SEQUOIA_BARK_DARK = registerBlock("sequoia_bark_dark",
+            () -> new Block(BlockBehaviour.Properties.copy(Blocks.OAK_PLANKS)));
+
+    public static final RegistryObject<Block> SEQUOIA_BARK_LIGHT = registerBlock("sequoia_bark_light",
+            () -> new Block(BlockBehaviour.Properties.copy(Blocks.OAK_PLANKS)));
+
+    public static final RegistryObject<Block> SEQUOIA_BARK_MOSSY = registerBlock("sequoia_bark_mossy",
+            () -> new Block(BlockBehaviour.Properties.copy(Blocks.OAK_PLANKS)));
+
+    public static final RegistryObject<Block> SEQUOIA_BIOME_MOSS = registerBlock("sequoia_biome_moss",
+            () -> new Block(BlockBehaviour.Properties.copy(Blocks.MOSS_BLOCK)));
+
+    public static final RegistryObject<Block> SEQUOIA_LEAVES = registerBlock("sequoia_leaves",
+            () -> new LeavesBlock(BlockBehaviour.Properties.copy(Blocks.SPRUCE_LEAVES)
+                    .noOcclusion() // Прозрачность
+                    .isSuffocating((state, level, pos) -> false)
+                    .isViewBlocking((state, level, pos) -> false)) {
+
+                // --- FORGE WAY: ГОРЮЧЕСТЬ ПРЯМО В БЛОКЕ ---
+                @Override
+                public boolean isFlammable(BlockState state, BlockGetter level, BlockPos pos, Direction direction) {
+                    return true;
+                }
+
+                @Override
+                public int getFlammability(BlockState state, BlockGetter level, BlockPos pos, Direction direction) {
+                    return 60; // Как быстро сгорает
+                }
+
+                @Override
+                public int getFireSpreadSpeed(BlockState state, BlockGetter level, BlockPos pos, Direction direction) {
+                    return 30; // Шанс, что огонь перекинется на этот блок
+                }
+            });
 
     // Вспомогательный метод: регистрирует блок И предмет для него
     private static <T extends Block> RegistryObject<T> registerBlock(String name, Supplier<T> block) {

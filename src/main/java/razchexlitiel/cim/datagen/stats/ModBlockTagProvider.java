@@ -30,5 +30,26 @@ public class ModBlockTagProvider extends BlockTagsProvider {
         // --- ИСКЛЮЧЕНИЯ (Например, топор или лопата) ---
         // tag(BlockTags.MINEABLE_WITH_AXE).add(ModBlocks.WASTE_LOG.get());
         // tag(BlockTags.MINEABLE_WITH_SHOVEL).add(ModBlocks.WASTE_DIRT.get());
+
+        this.tag(BlockTags.LOGS)
+                .add(ModBlocks.SEQUOIA_HEARTWOOD.get())
+                .add(ModBlocks.SEQUOIA_BARK.get())
+                .add(ModBlocks.SEQUOIA_BARK_MOSSY.get())
+                .add(ModBlocks.SEQUOIA_BARK_DARK.get())
+                .add(ModBlocks.SEQUOIA_BARK_LIGHT.get());
+
+        // Опционально: если хочешь, чтобы они горели в печке и от огня
+        this.tag(BlockTags.LOGS_THAT_BURN)
+                .add(ModBlocks.SEQUOIA_HEARTWOOD.get());
+
+        this.tag(BlockTags.DIRT)
+                .add(ModBlocks.SEQUOIA_BIOME_MOSS.get());
+
+        this.tag(BlockTags.LEAVES)
+                .add(ModBlocks.SEQUOIA_LEAVES.get());
+
+        this.tag(BlockTags.MINEABLE_WITH_HOE)
+                .add(ModBlocks.SEQUOIA_LEAVES.get());
+
     }
 }

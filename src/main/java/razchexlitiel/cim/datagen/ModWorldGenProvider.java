@@ -6,7 +6,7 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.data.PackOutput;
 import net.minecraftforge.common.data.DatapackBuiltinEntriesProvider;
 import razchexlitiel.cim.main.CrustalIncursionMod;
-import razchexlitiel.cim.worldgen.ModBiomes;
+import razchexlitiel.cim.worldgen.biome.ModBiomes;
 import razchexlitiel.cim.worldgen.ModConfiguredFeatures;
 import razchexlitiel.cim.worldgen.ModPlacedFeatures;
 

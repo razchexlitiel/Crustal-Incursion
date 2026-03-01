@@ -30,6 +30,14 @@ public class ModBlockStateProvider extends BlockStateProvider {
         cubeAllWithItem(ModBlocks.SEQUOIA_BARK);
         cubeAllWithItem(ModBlocks.SEQUOIA_HEARTWOOD);
 
+        cubeAllWithItem(ModBlocks.SEQUOIA_ROOTS);
+        cubeAllWithItem(ModBlocks.SEQUOIA_ROOTS_MOSSY);
+        cubeAllWithItem(ModBlocks.SEQUOIA_PLANKS);
+        cubeAllWithItem(ModBlocks.SEQUOIA_BARK_DARK);
+        cubeAllWithItem(ModBlocks.SEQUOIA_BARK_LIGHT);
+        cubeAllWithItem(ModBlocks.SEQUOIA_BARK_MOSSY);
+        cubeAllWithItem(ModBlocks.SEQUOIA_BIOME_MOSS);
+
         cubeAllWithItem(ModBlocks.DEPTH_WORM_NEST);
         cubeAllWithItem(ModBlocks.HIVE_SOIL);
         cubeAllWithItem(ModBlocks.SWITCH);

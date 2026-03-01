@@ -42,16 +42,21 @@ public class GiantSequoiaTrunkPlacer extends TrunkPlacer {
         int height = freeTreeHeight;
         int baseRadius = 8;
 
-        for (int y = -10; y < height; y++) {
+        for (int y = -25; y < height; y++) {
             float progress = y > 0 ? (float) y / height : 0f;
-            // Равномерный конус, чтобы ствол худел быстрее и давал место веткам
             float currentRadiusF = baseRadius * (1.0f - progress);
 
+            // Формируем широкую "юбку" у основания
             if (y < 15) {
                 currentRadiusF += (15 - y) * 0.3f;
             }
 
             int currentRadius = Math.max(1, Math.round(currentRadiusF));
+
+            // --- ЗАЩИТА ОТ КРАЕВ ЧАНКА ---
+            // Жестко ограничиваем ширину корней (максимум 14 блоков в радиусе),
+            // чтобы они не обрезались по краям при генерации в глубоких ущельях.
+            currentRadius = Math.min(currentRadius, 14);
 
             for (int x = -currentRadius; x <= currentRadius; x++) {
                 for (int z = -currentRadius; z <= currentRadius; z++) {
@@ -60,15 +65,46 @@ public class GiantSequoiaTrunkPlacer extends TrunkPlacer {
                         boolean isEdge = (x * x + z * z >= (currentRadius - 1.5) * (currentRadius - 1.5));
 
                         if (y < 0) {
+                            // --- КОРНИ (ПОДСТАВКА) ---
+                            // Проверяем, есть ли тут пустота
                             boolean isAirOrReplaceable = level.isStateAtPosition(currentPos, state ->
                                     state.isAir() || state.canBeReplaced() || state.liquid() || state.is(BlockTags.LEAVES));
+
                             if (isAirOrReplaceable) {
-                                blockSetter.accept(currentPos, ModBlocks.SEQUOIA_BARK.get().defaultBlockState());
+                                // Бросаем кубик от 0.0 до 1.0.
+                                // Если выпадает меньше 0.3 (шанс 30%), ставим замшелые корни
+                                if (random.nextFloat() < 0.3f) {
+                                    // ЗАМЕНИ MOSSY_SEQUOIA_ROOTS на точное название твоего блока замшелых корней!
+                                    blockSetter.accept(currentPos, ModBlocks.SEQUOIA_ROOTS_MOSSY.get().defaultBlockState());
+                                } else {
+                                    // Иначе ставим обычные (шанс 70%)
+                                    blockSetter.accept(currentPos, ModBlocks.SEQUOIA_ROOTS.get().defaultBlockState());
+                                }
                             }
                         } else {
+                            // --- СТВОЛ (НАД ЗЕМЛЕЙ) ---
                             if (isEdge) {
-                                blockSetter.accept(currentPos, ModBlocks.SEQUOIA_BARK.get().defaultBlockState());
+                                // Генерируем случайное число для коры
+                                float barkChance = random.nextFloat();
+
+                                // 1. Замшелая кора (спавнится только на нижних 20 блоках с шансом 30%)
+                                if (y < 20 && random.nextFloat() < 0.3f) {
+                                    blockSetter.accept(currentPos, ModBlocks.SEQUOIA_BARK_MOSSY.get().defaultBlockState());
+                                }
+                                // 2. Темная/обгоревшая кора (шанс 15%)
+                                else if (barkChance < 0.15f) {
+                                    blockSetter.accept(currentPos, ModBlocks.SEQUOIA_BARK_DARK.get().defaultBlockState());
+                                }
+                                // 3. Светлая/старая кора (шанс 15%)
+                                else if (barkChance < 0.30f) {
+                                    blockSetter.accept(currentPos, ModBlocks.SEQUOIA_BARK_LIGHT.get().defaultBlockState());
+                                }
+                                // 4. Обычная кора (остальные 70%)
+                                else {
+                                    blockSetter.accept(currentPos, ModBlocks.SEQUOIA_BARK.get().defaultBlockState());
+                                }
                             } else {
+                                // Сердцевина внутри всегда одинаковая
                                 blockSetter.accept(currentPos, ModBlocks.SEQUOIA_HEARTWOOD.get().defaultBlockState());
                             }
                         }

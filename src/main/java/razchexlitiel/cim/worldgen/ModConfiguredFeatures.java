@@ -35,8 +35,8 @@ public class ModConfiguredFeatures {
                 // Базовая высота 80 + рандом(10) + рандом(10) = Дерево будет от 80 до 100 блоков в высоту!
                 new GiantSequoiaTrunkPlacer(150, 10, 10),
 
-                // Блок листвы (Пока юзаем ванильную еловую хвою)
-                BlockStateProvider.simple(Blocks.SPRUCE_LEAVES),
+                // Блок листвы
+                BlockStateProvider.simple(ModBlocks.SEQUOIA_LEAVES.get()),
 
                 // Наш кастомный алгоритм листвы:
                 // Радиус шапки 3 блока, смещение 0

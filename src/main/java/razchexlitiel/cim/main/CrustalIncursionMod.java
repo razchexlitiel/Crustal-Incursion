@@ -31,6 +31,7 @@ import razchexlitiel.cim.item.fekal_electric.ModBatteryItem;
 import razchexlitiel.cim.menu.ModMenuTypes;
 import razchexlitiel.cim.network.ModPacketHandler;
 import razchexlitiel.cim.sound.ModSounds;
+import razchexlitiel.cim.worldgen.biome.ModSurfaceRules;
 import razchexlitiel.cim.worldgen.biome.terrablender.ModOverworldRegion;
 import razchexlitiel.cim.worldgen.tree.custom.ModFoliagePlacerTypes;
 import razchexlitiel.cim.worldgen.tree.custom.ModTrunkPlacerTypes;
@@ -38,6 +39,7 @@ import software.bernie.geckolib.GeckoLib;
 
 import razchexlitiel.cim.item.ModItems;
 import terrablender.api.Regions;
+import terrablender.api.SurfaceRuleManager;
 
 import java.util.List;
 
@@ -77,6 +79,7 @@ public class CrustalIncursionMod {
         event.enqueueWork(() -> {
             ModPacketHandler.register();
             Regions.register(new ModOverworldRegion(new ResourceLocation(MOD_ID, "overworld"), 5));
+            SurfaceRuleManager.addSurfaceRules(SurfaceRuleManager.RuleCategory.OVERWORLD, "cim", ModSurfaceRules.makeRules());
         });
     }
 

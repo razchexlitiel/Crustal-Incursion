@@ -10,7 +10,7 @@ import terrablender.api.ParameterUtils;
 import terrablender.api.Region;
 import terrablender.api.RegionType;
 import terrablender.api.VanillaParameterOverlayBuilder;
-import razchexlitiel.cim.worldgen.ModBiomes; // Импорт твоего ключа биома
+import razchexlitiel.cim.worldgen.biome.ModBiomes; // Импорт твоего ключа биома
 
 import java.util.function.Consumer;
 
@@ -23,16 +23,21 @@ public class ModOverworldRegion extends Region {
 
     @Override
     public void addBiomes(Registry<Biome> registry, Consumer<Pair<Climate.ParameterPoint, ResourceKey<Biome>>> mapper) {
-        // Используем строитель, чтобы аккуратно наложить наш биом поверх ванильной карты
         VanillaParameterOverlayBuilder builder = new VanillaParameterOverlayBuilder();
 
-        // Задаем климат для Рощи Секвой: Прохладно и Влажно
+        // Задаем климат для Рощи Секвой: Расширяем рамки для гигантов!
         new ParameterUtils.ParameterPointListBuilder()
-                .temperature(ParameterUtils.Temperature.span(ParameterUtils.Temperature.COOL, ParameterUtils.Temperature.NEUTRAL))
+                // --- ИЗМЕНЕНИЕ 1: ТЕМПЕРАТУРА ---
+                // Расширяем от ICY (холод в небесах) до NEUTRAL (на земле)
+                .temperature(ParameterUtils.Temperature.span(ParameterUtils.Temperature.ICY, ParameterUtils.Temperature.NEUTRAL))
+
                 .humidity(ParameterUtils.Humidity.span(ParameterUtils.Humidity.WET, ParameterUtils.Humidity.HUMID))
                 .continentalness(ParameterUtils.Continentalness.span(ParameterUtils.Continentalness.INLAND, ParameterUtils.Continentalness.FAR_INLAND))
                 .erosion(ParameterUtils.Erosion.span(ParameterUtils.Erosion.EROSION_0, ParameterUtils.Erosion.EROSION_1))
-                .depth(ParameterUtils.Depth.SURFACE) // Спавним только на поверхности
+
+                // --- ИЗМЕНЕНИЕ 2: ГЛУБИНА ---
+                // Делаем биом сплошным от бедрока (UNDERGROUND) до небес (SURFACE)
+                .depth(Climate.Parameter.span(-1.5F, 0.25F))
                 .weirdness(ParameterUtils.Weirdness.span(ParameterUtils.Weirdness.MID_SLICE_NORMAL_ASCENDING, ParameterUtils.Weirdness.HIGH_SLICE_NORMAL_DESCENDING))
                 .build().forEach(point -> builder.add(point, ModBiomes.SEQUOIA_GROVE));
 
