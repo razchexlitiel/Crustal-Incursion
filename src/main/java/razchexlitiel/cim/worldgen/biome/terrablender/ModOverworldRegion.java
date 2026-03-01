@@ -37,7 +37,7 @@ public class ModOverworldRegion extends Region {
 
                 // --- ИЗМЕНЕНИЕ 2: ГЛУБИНА ---
                 // Делаем биом сплошным от бедрока (UNDERGROUND) до небес (SURFACE)
-                .depth(ParameterUtils.Depth.span(ParameterUtils.Depth.SURFACE, ParameterUtils.Depth.UNDERGROUND))
+                .depth(Climate.Parameter.span(-1.5F, 0.25F))
                 .weirdness(ParameterUtils.Weirdness.span(ParameterUtils.Weirdness.MID_SLICE_NORMAL_ASCENDING, ParameterUtils.Weirdness.HIGH_SLICE_NORMAL_DESCENDING))
                 .build().forEach(point -> builder.add(point, ModBiomes.SEQUOIA_GROVE));
 
