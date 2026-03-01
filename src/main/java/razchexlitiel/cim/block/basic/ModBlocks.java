@@ -19,8 +19,9 @@ import razchexlitiel.cim.block.basic.energy.MachineBatteryBlock;
 import razchexlitiel.cim.block.basic.energy.SwitchBlock;
 import razchexlitiel.cim.block.basic.energy.WireBlock;
 import razchexlitiel.cim.block.basic.explosives.DetMinerBlock;
-import razchexlitiel.cim.block.basic.hive.DepthWormNestBlock;
-import razchexlitiel.cim.block.basic.hive.HiveSoilBlock;
+import razchexlitiel.cim.block.basic.necrosis.NecrosisPortalBlock;
+import razchexlitiel.cim.block.basic.necrosis.hive.DepthWormNestBlock;
+import razchexlitiel.cim.block.basic.necrosis.hive.HiveSoilBlock;
 import razchexlitiel.cim.block.basic.rotation.*;
 import razchexlitiel.cim.block.basic.weapons.TurretLightPlacerBlock;
 import razchexlitiel.cim.item.fekal_electric.MachineBatteryBlockItem;
@@ -100,6 +101,10 @@ public class ModBlocks {
     public static final RegistryObject<Block> NECROSIS_TEST4 = registerBlock("necrosis_test4",
             () -> new Block(BlockBehaviour.Properties.of()
                     .strength(0.5F, 6.0F).sound(SoundType.STONE).requiresCorrectToolForDrops()));
+    public static final RegistryObject<Block> NECROSIS_PORTAL = registerBlock("necrosis_portal",
+            () -> new NecrosisPortalBlock(BlockBehaviour.Properties.of()
+                    .strength(0.5F, 6.0F).sound(SoundType.STONE).requiresCorrectToolForDrops()));
+
     public static final RegistryObject<Block> WASTE_LOG = registerBlock("waste_log",
             () -> new FullOBlock(BlockBehaviour.Properties.copy(Blocks.OAK_WOOD).sound(SoundType.WOOD)));
 

@@ -1,0 +1,38 @@
+{
+  "default_block": { "Name": "cim:necrosis_test4" },
+  "default_fluid": { "Name": "minecraft:air" },
+  "sea_level": 600,
+  "disable_mob_generation": false,
+  "aquifers_enabled": false,
+  "ore_veins_enabled": false,
+  "legacy_random_source": false,
+  "noise": {
+    "min_y": -64,
+    "height": 768,
+    "size_horizontal": 1,
+    "size_vertical": 2
+  },
+  "noise_router": {
+    "barrier": 0.0,
+    "fluid_level_floodedness": -1.0,
+    "fluid_level_spread": 0.0,
+    "lava": 0.0,
+    "temperature": 0.5,
+    "vegetation": 0.5,
+    "continents": 0.0,
+    "erosion": 0.0,
+    "depth": 0.0,
+    "weirdness": 0.0,
+    "initial_density_without_jaggedness": 1.0,
+    "final_density": "cim:membrane_layer",
+    "vein_toggle": 0.0,
+    "vein_ridged": 0.0,
+    "vein_gap": 0.0,
+    "ridges": 0.0
+  },
+  "spawn_target": [],
+  "surface_rule": {
+    "type": "minecraft:block",
+    "result_state": { "Name": "cim:necrosis_test4" }
+  }
+}
