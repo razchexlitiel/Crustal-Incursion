@@ -19,17 +19,17 @@ public class ModSurfaceRules {
 
         // --- МАГИЯ ШУМА: Создаем реалистичные пятна на земле ---
         SurfaceRules.RuleSource groundMix = SurfaceRules.sequence(
-                // Если шум от -0.9 до -0.5: Генерируем полянки Мха
-                SurfaceRules.ifTrue(SurfaceRules.noiseCondition(Noises.SURFACE, -0.9D, -0.5D), makeStateRule(Blocks.MOSS_BLOCK)),
+                // От -1.0 до -0.3: Крупные полянки твоего кастомного мха/хвои
+                SurfaceRules.ifTrue(SurfaceRules.noiseCondition(Noises.SURFACE, -1.0D, -0.3D), makeStateRule(ModBlocks.SEQUOIA_BIOME_MOSS.get())),
 
-                // Если шум от -0.2 до 0.2: Генерируем "тропинки" из Каменистой земли
-                SurfaceRules.ifTrue(SurfaceRules.noiseCondition(Noises.SURFACE, -0.2D, 0.2D), makeStateRule(Blocks.COARSE_DIRT)),
+                // От -0.3 до 0.2: Пятна ванильного мха
+                SurfaceRules.ifTrue(SurfaceRules.noiseCondition(Noises.SURFACE, -0.3D, 0.2D), makeStateRule(Blocks.MOSS_BLOCK)),
 
-                // Если шум от 0.5 до 0.9: Генерируем островки Подзола
-                SurfaceRules.ifTrue(SurfaceRules.noiseCondition(Noises.SURFACE, 0.5D, 0.9D), makeStateRule(Blocks.PODZOL)),
+                // От 0.2 до 0.6: Островки подзола
+                SurfaceRules.ifTrue(SurfaceRules.noiseCondition(Noises.SURFACE, 0.2D, 0.6D), makeStateRule(Blocks.PODZOL)),
 
-                // Всё остальное пространство (фон) — заливаем твоей кастомной хвоей!
-                makeStateRule(ModBlocks.SEQUOIA_BIOME_MOSS.get())
+                // Всё остальное (фон) заливаем сочным дёрном!
+                makeStateRule(Blocks.GRASS_BLOCK)
         );
 
         SurfaceRules.RuleSource sequoiaSurface = SurfaceRules.sequence(

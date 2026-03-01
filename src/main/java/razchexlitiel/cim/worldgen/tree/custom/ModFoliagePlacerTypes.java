@@ -19,6 +19,14 @@ public class ModFoliagePlacerTypes {
             FOLIAGE_PLACER_TYPES.register("giant_sequoia_foliage_placer",
                     () -> new FoliagePlacerType<>(GiantSequoiaFoliagePlacer.CODEC));
 
+    public static final RegistryObject<FoliagePlacerType<MiniSequoiaFoliagePlacer>> MINI_SEQUOIA_FOLIAGE_PLACER =
+            FOLIAGE_PLACER_TYPES.register("mini_sequoia_foliage_placer",
+                    () -> new FoliagePlacerType<>(MiniSequoiaFoliagePlacer.CODEC));
+
+    public static final RegistryObject<FoliagePlacerType<MediumSequoiaFoliagePlacer>> MEDIUM_SEQUOIA_FOLIAGE_PLACER =
+            FOLIAGE_PLACER_TYPES.register("medium_sequoia_foliage_placer",
+                    () -> new FoliagePlacerType<>(MediumSequoiaFoliagePlacer.CODEC));
+
     public static void register(IEventBus eventBus) {
         FOLIAGE_PLACER_TYPES.register(eventBus);
     }
