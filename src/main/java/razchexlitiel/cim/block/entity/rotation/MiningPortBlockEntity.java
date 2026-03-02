@@ -6,6 +6,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientGamePacketListener;
 import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraftforge.common.capabilities.Capability;
@@ -28,7 +29,6 @@ public class MiningPortBlockEntity extends BlockEntity implements RotationalNode
     private long cacheTimestamp;
     private static final long CACHE_LIFETIME = 10;
 
-    // Инвентарь для лута (например, 9 слотов)
     private final ItemStackHandler inventory = new ItemStackHandler(9) {
         @Override
         protected void onContentsChanged(int slot) {
@@ -77,18 +77,26 @@ public class MiningPortBlockEntity extends BlockEntity implements RotationalNode
     }
     @Override
     public Direction[] getPropagationDirections(@Nullable Direction fromDir) {
-        // Пока пусто (позже может передавать вращение, если нужно)
         return new Direction[0];
     }
 
+    // Метод для добавления предметов (вызывается из головки)
+    public ItemStack addItem(ItemStack stack) {
+        ItemStack remainder = stack.copy();
+        for (int i = 0; i < inventory.getSlots(); i++) {
+            remainder = inventory.insertItem(i, remainder, false);
+            if (remainder.isEmpty()) break;
+        }
+        if (remainder.getCount() != stack.getCount()) {
+            setChanged();
+            sync();
+        }
+        return remainder;
+    }
 
-    // NBT & sync
-
-
-    // Метод доступа:
     public IItemHandler getInventory() { return inventory; }
 
-    // Capability:
+    // Capability
     @Override
     public @NotNull <T> LazyOptional<T> getCapability(@NotNull Capability<T> cap, @Nullable Direction side) {
         if (cap == ForgeCapabilities.ITEM_HANDLER) {
@@ -103,7 +111,7 @@ public class MiningPortBlockEntity extends BlockEntity implements RotationalNode
         inventoryOptional.invalidate();
     }
 
-    // Сохранение/загрузка:
+    // NBT
     @Override
     protected void saveAdditional(CompoundTag tag) {
         super.saveAdditional(tag);

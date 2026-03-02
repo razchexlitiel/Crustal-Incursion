@@ -6,10 +6,15 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientGamePacketListener;
 import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.Containers;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import org.jetbrains.annotations.Nullable;
+import razchexlitiel.cim.api.rotation.RotationNetworkHelper;
 import razchexlitiel.cim.api.rotation.RotationSource;
 import razchexlitiel.cim.api.rotation.RotationalNode;
 import razchexlitiel.cim.block.basic.rotation.DrillHeadBlock;
@@ -19,6 +24,8 @@ import software.bernie.geckolib.core.animatable.instance.AnimatableInstanceCache
 import software.bernie.geckolib.core.animation.*;
 import software.bernie.geckolib.core.object.PlayState;
 import software.bernie.geckolib.util.GeckoLibUtil;
+
+import java.util.List;
 
 public class DrillHeadBlockEntity extends BlockEntity implements GeoBlockEntity, RotationalNode {
 
@@ -30,7 +37,6 @@ public class DrillHeadBlockEntity extends BlockEntity implements GeoBlockEntity,
     private long cacheTimestamp;
     private static final long CACHE_LIFETIME = 10;
 
-    // Анимация (как у вала)
     private float currentAnimationSpeed = 0f;
     private static final float ACCELERATION = 0.1f;
     private static final float DECELERATION = 0.03f;
@@ -39,9 +45,21 @@ public class DrillHeadBlockEntity extends BlockEntity implements GeoBlockEntity,
     private int ticksWithoutPower = 0;
     private static final RawAnimation ROTATION = RawAnimation.begin().thenLoop("rotation");
 
+    @Nullable
+    private BlockPos placerPos; // позиция разместителя, который обслуживает эту головку
+
     public DrillHeadBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.DRILL_HEAD_BE.get(), pos, state);
     }
+
+    public void setPlacerPos(BlockPos pos) {
+        this.placerPos = pos;
+        setChanged();
+        sync();
+    }
+
+    @Nullable
+    public BlockPos getPlacerPos() { return placerPos; }
 
     // Rotational
     @Override public long getSpeed() { return speed; }
@@ -81,15 +99,12 @@ public class DrillHeadBlockEntity extends BlockEntity implements GeoBlockEntity,
     public Direction[] getPropagationDirections(@Nullable Direction fromDir) {
         Direction myFacing = getBlockState().getValue(DrillHeadBlock.FACING);
         if (fromDir != null) {
-            // Если запрос пришёл с направления, которое является нашей задней стороной (противоположно FACING) или передней (FACING),
-            // то мы можем передать дальше в противоположном направлении.
             if (fromDir == myFacing || fromDir == myFacing.getOpposite()) {
                 return new Direction[]{fromDir.getOpposite()};
             } else {
                 return new Direction[0];
             }
         } else {
-            // При запросе без направления (начало поиска) возвращаем оба направления
             return new Direction[]{myFacing, myFacing.getOpposite()};
         }
     }
@@ -102,10 +117,10 @@ public class DrillHeadBlockEntity extends BlockEntity implements GeoBlockEntity,
         }
         long currentTime = level.getGameTime();
         if (!be.isCacheValid(currentTime)) {
-            // Поиск источника (позже будет через RotationNetworkHelper)
-            // Пока оставляем заглушку
-            be.setCachedSource(null, currentTime);
+            RotationSource source = RotationNetworkHelper.findSource(be, null);
+            be.setCachedSource(source, currentTime);
         }
+
         RotationSource src = be.getCachedSource();
         long newSpeed = (src != null) ? src.speed() : 0;
         long newTorque = (src != null) ? src.torque() : 0;
@@ -115,6 +130,10 @@ public class DrillHeadBlockEntity extends BlockEntity implements GeoBlockEntity,
             be.setChanged();
             be.sync();
             be.invalidateNeighborCaches();
+        }
+
+        if (be.speed > 0) {
+            be.tryBreakBlock(level, pos, state);
         }
     }
 
@@ -132,6 +151,72 @@ public class DrillHeadBlockEntity extends BlockEntity implements GeoBlockEntity,
         }
     }
 
+    private void tryBreakBlock(Level level, BlockPos pos, BlockState state) {
+        Direction facing = state.getValue(DrillHeadBlock.FACING);
+        BlockPos breakPos = pos.relative(facing);
+        BlockState targetState = level.getBlockState(breakPos);
+
+        if (targetState.isAir() || targetState.canBeReplaced()) return;
+
+        float hardness = targetState.getDestroySpeed(level, breakPos);
+        if (hardness < 0 || hardness > 50) return;
+
+        if (!level.isClientSide) {
+            List<ItemStack> drops = Block.getDrops(targetState, (ServerLevel) level, breakPos, level.getBlockEntity(breakPos));
+            level.destroyBlock(breakPos, false);
+
+            boolean inserted = false;
+            if (placerPos != null && level.getBlockEntity(placerPos) instanceof ShaftPlacerBlockEntity placer) {
+                BlockPos portPos = placer.getMiningPortPos();
+                if (portPos != null && level.getBlockEntity(portPos) instanceof MiningPortBlockEntity port) {
+                    for (ItemStack stack : drops) {
+                        ItemStack remainder = port.addItem(stack);
+                        if (!remainder.isEmpty()) {
+                            Containers.dropItemStack(level, breakPos.getX() + 0.5, breakPos.getY() + 0.5, breakPos.getZ() + 0.5, remainder);
+                        }
+                    }
+                    inserted = true;
+                }
+            }
+            if (!inserted) {
+                for (ItemStack stack : drops) {
+                    Containers.dropItemStack(level, breakPos.getX() + 0.5, breakPos.getY() + 0.5, breakPos.getZ() + 0.5, stack);
+                }
+            }
+
+            // Перемещаем головку вперёд
+            moveForward(level, pos, state);
+        }
+    }
+
+    private void moveForward(Level level, BlockPos oldPos, BlockState oldState) {
+        Direction facing = oldState.getValue(DrillHeadBlock.FACING);
+        BlockPos newPos = oldPos.relative(facing);
+
+        // Сохраняем данные
+        long currentSpeed = this.speed;
+        long currentTorque = this.torque;
+        BlockPos currentPlacerPos = this.placerPos;
+
+        // Удаляем старую головку
+        level.removeBlock(oldPos, false);
+
+        // Устанавливаем новую головку
+        BlockState newState = oldState.setValue(DrillHeadBlock.FACING, facing);
+        level.setBlock(newPos, newState, 3);
+        BlockEntity newBe = level.getBlockEntity(newPos);
+        if (newBe instanceof DrillHeadBlockEntity newDrill) {
+            newDrill.setSpeed(currentSpeed);
+            newDrill.setTorque(currentTorque);
+            newDrill.setPlacerPos(currentPlacerPos);
+        }
+
+        // Сообщаем разместителю поставить вал на старую позицию
+        if (currentPlacerPos != null && level.getBlockEntity(currentPlacerPos) instanceof ShaftPlacerBlockEntity placer) {
+            placer.placeShaftAt(oldPos, facing.getOpposite());
+        }
+    }
+
     // GeckoLib
     @Override
     public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
@@ -145,12 +230,15 @@ public class DrillHeadBlockEntity extends BlockEntity implements GeoBlockEntity,
     }
     @Override public AnimatableInstanceCache getAnimatableInstanceCache() { return cache; }
 
-    // NBT & sync
+    // NBT
     @Override
     protected void saveAdditional(CompoundTag tag) {
         super.saveAdditional(tag);
         tag.putLong("Speed", speed);
         tag.putLong("Torque", torque);
+        if (placerPos != null) {
+            tag.putLong("PlacerPos", placerPos.asLong());
+        }
     }
     @Override
     public void load(CompoundTag tag) {
@@ -158,6 +246,11 @@ public class DrillHeadBlockEntity extends BlockEntity implements GeoBlockEntity,
         speed = tag.getLong("Speed");
         torque = tag.getLong("Torque");
         cachedSource = null;
+        if (tag.contains("PlacerPos")) {
+            placerPos = BlockPos.of(tag.getLong("PlacerPos"));
+        } else {
+            placerPos = null;
+        }
     }
     @Override
     public CompoundTag getUpdateTag() {
