@@ -98,6 +98,18 @@ public class ModBlockEntities {
             BLOCK_ENTITIES.register("gear_port_be",
                     () -> BlockEntityType.Builder.of(GearPortBlockEntity::new, ModBlocks.GEAR_PORT.get()).build(null));
 
+    public static final RegistryObject<BlockEntityType<ShaftPlacerBlockEntity>> SHAFT_PLACER_BE =
+            BLOCK_ENTITIES.register("shaft_placer_be",
+                    () -> BlockEntityType.Builder.of(ShaftPlacerBlockEntity::new, ModBlocks.SHAFT_PLACER.get()).build(null));
+
+    public static final RegistryObject<BlockEntityType<DrillHeadBlockEntity>> DRILL_HEAD_BE =
+            BLOCK_ENTITIES.register("drill_head_be",
+                    () -> BlockEntityType.Builder.of(DrillHeadBlockEntity::new, ModBlocks.DRILL_HEAD.get()).build(null));
+
+    public static final RegistryObject<BlockEntityType<MiningPortBlockEntity>> MINING_PORT_BE =
+            BLOCK_ENTITIES.register("mining_port_be",
+                    () -> BlockEntityType.Builder.of(MiningPortBlockEntity::new, ModBlocks.MINING_PORT.get()).build(null));
+
     public static final RegistryObject<BlockEntityType<MotorElectroBlockEntity>> MOTOR_ELECTRO_BE =
             BLOCK_ENTITIES.register("motor_electro_be",
                     () -> BlockEntityType.Builder.of(MotorElectroBlockEntity::new, ModBlocks.MOTOR_ELECTRO.get()).build(null));

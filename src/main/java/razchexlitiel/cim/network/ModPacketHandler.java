@@ -16,6 +16,7 @@ import razchexlitiel.cim.network.packet.guns.PacketShoot;
 import razchexlitiel.cim.network.packet.guns.PacketUnloadGun;
 import razchexlitiel.cim.network.packet.rotation.PacketToggleMotor;
 import razchexlitiel.cim.network.packet.rotation.PacketToggleMotorMode;
+import razchexlitiel.cim.network.packet.rotation.PacketToggleShaftPlacer;
 import razchexlitiel.cim.network.packet.turrets.PacketChipFeedback;
 import razchexlitiel.cim.network.packet.turrets.PacketModifyTurretChip;
 import razchexlitiel.cim.network.packet.turrets.PacketToggleTurret;
@@ -135,6 +136,12 @@ public class ModPacketHandler {
                 SyncPointPacket::handle
         );
 
+        INSTANCE.registerMessage(id++,
+                PacketToggleShaftPlacer.class,
+                PacketToggleShaftPlacer::encode,
+                PacketToggleShaftPlacer::decode,
+                PacketToggleShaftPlacer::handle
+        );
 
     }
 }

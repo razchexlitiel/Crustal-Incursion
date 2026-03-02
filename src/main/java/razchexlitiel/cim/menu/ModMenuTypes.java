@@ -25,6 +25,14 @@ public class ModMenuTypes {
                 return new TurretLightMenu(windowId, inv, data);
             }));
 
+    public static final RegistryObject<MenuType<ShaftPlacerMenu>> SHAFT_PLACER_MENU =
+            MENUS.register("shaft_placer_menu",
+                    () -> IForgeMenuType.create(ShaftPlacerMenu::new));
+
+    public static final RegistryObject<MenuType<MiningPortMenu>> MINING_PORT_MENU =
+            MENUS.register("mining_port_menu",
+                    () -> IForgeMenuType.create(MiningPortMenu::new));
+
     public static void register(IEventBus eventBus) {
         MENUS.register(eventBus);
     }

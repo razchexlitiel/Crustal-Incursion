@@ -13,10 +13,7 @@ import razchexlitiel.cim.item.fekal_electric.ItemCreativeBattery;
 import razchexlitiel.cim.item.fekal_electric.ModBatteryItem;
 import razchexlitiel.cim.item.guns.MachineGunItem;
 import razchexlitiel.cim.item.mobs.DepthWormSpawnEggItem;
-import razchexlitiel.cim.item.rotation.MotorElectroBlockItem;
-import razchexlitiel.cim.item.rotation.ScrewdriverItem;
-import razchexlitiel.cim.item.rotation.ShaftBlockItem;
-import razchexlitiel.cim.item.rotation.WindGenFlugerBlockItem;
+import razchexlitiel.cim.item.rotation.*;
 import razchexlitiel.cim.item.weapons.ammo.AmmoTurretItem;
 import razchexlitiel.cim.item.weapons.turrets.TurretChipItem;
 import razchexlitiel.cim.item.weapons.turrets.TurretLightPortativePlacer;
@@ -64,6 +61,8 @@ public class ModItems {
             () -> new ShaftBlockItem(ModBlocks.SHAFT_WOODEN.get(), new Item.Properties()));
     public static final RegistryObject<Item> TURRET_LIGHT_PLACER_ITEM = ITEMS.register("turret_light_placer",
             () -> new TurretLightPlacerBlockItem(ModBlocks.TURRET_LIGHT_PLACER.get(), new Item.Properties()));
+    public static final RegistryObject<Item> DRILL_HEAD_ITEM = ITEMS.register("drill_head_item",
+            () -> new DrillHeadItem(ModBlocks.DRILL_HEAD.get(), new Item.Properties()));
 
 
     //ПАТОРОНЫ

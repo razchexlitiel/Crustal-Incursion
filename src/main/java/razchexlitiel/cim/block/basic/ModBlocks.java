@@ -104,7 +104,6 @@ public class ModBlocks {
     public static final RegistryObject<Block> NECROSIS_PORTAL = registerBlock("necrosis_portal",
             () -> new NecrosisPortalBlock(BlockBehaviour.Properties.of()
                     .strength(0.5F, 6.0F).sound(SoundType.STONE).requiresCorrectToolForDrops()));
-
     public static final RegistryObject<Block> WASTE_LOG = registerBlock("waste_log",
             () -> new FullOBlock(BlockBehaviour.Properties.copy(Blocks.OAK_WOOD).sound(SoundType.WOOD)));
 
@@ -158,6 +157,10 @@ public class ModBlocks {
 
 
     //БЛОКИ-ВРАЩЕНИЯ
+    public static final RegistryObject<Block> DRILL_HEAD = BLOCKS.register("drill_head",
+            () -> new DrillHeadBlock(BlockBehaviour.Properties.copy(Blocks.IRON_BLOCK)
+                    .strength(3.0f, 4.0f).noOcclusion().requiresCorrectToolForDrops()));
+
     public static final RegistryObject<Block> MOTOR_ELECTRO = BLOCKS.register("motor_electro",
             () -> new MotorElectroBlock(BlockBehaviour.Properties.copy(Blocks.IRON_BLOCK)
                     .strength(3.0f, 4.0f).noOcclusion().requiresCorrectToolForDrops()));
@@ -194,6 +197,13 @@ public class ModBlocks {
     public static final RegistryObject<Block> RCONVERTER = registerBlock("rconverter",
             () -> new RConverterBlock(BlockBehaviour.Properties.copy(Blocks.STONE)
                     .strength(5.0f, 4.0f).requiresCorrectToolForDrops()));
+    public static final RegistryObject<Block> SHAFT_PLACER = registerBlock("shaft_placer",
+            () -> new ShaftPlacerBlock(BlockBehaviour.Properties.copy(Blocks.STONE)
+                    .strength(5.0f, 4.0f).requiresCorrectToolForDrops()));
+    public static final RegistryObject<Block> MINING_PORT = registerBlock("mining_port",
+            () -> new MiningPortBlock(BlockBehaviour.Properties.copy(Blocks.STONE)
+                    .strength(5.0f, 4.0f).requiresCorrectToolForDrops()));
+
 
     //СИКВОЯ
     public static final RegistryObject<Block> SEQUOIA_BARK = registerBlock("sequoia_bark",

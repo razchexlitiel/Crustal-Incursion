@@ -145,6 +145,7 @@ public class CrustalIncursionMod {
 
             event.accept(ModBlocks.SHAFT_WOODEN);
             event.accept(ModBlocks.SHAFT_IRON);
+            event.accept(ModBlocks.DRILL_HEAD);
             event.accept(ModBlocks.MOTOR_ELECTRO);
             event.accept(ModBlocks.WIND_GEN_FLUGER);
             event.accept(ModBlocks.GEAR_PORT);
@@ -153,6 +154,8 @@ public class CrustalIncursionMod {
             event.accept(ModBlocks.STOPPER);
             event.accept(ModBlocks.TACHOMETER);
             event.accept(ModBlocks.ROTATION_METER);
+            event.accept(ModBlocks.SHAFT_PLACER);
+            event.accept(ModBlocks.MINING_PORT);
 
             event.accept(ModItems.CREATIVE_BATTERY);
             event.accept(ModBlocks.MACHINE_BATTERY);

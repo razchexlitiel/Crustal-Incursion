@@ -34,7 +34,14 @@ public class GearPortBlockEntity extends BlockEntity implements RotationalNode {
     public GearPortBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.GEAR_PORT_BE.get(), pos, state);
     }
-
+    // GearPortBlockEntity.java (добавить в конец класса)
+    public void setupPorts(Direction incoming, Direction outgoing) {
+        this.firstPort = incoming;
+        this.secondPort = outgoing;
+        setChanged();
+        sync();
+        invalidateCache();
+    }
     /**
      * Логика отвертки:
      * ПКМ -> Установить/снять ПЕРВЫЙ порт
