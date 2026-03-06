@@ -77,14 +77,6 @@ public class WireBlockEntity extends BlockEntity implements IEnergyConnector {
         }
     }
 
-    @Override
-    public void onChunkUnloaded() {
-        super.onChunkUnloaded();
-        // [ВАЖНО!] Также сообщаем при выгрузке чанка
-        if (this.level != null && !this.level.isClientSide) {
-            EnergyNetworkManager.get((ServerLevel) this.level).removeNode(this.getBlockPos());
-        }
-    }
 
     // И при загрузке/установке блока:
     @Override

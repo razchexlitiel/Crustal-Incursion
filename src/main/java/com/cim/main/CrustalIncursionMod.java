@@ -85,21 +85,6 @@ public class CrustalIncursionMod {
         });
     }
 
-    @SubscribeEvent
-    public static void onServerTick(TickEvent.ServerTickEvent event) {
-        if (event.phase == TickEvent.Phase.END) {
-            ServerLevel level = event.getServer().overworld(); // или через все миры
-            EnergyNetworkManager.get(level).tick();
-        }
-    }
-
-    @SubscribeEvent
-    public static void onServerWorldLoad(LevelEvent.Load event) {
-        if (event.getLevel() instanceof ServerLevel serverLevel) {
-            EnergyNetworkManager.get(serverLevel).rebuildAllNetworks();
-        }
-    }
-
     private void addCreative(BuildCreativeModeTabContentsEvent event) {
         // Логгирование для отладки
         LOGGER.info("Building creative tab contents for: " + event.getTabKey());

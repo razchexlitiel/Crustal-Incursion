@@ -1,5 +1,6 @@
 package com.cim.block.entity.rotation;
 
+import com.cim.api.energy.EnergyNetworkManager;
 import com.cim.block.basic.rotation.*;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -7,6 +8,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientGamePacketListener;
 import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.inventory.ContainerData;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
@@ -208,6 +210,11 @@ public class ShaftPlacerBlockEntity extends BlockEntity implements RotationalNod
     // ========== Тикер ==========
     public static void tick(Level level, BlockPos pos, BlockState state, ShaftPlacerBlockEntity be) {
         if (level.isClientSide) return;
+
+        EnergyNetworkManager manager = EnergyNetworkManager.get((ServerLevel) level);
+        if (!manager.hasNode(pos)) {
+            manager.addNode(pos);
+        }
 
         long currentTime = level.getGameTime();
 
@@ -566,6 +573,14 @@ public class ShaftPlacerBlockEntity extends BlockEntity implements RotationalNod
     private void sync() {
         if (level != null && !level.isClientSide) {
             level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), 3);
+        }
+    }
+
+    @Override
+    public void setRemoved() {
+        super.setRemoved();
+        if (this.level != null && !this.level.isClientSide) {
+            EnergyNetworkManager.get((ServerLevel) this.level).removeNode(this.getBlockPos());
         }
     }
 }

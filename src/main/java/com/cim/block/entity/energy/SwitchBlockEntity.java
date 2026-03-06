@@ -92,11 +92,4 @@ public class SwitchBlockEntity extends BlockEntity implements IEnergyConnector {
         hbmConnector.invalidate();
     }
 
-    @Override
-    public void onChunkUnloaded() {
-        super.onChunkUnloaded();
-        if (this.level != null && !this.level.isClientSide) {
-            EnergyNetworkManager.get((ServerLevel) this.level).removeNode(this.getBlockPos());
-        }
-    }
 }
