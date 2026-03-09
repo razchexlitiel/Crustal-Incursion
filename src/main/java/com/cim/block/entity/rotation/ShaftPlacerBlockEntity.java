@@ -10,6 +10,7 @@ import net.minecraft.network.protocol.game.ClientGamePacketListener;
 import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.inventory.ContainerData;
+import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
@@ -40,11 +41,14 @@ public class ShaftPlacerBlockEntity extends BlockEntity implements RotationalNod
     private final long ENERGY_PER_PORT = 5000;
     private final long RECEIVE_SPEED = 1000;
     private final long ENERGY_PER_CHAIN = 250;
-    private static final int MAX_CHAIN_LENGTH = 20;
+    private final long ENERGY_PER_PILLAR_BLOCK = 50;
+    private static final int MAX_CHAIN_LENGTH = 10;
+    private static final int PILLAR_BLOCK_DELAY = 10; // 0.5 секунды
+
     private boolean isSwitchedOn = false;
     private int shaftsAfterLastPort = 0;
     private int totalChainLength = 0;
-    private boolean hasDrillHead = false; // есть ли головка в цепочке
+    private boolean hasDrillHead = false;
     private long speed = 0;
     private long torque = 0;
 
@@ -59,19 +63,26 @@ public class ShaftPlacerBlockEntity extends BlockEntity implements RotationalNod
         }
     };
     private final LazyOptional<IItemHandler> inventoryOptional = LazyOptional.of(() -> inventory);
+
     @Nullable
     private BlockPos miningPortPos;
+    @Nullable
+    private BlockPos headPos;
+
+    // Поля для постройки опорной колонны
+    private boolean isBuildingPillar = false;
+    private BlockPos pillarPortPos;
+    private int pillarBlocksPlaced = 0;
+    private int pillarTotalBlocks;
+    private BlockItem pillarBlockItem;
+    private Direction pillarDirection;
+    private long nextPillarTime = 0;
 
     private final LazyOptional<IEnergyReceiver> energyReceiverOptional = LazyOptional.of(() -> this);
     private final LazyOptional<IEnergyConnector> energyConnectorOptional = LazyOptional.of(() -> this);
     private final LazyOptional<net.minecraftforge.energy.IEnergyStorage> forgeEnergyOptional =
             LazyOptional.of(() -> new LongEnergyWrapper(this, LongEnergyWrapper.BitMode.LOW));
-    @Nullable
-    private BlockPos headPos;
 
-    // В классе ShaftPlacerBlockEntity
-
-    // Изменить объявление data:
     protected final ContainerData data = new ContainerData() {
         @Override
         public int get(int index) {
@@ -93,102 +104,10 @@ public class ShaftPlacerBlockEntity extends BlockEntity implements RotationalNod
                 case 2 -> isSwitchedOn = value == 1;
                 case 3 -> shaftsAfterLastPort = value;
                 case 4 -> totalChainLength = value;
-                // case 5 и 6 только для чтения
             }
         }
         @Override public int getCount() { return 7; }
     };
-
-    public boolean isSwitchedOn() {
-        return isSwitchedOn;
-    }
-
-    private int findChainSlot() {
-        for (int i = 0; i < inventory.getSlots(); i++) {
-            ItemStack stack = inventory.getStackInSlot(i);
-            if (!stack.isEmpty() && stack.getItem() == Blocks.CHAIN.asItem()) {
-                return i;
-            }
-        }
-        return -1;
-    }
-
-    private void tryAttachChain(Level level, BlockPos portPos) {
-        // Ищем твёрдый блок сверху в пределах MAX_CHAIN_LENGTH
-        BlockPos chainStart = portPos.above();
-        BlockPos solidBlockPos = null;
-        int chainLength = 0;
-        for (int i = 1; i <= MAX_CHAIN_LENGTH; i++) {
-            BlockPos checkPos = portPos.above(i);
-            BlockState state = level.getBlockState(checkPos);
-            if (!state.isAir()) {
-                solidBlockPos = checkPos;
-                chainLength = i - 1;
-                break;
-            }
-        }
-        if (solidBlockPos == null) return; // нет твёрдого блока сверху
-
-        // Проверяем ресурсы на всю длину цепи (цепь ставится каждый блок)
-        int chainSlots = 0;
-        long energyNeeded = 0;
-        for (int i = 0; i < chainLength; i++) {
-            int slot = findChainSlot();
-            if (slot == -1) return; // не хватает цепей
-            if (energyStored < ENERGY_PER_CHAIN) return; // не хватает энергии
-            chainSlots = slot; // запоминаем последний слот (можно списать все сразу)
-            energyNeeded += ENERGY_PER_CHAIN;
-        }
-
-        // Если все проверки пройдены, списываем ресурсы и ставим цепь
-        for (int i = 0; i < chainLength; i++) {
-            BlockPos chainPos = portPos.above(i + 1);
-            level.setBlock(chainPos, Blocks.CHAIN.defaultBlockState(), 3);
-        }
-
-        // Списание ресурсов (энергия и предметы)
-        energyStored -= energyNeeded;
-        for (int i = 0; i < chainLength; i++) {
-            int slot = findChainSlot(); // каждый раз находим, но можно оптимизировать
-            inventory.extractItem(slot, 1, false);
-        }
-
-        setChanged();
-        sync();
-    }
-
-    public boolean hasResourcesForChain() {
-        if (!isSwitchedOn) return false;
-        int slotIndex = findChainSlot();
-        if (slotIndex == -1) return false;
-        return energyStored >= ENERGY_PER_CHAIN;
-    }
-
-    // Добавить метод получения следующей позиции
-    private BlockPos getNextPlacePos() {
-        Direction facing = getBlockState().getValue(ShaftPlacerBlock.FACING);
-        return worldPosition.relative(facing, totalChainLength + 1);
-    }
-
-    public boolean canPlaceNext() {
-        if (!isSwitchedOn) return false;
-        // Лимит убран
-        Direction facing = getBlockState().getValue(ShaftPlacerBlock.FACING);
-        BlockPos nextPos = getNextPlacePos();
-        if (!level.isEmptyBlock(nextPos) && !level.getBlockState(nextPos).canBeReplaced()) {
-            return false; // место занято
-        }
-        boolean needPort = (shaftsAfterLastPort >= 5);
-        int slotIndex = needPort ? findPortSlot() : findShaftSlot();
-        if (slotIndex == -1) return false;
-        long energyCost = needPort ? ENERGY_PER_PORT : ENERGY_PER_SHAFT;
-        return energyStored >= energyCost;
-    }
-
-    // Добавить геттер для hasDrillHead (если ещё нет)
-    public boolean hasDrillHead() {
-        return hasDrillHead;
-    }
 
     public ShaftPlacerBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.SHAFT_PLACER_BE.get(), pos, state);
@@ -229,43 +148,6 @@ public class ShaftPlacerBlockEntity extends BlockEntity implements RotationalNod
         }
     }
 
-    public boolean hasResourcesForNext() {
-        if (!isSwitchedOn) return false;
-        boolean needPort = (shaftsAfterLastPort >= 5);
-        int slotIndex = needPort ? findPortSlot() : findShaftSlot();
-        if (slotIndex == -1) return false;
-        long energyCost = needPort ? ENERGY_PER_PORT : ENERGY_PER_SHAFT;
-        return energyStored >= energyCost;
-    }
-
-
-    private void updateMiningPortPos(Level level) {
-        Direction facing = getBlockState().getValue(ShaftPlacerBlock.FACING);
-        BlockPos frontPos = worldPosition.relative(facing);
-        BlockEntity be = level.getBlockEntity(frontPos);
-
-        if (be instanceof MiningPortBlockEntity port) {
-            if (!port.getBlockPos().equals(this.miningPortPos)) {
-                // Сброс старого порта, если был
-                if (this.miningPortPos != null && level.getBlockEntity(this.miningPortPos) instanceof MiningPortBlockEntity oldPort) {
-                    oldPort.setPlacerPos(null);
-                }
-                this.miningPortPos = frontPos;
-                port.setPlacerPos(this.worldPosition);
-            }
-        } else {
-            if (this.miningPortPos != null) {
-                BlockEntity oldPort = level.getBlockEntity(this.miningPortPos);
-                if (oldPort instanceof MiningPortBlockEntity port) {
-                    port.setPlacerPos(null);
-                }
-            }
-            this.miningPortPos = null;
-        }
-    }
-
-
-
     @Override
     public Direction[] getPropagationDirections(@Nullable Direction fromDir) {
         Direction facing = getBlockState().getValue(ShaftPlacerBlock.FACING);
@@ -278,7 +160,7 @@ public class ShaftPlacerBlockEntity extends BlockEntity implements RotationalNod
         }
     }
 
-    // ========== IEnergyReceiver / IEnergyConnector ==========
+    // ========== Energy ==========
     @Override public long getEnergyStored() { return energyStored; }
     @Override public long getMaxEnergyStored() { return MAX_ENERGY; }
     @Override public void setEnergyStored(long energy) { this.energyStored = Math.max(0, Math.min(energy, MAX_ENERGY)); setChanged(); }
@@ -331,7 +213,331 @@ public class ShaftPlacerBlockEntity extends BlockEntity implements RotationalNod
         inventoryOptional.invalidate();
     }
 
-    // ========== Тикер ==========
+    // ========== Inventory helpers ==========
+    private int findShaftSlot() {
+        for (int i = 0; i < inventory.getSlots(); i++) {
+            ItemStack stack = inventory.getStackInSlot(i);
+            if (!stack.isEmpty() && (stack.getItem() == ModBlocks.SHAFT_IRON.get().asItem() ||
+                    stack.getItem() == ModBlocks.SHAFT_WOODEN.get().asItem())) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    private int findPortSlot() {
+        for (int i = 0; i < inventory.getSlots(); i++) {
+            ItemStack stack = inventory.getStackInSlot(i);
+            if (!stack.isEmpty() && stack.getItem() == ModBlocks.GEAR_PORT.get().asItem()) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    private int findChainSlot() {
+        for (int i = 0; i < inventory.getSlots(); i++) {
+            ItemStack stack = inventory.getStackInSlot(i);
+            if (!stack.isEmpty() && stack.getItem() == Blocks.CHAIN.asItem()) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    private int findSlotForItem(boolean needPort) {
+        for (int i = 0; i < inventory.getSlots(); i++) {
+            ItemStack stack = inventory.getStackInSlot(i);
+            if (stack.isEmpty()) continue;
+            if (needPort) {
+                if (stack.getItem() == ModBlocks.GEAR_PORT.get().asItem()) {
+                    return i;
+                }
+            } else {
+                if (stack.getItem() == ModBlocks.SHAFT_IRON.get().asItem() ||
+                        stack.getItem() == ModBlocks.SHAFT_WOODEN.get().asItem()) {
+                    return i;
+                }
+            }
+        }
+        return -1;
+    }
+
+    // ========== Placement logic ==========
+    private BlockPos getNextPlacePos() {
+        Direction facing = getBlockState().getValue(ShaftPlacerBlock.FACING);
+        return worldPosition.relative(facing, totalChainLength + 1);
+    }
+
+    public boolean canPlaceNext() {
+        if (!isSwitchedOn || isBuildingPillar) return false;
+        Direction facing = getBlockState().getValue(ShaftPlacerBlock.FACING);
+        BlockPos nextPos = getNextPlacePos();
+        if (!level.isEmptyBlock(nextPos) && !level.getBlockState(nextPos).canBeReplaced()) {
+            return false;
+        }
+        boolean needPort = (shaftsAfterLastPort >= 5);
+        int slotIndex = needPort ? findPortSlot() : findShaftSlot();
+        if (slotIndex == -1) return false;
+        long energyCost = needPort ? ENERGY_PER_PORT : ENERGY_PER_SHAFT;
+        return energyStored >= energyCost;
+    }
+
+    public boolean hasResourcesForNext() {
+        if (!isSwitchedOn || isBuildingPillar) return false;
+        boolean needPort = (shaftsAfterLastPort >= 5);
+        int slotIndex = needPort ? findPortSlot() : findShaftSlot();
+        if (slotIndex == -1) return false;
+        long energyCost = needPort ? ENERGY_PER_PORT : ENERGY_PER_SHAFT;
+        return energyStored >= energyCost;
+    }
+
+    public boolean isBusy() {
+        return isBuildingPillar;
+    }
+
+    private void startPillarConstruction(Level level, BlockPos portPos, Direction dir, BlockItem blockItem, int totalBlocks) {
+        this.isBuildingPillar = true;
+        this.pillarPortPos = portPos;
+        this.pillarBlocksPlaced = 0;
+        this.pillarTotalBlocks = totalBlocks;
+        this.pillarBlockItem = blockItem;
+        this.pillarDirection = dir;
+        this.nextPillarTime = level.getGameTime() + PILLAR_BLOCK_DELAY;
+        setChanged();
+        sync();
+    }
+
+    // ========== Проверки возможности установки порта ==========
+    private boolean canPlacePortWithChain(Level level, BlockPos pos, Direction facing) {
+        // Ищем твёрдый блок сверху
+        for (int i = 1; i <= MAX_CHAIN_LENGTH; i++) {
+            BlockPos checkPos = pos.above(i);
+            BlockState state = level.getBlockState(checkPos);
+            if (!state.isAir() && state.getFluidState().isEmpty()) {
+                int chainLength = i - 1;
+                // Проверяем наличие цепей в инвентаре
+                int chainCount = 0;
+                for (int j = 0; j < inventory.getSlots(); j++) {
+                    ItemStack stack = inventory.getStackInSlot(j);
+                    if (stack.getItem() == Blocks.CHAIN.asItem()) {
+                        chainCount += stack.getCount();
+                    }
+                }
+                long energyNeeded = ENERGY_PER_PORT + chainLength * ENERGY_PER_CHAIN;
+                int portSlot = findPortSlot();
+                return portSlot != -1 && chainCount >= chainLength && energyStored >= energyNeeded;
+            }
+        }
+        return false;
+    }
+
+    private boolean canPlacePortWithPillar(Level level, BlockPos pos, Direction facing) {
+        if (miningPortPos == null) return false;
+        BlockEntity bePort = level.getBlockEntity(miningPortPos);
+        if (!(bePort instanceof MiningPortBlockEntity miningPort)) return false;
+
+        // Ищем твёрдый блок снизу
+        for (int i = 1; i <= MAX_CHAIN_LENGTH; i++) {
+            BlockPos checkPos = pos.below(i);
+            BlockState state = level.getBlockState(checkPos);
+            if (!state.isAir() && state.getFluidState().isEmpty()) {
+                int pillarLength = i - 1;
+                if (pillarLength == 0) {
+                    int portSlot = findPortSlot();
+                    return portSlot != -1 && energyStored >= ENERGY_PER_PORT;
+                }
+                // Проверяем наличие блоков в MiningPort
+                IItemHandler portInv = miningPort.getInventory();
+                int totalBlocks = 0;
+                for (int s = 0; s < portInv.getSlots(); s++) {
+                    ItemStack stack = portInv.getStackInSlot(s);
+                    if (!stack.isEmpty() && stack.getItem() instanceof BlockItem) {
+                        totalBlocks += stack.getCount();
+                    }
+                }
+                long energyNeeded = ENERGY_PER_PORT + pillarLength * ENERGY_PER_PILLAR_BLOCK;
+                int portSlot = findPortSlot();
+                return portSlot != -1 && totalBlocks >= pillarLength && energyStored >= energyNeeded;
+            }
+        }
+        return false;
+    }
+
+    public boolean canPlacePortAt(Level level, BlockPos pos, Direction facing) {
+        return canPlacePortWithPillar(level, pos, facing) || canPlacePortWithChain(level, pos, facing);
+    }
+
+    public int getShaftsAfterLastPort() {
+        return shaftsAfterLastPort;
+    }
+
+    private boolean tryPlacePortWithChain(Level level, BlockPos pos, Direction facing) {
+        // Ищем твёрдый блок сверху (игнорируем жидкости)
+        BlockPos solidPos = null;
+        int chainLength = 0;
+        for (int i = 1; i <= MAX_CHAIN_LENGTH; i++) {
+            BlockPos checkPos = pos.above(i);
+            BlockState state = level.getBlockState(checkPos);
+            if (!state.isAir() && state.getFluidState().isEmpty()) {
+                solidPos = checkPos;
+                chainLength = i - 1;
+                break;
+            }
+        }
+        if (solidPos == null) return false; // нет блока сверху
+
+        // Проверяем наличие цепей в инвентаре
+        int chainCount = 0;
+        for (int i = 0; i < inventory.getSlots(); i++) {
+            ItemStack stack = inventory.getStackInSlot(i);
+            if (stack.getItem() == Blocks.CHAIN.asItem()) {
+                chainCount += stack.getCount();
+            }
+        }
+        long energyNeeded = ENERGY_PER_PORT + chainLength * ENERGY_PER_CHAIN;
+        int portSlot = findPortSlot();
+        if (portSlot == -1 || chainCount < chainLength || energyStored < energyNeeded) return false;
+
+        // Списание ресурсов
+        energyStored -= energyNeeded;
+        inventory.extractItem(portSlot, 1, false);
+        int toExtract = chainLength;
+        for (int i = 0; i < inventory.getSlots() && toExtract > 0; i++) {
+            ItemStack stack = inventory.getStackInSlot(i);
+            if (stack.getItem() == Blocks.CHAIN.asItem()) {
+                int extract = Math.min(stack.getCount(), toExtract);
+                inventory.extractItem(i, extract, false);
+                toExtract -= extract;
+            }
+        }
+
+        // Установка порта
+        BlockState portState = ModBlocks.GEAR_PORT.get().defaultBlockState();
+        level.setBlock(pos, portState, 3);
+        BlockEntity be = level.getBlockEntity(pos);
+        if (be instanceof GearPortBlockEntity gear) {
+            gear.setupPorts(facing.getOpposite(), facing);
+        }
+
+        // Установка цепей
+        for (int i = 0; i < chainLength; i++) {
+            level.setBlock(pos.above(i + 1), Blocks.CHAIN.defaultBlockState(), 3);
+        }
+
+        setChanged();
+        sync();
+        return true;
+    }
+
+    private boolean tryPlacePortWithPillar(Level level, BlockPos pos, Direction facing) {
+        // Проверяем наличие MiningPort
+        if (miningPortPos == null) return false;
+        BlockEntity bePort = level.getBlockEntity(miningPortPos);
+        if (!(bePort instanceof MiningPortBlockEntity miningPort)) return false;
+
+        // Ищем твёрдый блок снизу (игнорируем жидкости)
+        BlockPos solidPos = null;
+        int pillarLength = 0;
+        for (int i = 1; i <= MAX_CHAIN_LENGTH; i++) {
+            BlockPos checkPos = pos.below(i);
+            BlockState state = level.getBlockState(checkPos);
+            if (!state.isAir() && state.getFluidState().isEmpty()) {
+                solidPos = checkPos;
+                pillarLength = i - 1;
+                break;
+            }
+        }
+        if (solidPos == null) return false; // нет блока снизу
+
+        // Если блок прямо под портом – ставим порт без опоры
+        if (pillarLength == 0) {
+            int portSlot = findPortSlot();
+            if (portSlot == -1 || energyStored < ENERGY_PER_PORT) return false;
+            energyStored -= ENERGY_PER_PORT;
+            inventory.extractItem(portSlot, 1, false);
+            level.setBlock(pos, ModBlocks.GEAR_PORT.get().defaultBlockState(), 3);
+            BlockEntity be = level.getBlockEntity(pos);
+            if (be instanceof GearPortBlockEntity gear) {
+                gear.setupPorts(facing.getOpposite(), facing);
+            }
+            setChanged();
+            sync();
+            return true;
+        }
+
+        // Ищем подходящие блоки в MiningPort (может быть несколько слотов)
+        IItemHandler portInv = miningPort.getInventory();
+        int totalBlocks = 0;
+        for (int s = 0; s < portInv.getSlots(); s++) {
+            ItemStack stack = portInv.getStackInSlot(s);
+            if (!stack.isEmpty() && stack.getItem() instanceof BlockItem) {
+                totalBlocks += stack.getCount();
+            }
+        }
+        if (totalBlocks < pillarLength) return false;
+
+        long energyNeeded = ENERGY_PER_PORT + pillarLength * ENERGY_PER_PILLAR_BLOCK;
+        int portSlot = findPortSlot();
+        if (portSlot == -1 || energyStored < energyNeeded) return false;
+
+// Списание энергии и порта
+        energyStored -= energyNeeded;
+        inventory.extractItem(portSlot, 1, false);
+
+// Списание блоков из MiningPort (из нескольких слотов)
+        int toExtract = pillarLength;
+        BlockItem blockItem = null;
+        for (int s = 0; s < portInv.getSlots() && toExtract > 0; s++) {
+            ItemStack stack = portInv.getStackInSlot(s);
+            if (!stack.isEmpty() && stack.getItem() instanceof BlockItem bi) {
+                int extract = Math.min(stack.getCount(), toExtract);
+                portInv.extractItem(s, extract, false);
+                toExtract -= extract;
+                if (blockItem == null) {
+                    blockItem = bi; // берём первый попавшийся тип для колонны
+                }
+            }
+        }
+        if (blockItem == null) return false; // на всякий случай
+
+// Установка порта (без изменений)
+        level.setBlock(pos, ModBlocks.GEAR_PORT.get().defaultBlockState(), 3);
+        BlockEntity be = level.getBlockEntity(pos);
+        if (be instanceof GearPortBlockEntity gear) {
+            gear.setupPorts(facing.getOpposite(), facing);
+        }
+
+// Запуск постепенного строительства колонны
+        startPillarConstruction(level, pos, Direction.DOWN, blockItem, pillarLength);
+        return true;
+    }
+
+    private void updateMiningPortPos(Level level) {
+        Direction facing = getBlockState().getValue(ShaftPlacerBlock.FACING);
+        BlockPos frontPos = worldPosition.relative(facing);
+        BlockEntity be = level.getBlockEntity(frontPos);
+
+        if (be instanceof MiningPortBlockEntity port) {
+            if (!port.getBlockPos().equals(this.miningPortPos)) {
+                if (this.miningPortPos != null && level.getBlockEntity(this.miningPortPos) instanceof MiningPortBlockEntity oldPort) {
+                    oldPort.setPlacerPos(null);
+                }
+                this.miningPortPos = frontPos;
+                port.setPlacerPos(this.worldPosition);
+            }
+        } else {
+            if (this.miningPortPos != null) {
+                BlockEntity oldPort = level.getBlockEntity(this.miningPortPos);
+                if (oldPort instanceof MiningPortBlockEntity port) {
+                    port.setPlacerPos(null);
+                }
+            }
+            this.miningPortPos = null;
+        }
+    }
+
+    // ========== Ticking ==========
     public static void tick(Level level, BlockPos pos, BlockState state, ShaftPlacerBlockEntity be) {
         if (level.isClientSide) return;
 
@@ -358,23 +564,40 @@ public class ShaftPlacerBlockEntity extends BlockEntity implements RotationalNod
 
         if (!be.isSwitchedOn) return;
 
-        // Обновляем информацию о цепочке раз в 10 тиков
+        // Обработка строительства колонны
+        if (be.isBuildingPillar) {
+            if (currentTime >= be.nextPillarTime && be.pillarBlocksPlaced < be.pillarTotalBlocks) {
+                BlockPos placePos = be.pillarPortPos.relative(be.pillarDirection, be.pillarBlocksPlaced + 1);
+                if (level.isEmptyBlock(placePos) || level.getBlockState(placePos).canBeReplaced()) {
+                    level.setBlock(placePos, be.pillarBlockItem.getBlock().defaultBlockState(), 3);
+                }
+                be.pillarBlocksPlaced++;
+                be.nextPillarTime = currentTime + PILLAR_BLOCK_DELAY;
+                be.setChanged();
+                be.sync();
+            }
+            if (be.pillarBlocksPlaced >= be.pillarTotalBlocks) {
+                be.isBuildingPillar = false;
+                be.setChanged();
+                be.sync();
+            }
+            // Пока строим колонну, не выполняем другие действия
+            return;
+        }
+
         if (level.getGameTime() % 10 == 0) {
             be.updateChainInfo(level);
         }
 
-        // Если головки нет – строим автоматически
         if (!be.hasDrillHead && level.getGameTime() % 10 == 0) {
             be.tryPlaceNext(level);
         }
 
-        // Обновляем порт раз в 20 тиков
         if (level.getGameTime() % 20 == 0) {
             be.updateMiningPortPos(level);
         }
     }
 
-    // ========== Логика цепочки ==========
     private void updateChainInfo(Level level) {
         Direction facing = getBlockState().getValue(ShaftPlacerBlock.FACING);
         BlockPos currentPos = worldPosition.relative(facing);
@@ -423,14 +646,13 @@ public class ShaftPlacerBlockEntity extends BlockEntity implements RotationalNod
 
         setChanged();
     }
-    // ========== Автоматическое размещение (когда нет головки) ==========
+
     private void tryPlaceNext(Level level) {
-        if (headPos != null) return; // головка уже есть, строить не надо
+        if (headPos != null || isBuildingPillar) return;
 
         Direction facing = getBlockState().getValue(ShaftPlacerBlock.FACING);
         BlockPos currentPos = worldPosition.relative(facing);
 
-        // Найти конец существующей цепочки (пропускаем уже учтённые блоки)
         int existingLength = 0;
         while (existingLength < 9999) {
             BlockState state = level.getBlockState(currentPos);
@@ -444,18 +666,18 @@ public class ShaftPlacerBlockEntity extends BlockEntity implements RotationalNod
                 } else {
                     break;
                 }
-            } else if (block instanceof GearPortBlock || block instanceof MiningPortBlock) { // ← добавили MiningPortBlock
+            } else if (block instanceof GearPortBlock || block instanceof MiningPortBlock) {
                 existingLength++;
                 currentPos = currentPos.relative(facing);
                 continue;
             } else if (block instanceof DrillHeadBlock) {
-                return; // не должно случиться, но на всякий случай
+                return;
             } else {
                 break;
             }
         }
 
-        if (existingLength >= 9999) return; // ← вот эту строку заменили
+        if (existingLength >= 9999) return;
 
         BlockPos placePos = currentPos;
         if (!level.isEmptyBlock(placePos) && !level.getBlockState(placePos).canBeReplaced()) {
@@ -463,51 +685,47 @@ public class ShaftPlacerBlockEntity extends BlockEntity implements RotationalNod
         }
 
         boolean needPort = (shaftsAfterLastPort >= 5);
-        int slotIndex = findSlotForItem(needPort);
-        if (slotIndex == -1) return;
-
-        long energyCost = needPort ? ENERGY_PER_PORT : ENERGY_PER_SHAFT;
-        if (energyStored < energyCost) return;
 
         if (needPort) {
-            BlockState portState = ModBlocks.GEAR_PORT.get().defaultBlockState();
-            level.setBlock(placePos, portState, 3);
-            BlockEntity be = level.getBlockEntity(placePos);
-            if (be instanceof GearPortBlockEntity gear) {
-                gear.setupPorts(facing.getOpposite(), facing);
-                tryAttachChain(level, placePos);
+            if (tryPlacePortWithPillar(level, placePos, facing)) {
+                shaftsAfterLastPort = 0;
+                totalChainLength++;
+                updateMiningPortPos(level);
+            } else if (tryPlacePortWithChain(level, placePos, facing)) {
+                shaftsAfterLastPort = 0;
+                totalChainLength++;
+                updateMiningPortPos(level);
+            } else {
+                return;
             }
+        }else {
+            int slotIndex = findShaftSlot();
+            if (slotIndex == -1) return;
+            long energyCost = ENERGY_PER_SHAFT;
+            if (energyStored < energyCost) return;
 
-        }
-        else {
+            energyStored -= energyCost;
+            inventory.extractItem(slotIndex, 1, false);
+
             BlockState shaftState = ModBlocks.SHAFT_IRON.get().defaultBlockState()
                     .setValue(ShaftBlock.FACING, facing);
             level.setBlock(placePos, shaftState, 3);
-        }
 
-        energyStored -= energyCost;
-        inventory.extractItem(slotIndex, 1, false);
-
-        if (needPort) {
-            shaftsAfterLastPort = 0;
-        } else {
             shaftsAfterLastPort++;
+            totalChainLength++;
         }
-        totalChainLength++;
 
         setChanged();
         sync();
         invalidateNeighborCaches();
     }
 
-    // ========== Вызов от головки при её перемещении ==========
     public void placeShaftAt(BlockPos pos, Direction facing) {
-        if (level == null || level.isClientSide) return;
+        if (level == null || level.isClientSide || isBuildingPillar) return;
 
-        // Проверяем, что позиция находится прямо перед разместителем (по направлению)
         Direction placerFacing = getBlockState().getValue(ShaftPlacerBlock.FACING);
         if (!pos.equals(worldPosition.relative(placerFacing, totalChainLength + 1))) {
-            return; // не та позиция
+            return;
         }
 
         if (!level.isEmptyBlock(pos) && !level.getBlockState(pos).canBeReplaced()) return;
@@ -532,39 +750,60 @@ public class ShaftPlacerBlockEntity extends BlockEntity implements RotationalNod
         invalidateNeighborCaches();
     }
 
-    private int findShaftSlot() {
-        for (int i = 0; i < inventory.getSlots(); i++) {
-            ItemStack stack = inventory.getStackInSlot(i);
-            if (!stack.isEmpty() && (stack.getItem() == ModBlocks.SHAFT_IRON.get().asItem() ||
-                    stack.getItem() == ModBlocks.SHAFT_WOODEN.get().asItem())) {
-                return i;
-            }
-        }
-        return -1;
-    }
+    public void handleHeadMoved(BlockPos oldHeadPos, BlockPos newHeadPos) {
+        if (level == null || level.isClientSide || isBuildingPillar) return;
+        if (!isSwitchedOn) return;
+        if (!oldHeadPos.equals(this.headPos)) return;
 
-    private int findSlotForItem(boolean needPort) {
-        for (int i = 0; i < inventory.getSlots(); i++) {
-            ItemStack stack = inventory.getStackInSlot(i);
-            if (stack.isEmpty()) continue;
-            if (needPort) {
-                if (stack.getItem() == ModBlocks.GEAR_PORT.get().asItem()) {
-                    return i;
-                }
+        Direction facing = getBlockState().getValue(ShaftPlacerBlock.FACING);
+        if (!level.isEmptyBlock(oldHeadPos) && !level.getBlockState(oldHeadPos).canBeReplaced()) {
+            return;
+        }
+
+        boolean needPort = (shaftsAfterLastPort >= 5);
+
+        if (needPort) {
+            if (tryPlacePortWithPillar(level, oldHeadPos, facing)) {
+                shaftsAfterLastPort = 0;
+                updateMiningPortPos(level);
+                this.headPos = newHeadPos;
+                this.totalChainLength++;
+            } else if (tryPlacePortWithChain(level, oldHeadPos, facing)) {
+                shaftsAfterLastPort = 0;
+                updateMiningPortPos(level);
+                this.headPos = newHeadPos;
+                this.totalChainLength++;
             } else {
-                if (stack.getItem() == ModBlocks.SHAFT_IRON.get().asItem() ||
-                        stack.getItem() == ModBlocks.SHAFT_WOODEN.get().asItem()) {
-                    return i;
-                }
+                return;
             }
+        } else {
+            int slotIndex = findShaftSlot();
+            if (slotIndex == -1) return;
+            if (energyStored < ENERGY_PER_SHAFT) return;
+
+            energyStored -= ENERGY_PER_SHAFT;
+            inventory.extractItem(slotIndex, 1, false);
+
+            BlockState shaftState = ModBlocks.SHAFT_IRON.get().defaultBlockState()
+                    .setValue(ShaftBlock.FACING, facing);
+            level.setBlock(oldHeadPos, shaftState, 3);
+
+            shaftsAfterLastPort++;
+            this.headPos = newHeadPos;
+            this.totalChainLength++;
         }
-        return -1;
+
+        setChanged();
+        sync();
+        invalidateNeighborCaches();
     }
 
-    // ========== Вспомогательные методы ==========
+    // ========== Public helpers ==========
     public ContainerData getDataAccess() { return data; }
     public IItemHandler getInventory() { return inventory; }
     @Nullable public BlockPos getMiningPortPos() { return miningPortPos; }
+    public boolean isSwitchedOn() { return isSwitchedOn; }
+    public boolean hasDrillHead() { return hasDrillHead; }
 
     public void togglePower() {
         this.isSwitchedOn = !this.isSwitchedOn;
@@ -573,7 +812,13 @@ public class ShaftPlacerBlockEntity extends BlockEntity implements RotationalNod
         invalidateNeighborCaches();
     }
 
-    // NBT
+    public void onNeighborChange() {
+        if (level != null && !level.isClientSide) {
+            updateChainInfo(level);
+        }
+    }
+
+    // ========== NBT ==========
     @Override
     protected void saveAdditional(CompoundTag tag) {
         super.saveAdditional(tag);
@@ -584,8 +829,14 @@ public class ShaftPlacerBlockEntity extends BlockEntity implements RotationalNod
         tag.putBoolean("HasDrillHead", hasDrillHead);
         tag.put("Inventory", inventory.serializeNBT());
         if (miningPortPos != null) tag.putLong("MiningPortPos", miningPortPos.asLong());
-        if (headPos != null) {
-            tag.putLong("HeadPos", headPos.asLong());
+        if (headPos != null) tag.putLong("HeadPos", headPos.asLong());
+        tag.putBoolean("BuildingPillar", isBuildingPillar);
+        if (isBuildingPillar && pillarBlockItem != null) {
+            Block block = pillarBlockItem.getBlock();
+            net.minecraft.resources.ResourceLocation registryName = net.minecraftforge.registries.ForgeRegistries.BLOCKS.getKey(block);
+            if (registryName != null) {
+                tag.putString("PillarBlock", registryName.toString());
+            }
         }
     }
 
@@ -609,82 +860,19 @@ public class ShaftPlacerBlockEntity extends BlockEntity implements RotationalNod
         } else {
             headPos = null;
         }
+        isBuildingPillar = tag.getBoolean("BuildingPillar");
+        if (tag.contains("PillarBlock")) {
+            String blockName = tag.getString("PillarBlock");
+            Block block = net.minecraftforge.registries.ForgeRegistries.BLOCKS.getValue(new net.minecraft.resources.ResourceLocation(blockName));
+            if (block != null && block.asItem() instanceof BlockItem bi) {
+                pillarBlockItem = bi;
+            }
+        }
     }
-
 
     @Override
     public void onLoad() {
         super.onLoad();
-        if (level != null && !level.isClientSide) {
-            updateChainInfo(level);
-        }
-    }
-    public void handleHeadMoved(BlockPos oldHeadPos, BlockPos newHeadPos) {
-        if (level == null || level.isClientSide) return;
-        if (!isSwitchedOn) return;
-        if (!oldHeadPos.equals(this.headPos)) return;
-
-        Direction facing = getBlockState().getValue(ShaftPlacerBlock.FACING);
-        if (!level.isEmptyBlock(oldHeadPos) && !level.getBlockState(oldHeadPos).canBeReplaced()) {
-            return;
-        }
-
-        boolean needPort = (shaftsAfterLastPort >= 5);
-        int slotIndex;
-        long energyCost;
-
-        if (needPort) {
-            slotIndex = findPortSlot();
-            energyCost = ENERGY_PER_PORT;
-        } else {
-            slotIndex = findShaftSlot();
-            energyCost = ENERGY_PER_SHAFT;
-        }
-
-        if (slotIndex == -1) return;
-        if (energyStored < energyCost) return;
-
-        // СПИСАНИЕ РЕСУРСОВ
-        energyStored -= energyCost;
-        inventory.extractItem(slotIndex, 1, false);
-
-        // УСТАНОВКА БЛОКА
-        if (needPort) {
-            BlockState portState = ModBlocks.GEAR_PORT.get().defaultBlockState();
-            level.setBlock(oldHeadPos, portState, 3);
-            BlockEntity be = level.getBlockEntity(oldHeadPos);
-            if (be instanceof GearPortBlockEntity gear) {
-                gear.setupPorts(facing.getOpposite(), facing);
-                tryAttachChain(level, oldHeadPos);
-            }
-            shaftsAfterLastPort = 0;
-            updateMiningPortPos(level);
-        } else {
-            BlockState shaftState = ModBlocks.SHAFT_IRON.get().defaultBlockState()
-                    .setValue(ShaftBlock.FACING, facing);
-            level.setBlock(oldHeadPos, shaftState, 3);
-            shaftsAfterLastPort++;
-        }
-
-        this.headPos = newHeadPos;
-        this.totalChainLength++;
-
-        setChanged();
-        sync();
-        invalidateNeighborCaches();
-    }
-
-    private int findPortSlot() {
-        for (int i = 0; i < inventory.getSlots(); i++) {
-            ItemStack stack = inventory.getStackInSlot(i);
-            if (!stack.isEmpty() && stack.getItem() == ModBlocks.GEAR_PORT.get().asItem()) {
-                return i;
-            }
-        }
-        return -1;
-    }
-
-    public void onNeighborChange() {
         if (level != null && !level.isClientSide) {
             updateChainInfo(level);
         }
@@ -696,10 +884,12 @@ public class ShaftPlacerBlockEntity extends BlockEntity implements RotationalNod
         saveAdditional(tag);
         return tag;
     }
+
     @Override
     public Packet<ClientGamePacketListener> getUpdatePacket() {
         return ClientboundBlockEntityDataPacket.create(this);
     }
+
     private void sync() {
         if (level != null && !level.isClientSide) {
             level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), 3);

@@ -176,7 +176,7 @@ public class MiningPortBlockEntity extends BlockEntity implements RotationalNode
     public Packet<ClientGamePacketListener> getUpdatePacket() {
         return ClientboundBlockEntityDataPacket.create(this);
     }
-    private void sync() {
+    public void sync() {
         if (level != null && !level.isClientSide) {
             level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), 3);
         }
