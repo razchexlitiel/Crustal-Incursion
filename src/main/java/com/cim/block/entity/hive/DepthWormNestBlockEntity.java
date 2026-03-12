@@ -38,10 +38,11 @@ public class DepthWormNestBlockEntity extends BlockEntity implements HiveNetwork
         return networkId;
     }
 
+    // В DepthWormNestBlockEntity должно быть:
     @Override
     public void setNetworkId(UUID id) {
         this.networkId = id;
-        setChanged();
+        this.setChanged(); // Важно!
     }
 
     public boolean isFull() {
@@ -286,11 +287,13 @@ public class DepthWormNestBlockEntity extends BlockEntity implements HiveNetwork
     public void onLoad() {
         super.onLoad();
         if (this.level != null && !this.level.isClientSide) {
+            // НЕ создаём новый UUID если уже есть!
             if (this.networkId == null) {
-                this.networkId = UUID.randomUUID();
-                this.setChanged();
+                System.out.println("[Hive] Warning: Nest at " + this.worldPosition + " has no network ID on load!");
+                // this.networkId = UUID.randomUUID(); // НЕ делаем этого!
+            } else {
+                HiveNetworkManager.get(this.level).addNode(this.networkId, this.worldPosition, true);
             }
-            HiveNetworkManager.get(this.level).addNode(this.networkId, this.worldPosition, true);
         }
     }
 }
