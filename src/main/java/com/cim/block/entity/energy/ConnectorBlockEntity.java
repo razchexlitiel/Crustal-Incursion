@@ -43,16 +43,44 @@ public class ConnectorBlockEntity extends BlockEntity implements IEnergyConnecto
         return connectedTo;
     }
 
+    // ========== P2P СОЕДИНЕНИЕ ==========
+
     public void connectTo(BlockPos other) {
         this.connectedTo = other;
         setChanged();
         syncToClient();
+
+        // === ИСПРАВЛЕНИЕ ===
+        // Уведомляем менеджер сетей, что появилась новая связь.
+        // Удаляем и заново добавляем узел. Менеджер увидит P2P-связь
+        // и автоматически объединит две раздельные сети в одну.
+        if (level != null && !level.isClientSide) {
+            com.cim.api.energy.EnergyNetworkManager manager = com.cim.api.energy.EnergyNetworkManager.get((net.minecraft.server.level.ServerLevel) level);
+            manager.removeNode(worldPosition);
+            manager.addNode(worldPosition);
+        }
     }
 
     public void disconnect() {
+        BlockPos oldConnection = this.connectedTo;
         this.connectedTo = null;
         setChanged();
         syncToClient();
+
+        // === ИСПРАВЛЕНИЕ ===
+        // Уведомляем менеджер о разрыве провода.
+        if (level != null && !level.isClientSide && oldConnection != null) {
+            com.cim.api.energy.EnergyNetworkManager manager = com.cim.api.energy.EnergyNetworkManager.get((net.minecraft.server.level.ServerLevel) level);
+
+            // "Передергиваем" текущий коннектор. Из-за этого сеть вызовет verifyConnectivity()
+            // и, если связь реально прервалась, аккуратно разделит одну сеть на две.
+            manager.removeNode(worldPosition);
+            manager.addNode(worldPosition);
+
+            // На всякий случай обновляем и второй конец оборванного провода
+            manager.removeNode(oldConnection);
+            manager.addNode(oldConnection);
+        }
     }
 
     public void onRemoved() {
