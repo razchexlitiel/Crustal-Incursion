@@ -98,8 +98,9 @@ public class ReturnToHiveGoal extends Goal {
     public void tick() {
         if (targetPos == null) return;
 
+        // В ReturnToHiveGoal.tick()
         double targetX = targetPos.getX() + 0.5;
-        double targetY = targetPos.getY() + 0.2; // Целимся чуть ниже центра блока для веса
+        double targetY = targetPos.getY() + 0.8; // чуть выше центра
         double targetZ = targetPos.getZ() + 0.5;
 
         double distSq = worm.distanceToSqr(targetX, targetY, targetZ);

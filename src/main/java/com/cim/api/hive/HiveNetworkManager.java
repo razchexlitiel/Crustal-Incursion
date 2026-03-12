@@ -26,14 +26,23 @@ public class HiveNetworkManager {
     public void tick(Level level) {
         if (networks.isEmpty()) return;
 
-        // Создаем копию значений, чтобы избежать ConcurrentModificationException
         List<HiveNetwork> safeCopy = new ArrayList<>(networks.values());
 
         for (HiveNetwork network : safeCopy) {
+            // Удаляем мёртвые И заброшенные сети (нет гнезд = нет жизни)
+            if (network.isDead() || network.isAbandoned()) {
+                networks.remove(network.id);
+                System.out.println("[HiveManager] Удалена сеть " + network.id +
+                        (network.isAbandoned() ? " (заброшена, нет гнезд)" : " (мёртва)"));
+                continue;
+            }
+
+            if (!network.hasAnyLoadedChunk(level)) {
+                continue;
+            }
             network.update(level);
         }
     }
-
     public static HiveNetworkManager get(Level level) {
         return level.getCapability(HiveNetworkManagerProvider.HIVE_NETWORK_MANAGER).orElse(null);
     }
@@ -58,26 +67,34 @@ public class HiveNetworkManager {
         if (mainId.equals(secondId)) return;
 
         HiveNetwork mainNet = getNetwork(mainId);
-        HiveNetwork secondNet = getNetwork(secondId);
+        HiveNetwork secondNet = networks.get(secondId);
+        if (secondNet == null) return;
 
         System.out.println("[Hive] Слияние сетей! " + secondId + " поглощена " + mainId);
 
-        // 1. Переносим очки (не забываем про лимит 50)
+        // Переносим очки
         mainNet.killsPool = Math.min(50, mainNet.killsPool + secondNet.killsPool);
 
-        // 2. Переносим все блоки из старой сети в новую
-        for (BlockPos pos : secondNet.members) {
+        // Переносим блоки
+        for (BlockPos pos : new HashSet<>(secondNet.members)) {
             BlockEntity be = level.getBlockEntity(pos);
             if (be instanceof HiveNetworkMember member) {
-                member.setNetworkId(mainId); // Меняем ID в самом блоке
-                if (!mainNet.members.contains(pos)) {
-                    mainNet.members.add(pos);
-                }
+                member.setNetworkId(mainId);
             }
+
+            // Обновляем маппинги
+            posToNetwork.put(pos, mainId);
+
+            // Переносим в основную сеть
+            if (secondNet.wormCounts.containsKey(pos)) {
+                mainNet.wormCounts.put(pos, secondNet.wormCounts.get(pos));
+            }
+            mainNet.members.add(pos);
         }
 
-        // 3. Удаляем старую сеть из памяти менеджера
+        // Удаляем старую сеть
         networks.remove(secondId);
+        networkNodes.remove(secondId);
     }
 
 
@@ -204,13 +221,19 @@ public class HiveNetworkManager {
 
     public void deserializeNBT(CompoundTag tag) {
         networks.clear();
+        posToNetwork.clear(); // Очищаем!
+        networkNodes.clear(); // Очищаем!
+
         ListTag networksList = tag.getList("Networks", 10);
         for (int i = 0; i < networksList.size(); i++) {
             HiveNetwork net = HiveNetwork.fromNBT(networksList.getCompound(i));
             networks.put(net.id, net);
-            // Восстанавливаем связи для posToNetwork
+
+            // Восстанавливаем ВСЕ связи
             for (BlockPos pos : net.members) {
                 posToNetwork.put(pos, net.id);
+                // Восстанавливаем networkNodes для совместимости
+                networkNodes.computeIfAbsent(net.id, k -> new HashSet<>()).add(pos);
             }
         }
     }
