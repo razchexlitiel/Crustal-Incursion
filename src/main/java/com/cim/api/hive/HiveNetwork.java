@@ -1,6 +1,7 @@
 package com.cim.api.hive;
 
 import com.cim.block.basic.ModBlocks;
+import com.cim.block.entity.ModBlockEntities;
 import com.cim.block.entity.hive.DepthWormNestBlockEntity;
 import com.cim.block.entity.hive.HiveSoilBlockEntity;
 import net.minecraft.core.BlockPos;
@@ -24,15 +25,18 @@ public class HiveNetwork {
     public final UUID id;
     public final Set<BlockPos> members = new HashSet<>();
     public final Map<BlockPos, Integer> wormCounts = new HashMap<>();
+    public final Map<BlockPos, List<CompoundTag>> nestWormData = new HashMap<>(); // НОВОЕ: Храним полные данные червей по гнездам
     public int killsPool = 0;
     private long lastFedTime = 0;
+
     public boolean isDead() {
         return wormCounts.isEmpty() && members.isEmpty();
     }
 
     public boolean isAbandoned() {
-        return wormCounts.isEmpty() && !members.isEmpty(); // Есть почва, нет гнезд
+        return wormCounts.isEmpty() && !members.isEmpty();
     }
+
     // Новые поля для коллективного интеллекта
     public enum HiveState {
         EXPANSION, DEFENSIVE, AGGRESSIVE, RECOVERY, STARVATION
@@ -52,12 +56,52 @@ public class HiveNetwork {
 
     public void addMember(BlockPos pos, boolean isNest) {
         members.add(pos);
-        if (isNest) wormCounts.put(pos, 0);
+        if (isNest) {
+            wormCounts.put(pos, 0);
+            nestWormData.put(pos, new ArrayList<>()); // НОВОЕ
+        }
+    }
+
+    public void clearNestWormData(BlockPos nestPos) {
+        List<CompoundTag> data = nestWormData.get(nestPos);
+        if (data != null) {
+            data.clear();
+        }
+        wormCounts.put(nestPos, 0);
     }
 
     public void removeMember(BlockPos pos) {
         members.remove(pos);
         wormCounts.remove(pos);
+        nestWormData.remove(pos); // НОВОЕ: Чистим данные червей
+    }
+
+    // НОВОЕ: Получить данные червей конкретного гнезда
+    public List<CompoundTag> getNestWormData(BlockPos nestPos) {
+        return nestWormData.getOrDefault(nestPos, new ArrayList<>());
+    }
+
+    // НОВОЕ: Добавить данные червя к конкретному гнезду
+    public void addWormDataToNest(BlockPos nestPos, CompoundTag wormData) {
+        // Проверяем, нет ли уже этого червя (по UUID если есть)
+        List<CompoundTag> data = nestWormData.computeIfAbsent(nestPos, k -> new ArrayList<>());
+
+        // Очищаем старые дубликаты если список слишком большой (защита от утечки)
+        if (data.size() >= 3) {
+            data.clear(); // Максимум 3 червя в гнезде
+        }
+
+        data.add(wormData);
+        wormCounts.put(nestPos, data.size());
+    }
+
+    // НОВОЕ: Удалить данные червя из гнезда (при выпуске)
+    public void removeWormDataFromNest(BlockPos nestPos, int index) {
+        List<CompoundTag> data = nestWormData.get(nestPos);
+        if (data != null && index < data.size()) {
+            data.remove(index);
+            wormCounts.put(nestPos, Math.max(0, wormCounts.getOrDefault(nestPos, 0) - 1));
+        }
     }
 
     public boolean isNest(Level level, BlockPos pos) {
@@ -72,7 +116,7 @@ public class HiveNetwork {
 
     public boolean addWorm(Level level, CompoundTag wormTag, BlockPos sourcePos) {
         if (wormCounts.isEmpty()) {
-            System.out.println("[HiveNetwork] ОШИБКА: В сети " + id + " нет зарегистрированных гнезд!");
+            System.out.println("[HiveNetwork] ERROR: No nests registered in network " + id);
             return false;
         }
 
@@ -93,42 +137,37 @@ public class HiveNetwork {
         if (bestNest != null) {
             DepthWormNestBlockEntity nestBE = (DepthWormNestBlockEntity) level.getBlockEntity(bestNest);
             nestBE.addWormTag(wormTag);
-            wormCounts.put(bestNest, wormCounts.get(bestNest) + 1);
-            System.out.println("[HiveNetwork] УСПЕХ: Червь направлен в гнездо " + bestNest);
+            addWormDataToNest(bestNest, wormTag); // НОВОЕ: Сохраняем в сети
+            System.out.println("[HiveNetwork] SUCCESS: Worm assigned to nest " + bestNest);
             return true;
         }
 
-        System.out.println("[HiveNetwork] ВАРНИНГ: Все гнезда в сети " + id + " переполнены!");
+        System.out.println("[HiveNetwork] WARNING: All nests full in network " + id);
         return false;
     }
 
     public void update(Level level) {
         if (level.isClientSide) return;
 
-        // Проверяем, есть ли вообще гнезда в сети
         if (wormCounts.isEmpty()) {
-            // Нет гнезд — сеть "мертва", но почва остаётся
-            // Опционально: превращаем почву в мёртвую или удаляем сеть
             if (members.isEmpty()) {
-                return; // Полностью пустая сеть — ничего не делаем
+                return;
             }
 
-            // Если есть только почва без гнезд — переход в режим "заброшенности"
             if (currentState != HiveState.STARVATION) {
-                System.out.println("[Hive " + id + "] Нет гнезд — сеть заброшена");
+                System.out.println("[Hive " + id + "] No nests - network abandoned");
                 currentState = HiveState.STARVATION;
             }
-
-            // Не тратим очки, не делаем действий — только ждём возможного восстановления
             return;
         }
+
         if (level.getGameTime() % 40 == 0) {
-            System.out.println("[Hive Tick] Сеть " + this.id + " | Состояние: " + currentState +
-                    " | Очки: " + killsPool + " | Узлов: " + members.size() +
-                    " | Червей: " + getTotalWorms() + " | Угроза: " + threatLevel);
+            System.out.println("[Hive Tick] Network " + this.id + " | State: " + currentState +
+                    " | Points: " + killsPool + " | Nodes: " + members.size() +
+                    " | Worms: " + getTotalWormsReal() + " | Threat: " + threatLevel);
 
             if (members.isEmpty()) {
-                System.out.println("[Hive Tick] ОШИБКА: Список узлов пуст!");
+                System.out.println("[Hive Tick] ERROR: Member list empty!");
                 return;
             }
 
@@ -136,7 +175,7 @@ public class HiveNetwork {
         }
     }
 
-    // ==================== СИСТЕМА СОСТОЯНИЙ ====================
+    // ==================== STATE SYSTEM ====================
 
     private void makeDecisions(Level level) {
         if (killsPool <= 0 && !members.isEmpty()) {
@@ -146,7 +185,6 @@ public class HiveNetwork {
 
         if (killsPool <= 0) return;
 
-        // Анализируем ситуацию каждые 5 секунд (100 тиков)
         if (level.getGameTime() % 100 == 0) {
             analyzeSituation(level);
         }
@@ -169,7 +207,7 @@ public class HiveNetwork {
         if (newState != currentState) {
             currentState = newState;
             lastStateChange = level.getGameTime();
-            System.out.println("[Hive " + id + "] Смена состояния: " + currentState);
+            System.out.println("[Hive " + id + "] State changed to: " + currentState);
         }
     }
 
@@ -196,56 +234,50 @@ public class HiveNetwork {
         int territory = members.size();
         return territory > 0 ? (worms * 100) / territory : 0;
     }
-
+    public int getTotalWormsReal() {
+        int total = 0;
+        for (List<CompoundTag> worms : nestWormData.values()) {
+            total += worms.size();
+        }
+        return total;
+    }
     private HiveState determineOptimalState() {
-        // Приоритеты: Голод > Оборона > Восстановление > Агрессия > Экспансия
-
         if (killsPool <= 0) return HiveState.STARVATION;
         if (threatLevel > 20) return HiveState.DEFENSIVE;
 
-        // Проверяем нужду в лечении
         int injuredNests = 0;
         for (int count : wormCounts.values()) {
-            // Упрощенная проверка - в реальности нужно проверять каждое гнездо
             if (count > 0 && threatLevel > 10) injuredNests++;
         }
         if (injuredNests > wormCounts.size() / 2) return HiveState.RECOVERY;
 
-        // Если много червей и есть угроза - атакуем
         if (getTotalWorms() >= 4 && threatLevel > 5) return HiveState.AGGRESSIVE;
-
-        // Если мало территории относительно червей - экспансия
         if (expansionPressure > 30) return HiveState.EXPANSION;
 
-        // По умолчанию - агрессия если есть червя, иначе экспансия
         return getTotalWorms() > 2 ? HiveState.AGGRESSIVE : HiveState.EXPANSION;
     }
 
-    // ==================== ОБРАБОТЧИКИ СОСТОЯНИЙ ====================
+    // ==================== STATE HANDLERS ====================
 
     private void enterStarvationMode(Level level) {
         if (currentState != HiveState.STARVATION) {
             currentState = HiveState.STARVATION;
-            System.out.println("[Hive " + id + "] КРИТИЧЕСКИЙ ГОЛОД! Переход в режим выживания.");
+            System.out.println("[Hive " + id + "] CRITICAL HUNGER! Survival mode activated.");
         }
 
-        // В режиме голодания ничего не делаем, только ждем
-        // Можно добавить логику "поедания" собственных червей для выживания
         if (level.getGameTime() % 200 == 0 && getTotalWorms() > 0) {
-            System.out.println("[Hive " + id + "] Голодание... червей: " + getTotalWorms());
+            System.out.println("[Hive " + id + "] Starving... worms: " + getTotalWorms());
         }
     }
 
     private void handleStarvation(Level level) {
-        // Ждем пока появятся очки (от убитых врагов)
         if (killsPool > 0) {
-            System.out.println("[Hive " + id + "] Восстановлено питание! Выход из голодания.");
+            System.out.println("[Hive " + id + "] Nutrition restored! Exiting starvation.");
             currentState = HiveState.RECOVERY;
         }
     }
 
     private void handleDefensive(Level level) {
-        // Ищем гнезда под угрозой и выпускаем червей для защиты
         List<BlockPos> threatenedNests = new ArrayList<>();
 
         for (BlockPos pos : new ArrayList<>(wormCounts.keySet())) {
@@ -263,7 +295,6 @@ public class HiveNetwork {
             }
         }
 
-        // Защищаем одно гнездо за тик
         if (!threatenedNests.isEmpty()) {
             BlockPos defendPos = threatenedNests.get(0);
             BlockEntity be = level.getBlockEntity(defendPos);
@@ -275,21 +306,19 @@ public class HiveNetwork {
                 if (!enemies.isEmpty()) {
                     LivingEntity target = enemies.get(0);
                     nest.releaseWorms(defendPos, target);
-                    killsPool -= 2; // Штраф за экстренный выпуск
-                    System.out.println("[Hive] Экстренная защита гнезда " + defendPos);
+                    killsPool -= 2;
+                    System.out.println("[Hive] Emergency defense at nest " + defendPos);
                     return;
                 }
             }
         }
 
-        // Если угроза есть, но червей нет - экстренная экспансия для отвлечения
         if (threatLevel > 30 && killsPool >= 3) {
             emergencyExpansion(level);
         }
     }
 
     private void handleRecovery(Level level) {
-        // Собираем раненые гнезда
         List<DepthWormNestBlockEntity> injuredNests = new ArrayList<>();
 
         for (BlockPos pos : new ArrayList<>(wormCounts.keySet())) {
@@ -300,17 +329,15 @@ public class HiveNetwork {
             }
         }
 
-        // Хилим по одному червю за тик
         for (DepthWormNestBlockEntity nest : injuredNests) {
             if (killsPool < 1) break;
             if (nest.healOneWorm()) {
                 killsPool -= 1;
-                System.out.println("[Hive] Вылечен червь в " + nest.getBlockPos());
-                return; // Одно действие за тик
+                System.out.println("[Hive] Healed worm at " + nest.getBlockPos());
+                return;
             }
         }
 
-        // Если все здоровы - переходим в другое состояние
         if (injuredNests.isEmpty()) {
             currentState = (getTotalWorms() >= 4) ? HiveState.AGGRESSIVE : HiveState.EXPANSION;
         }
@@ -319,23 +346,20 @@ public class HiveNetwork {
     private void handleAggressive(Level level) {
         int readyWorms = getTotalWorms();
 
-        // Фаза накопления
         if (readyWorms < 4 && killsPool >= 10) {
             spawnNewWormOptimally(level);
             return;
         }
 
-        // Фаза атаки
         if (readyWorms >= 3) {
             LivingEntity target = findBestTarget(level);
             if (target == null) return;
 
-            // Находим ближайшие гнезда к цели
             List<BlockPos> nearbyNests = findNestsNearTarget(level, target.blockPosition(), 25);
 
             int released = 0;
             for (BlockPos nestPos : nearbyNests) {
-                if (released >= 2) break; // Максимум 2 гнезда за раз
+                if (released >= 2) break;
 
                 BlockEntity be = level.getBlockEntity(nestPos);
                 if (be instanceof DepthWormNestBlockEntity nest && !nest.getStoredWorms().isEmpty()) {
@@ -347,41 +371,53 @@ public class HiveNetwork {
             if (released > 0) {
                 killsPool = Math.max(0, killsPool - released);
                 successfulAttacks++;
-                System.out.println("[Hive] Координированная атака! Выпущено: " + released +
-                        " к " + target.getName().getString());
+                System.out.println("[Hive] Coordinated attack! Released: " + released +
+                        " towards " + target.getName().getString());
             }
         }
     }
 
-    private void handleExpansion(Level level) {
+    // В HiveNetwork.handleExpansion — замени установку блока:
+    public void handleExpansion(Level level) {
         if (killsPool < 5) return;
 
-        // Стратегическая экспансия
         BlockPos bestExpansion = findValuableExpansionTarget(level);
         if (bestExpansion != null) {
             BlockState currentState = level.getBlockState(bestExpansion);
 
-            // Проверяем можно ли заменить блок
             if (!currentState.isAir() && currentState.getDestroySpeed(level, bestExpansion) >= 0 &&
                     !currentState.is(ModBlocks.HIVE_SOIL.get()) &&
                     !currentState.is(ModBlocks.DEPTH_WORM_NEST.get())) {
 
-                level.setBlockAndUpdate(bestExpansion, ModBlocks.HIVE_SOIL.get().defaultBlockState());
-                killsPool -= 5;
-                System.out.println("[Hive] Экспансия: захвачена позиция " + bestExpansion);
+                // Устанавливаем блок
+                level.setBlock(bestExpansion, ModBlocks.HIVE_SOIL.get().defaultBlockState(), 3);
 
-                // Если хорошее место и много очков - строим гнездо
-                if (shouldBuildNestThere(level, bestExpansion) && killsPool >= 15) {
-                    upgradeSoilToNest(level, bestExpansion);
+                // Принудительно создаём и настраиваем BlockEntity
+                BlockEntity be = ModBlockEntities.HIVE_SOIL.get().create(bestExpansion, ModBlocks.HIVE_SOIL.get().defaultBlockState());
+                if (be instanceof HiveSoilBlockEntity soil) {
+                    soil.setNetworkId(this.id);
+                    level.setBlockEntity(soil);
+
+                    // Регистрируем в менеджере
+                    HiveNetworkManager manager = HiveNetworkManager.get(level);
+                    if (manager != null) {
+                        manager.addNode(this.id, bestExpansion, false);
+                    }
+
+                    killsPool -= 5;
+                    System.out.println("[Hive] Expansion: captured position " + bestExpansion + " for network " + this.id);
+
+                    if (shouldBuildNestThere(level, bestExpansion) && killsPool >= 15) {
+                        upgradeSoilToNest(level, bestExpansion);
+                    }
                 }
             }
         }
     }
 
-    // ==================== ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ ====================
+    // ==================== UTILITY METHODS ====================
 
     private void emergencyExpansion(Level level) {
-        // Быстрая экспансия для отвлечения врага
         for (BlockPos pos : new ArrayList<>(members)) {
             if (killsPool < 3) break;
 
@@ -394,8 +430,8 @@ public class HiveNetwork {
                         state.getDestroySpeed(level, target) >= 0) {
 
                     level.setBlockAndUpdate(target, ModBlocks.HIVE_SOIL.get().defaultBlockState());
-                    killsPool -= 3; // Дешевле обычной экспансии
-                    System.out.println("[Hive] Экстренная экспансия: " + target);
+                    killsPool -= 3;
+                    System.out.println("[Hive] Emergency expansion: " + target);
                     return;
                 }
             }
@@ -403,7 +439,6 @@ public class HiveNetwork {
     }
 
     private void spawnNewWormOptimally(Level level) {
-        // Ищем гнездо с минимумом червей
         BlockPos bestNest = null;
         int minWorms = Integer.MAX_VALUE;
 
@@ -438,9 +473,8 @@ public class HiveNetwork {
 
             for (LivingEntity target : potential) {
                 double dist = pos.distSqr(target.blockPosition());
-                double score = 1000.0 / (dist + 1); // Ближе = лучше
+                double score = 1000.0 / (dist + 1);
 
-                // Бонус за одиночку
                 if (potential.size() == 1) score *= 1.5;
 
                 if (score > bestScore) {
@@ -466,13 +500,11 @@ public class HiveNetwork {
             }
         }
 
-        // Сортируем по расстоянию
         result.sort(Comparator.comparingDouble(p -> p.distSqr(targetPos)));
         return result;
     }
 
     private BlockPos findValuableExpansionTarget(Level level) {
-        // Ищем направление с потенциальной "ценностью" (где может быть еда/враги)
         Map<Direction, Integer> directionValue = new EnumMap<>(Direction.class);
 
         for (BlockPos pos : new ArrayList<>(members)) {
@@ -487,13 +519,11 @@ public class HiveNetwork {
             }
         }
 
-        // Выбираем лучшее направление
         Direction bestDir = directionValue.entrySet().stream()
                 .max(Map.Entry.comparingByValue())
                 .map(Map.Entry::getKey)
                 .orElse(Direction.NORTH);
 
-        // Ищем первую валидную позицию в этом направлении от любого члена сети
         for (BlockPos pos : members) {
             BlockPos target = pos.relative(bestDir);
             if (isValidExpansionTarget(level, target)) {
@@ -515,44 +545,36 @@ public class HiveNetwork {
     }
 
     private int evaluatePosition(Level level, BlockPos pos) {
-        int value = 10; // Базовое значение
+        int value = 10;
 
-        // Бонус за близость к игрокам (потенциальная еда)
         AABB area = new AABB(pos).inflate(20);
         List<Player> players = level.getEntitiesOfClass(Player.class, area,
                 p -> !p.isCreative() && !p.isSpectator());
         value += players.size() * 20;
 
-        // Бонус за расстояние от других членов сети (разреженность)
         int nearbyMembers = 0;
         for (BlockPos member : members) {
-            if (pos.distSqr(member) < 9) nearbyMembers++; // Расстояние < 3 блоков
+            if (pos.distSqr(member) < 9) nearbyMembers++;
         }
-        value -= nearbyMembers * 5; // Штраф за толпу
+        value -= nearbyMembers * 5;
 
-        // Бонус за открытое пространство (воздух сверху)
         if (level.getBlockState(pos.above()).isAir()) value += 5;
 
         return Math.max(0, value);
     }
 
     private boolean shouldBuildNestThere(Level level, BlockPos pos) {
-        // Строим гнездо если:
-        // 1. Это безопасное место (нет игроков рядом)
-        // 2. Есть поддержка от других гнезд (не изолировано)
-        // 3. Мало гнезд в сети
-
         AABB dangerZone = new AABB(pos).inflate(10);
         List<Player> threats = level.getEntitiesOfClass(Player.class, dangerZone,
                 p -> !p.isCreative() && !p.isSpectator());
         if (!threats.isEmpty()) return false;
 
-        // Проверяем связность с существующими гнездами
         boolean nearExistingNest = wormCounts.keySet().stream()
-                .anyMatch(nestPos -> nestPos.distSqr(pos) < 100); // < 10 блоков
+                .anyMatch(nestPos -> nestPos.distSqr(pos) < 100);
 
-        return nearExistingNest && wormCounts.size() < 5; // Максимум 5 гнезд
+        return nearExistingNest && wormCounts.size() < 5;
     }
+
     public boolean hasAnyLoadedChunk(Level level) {
         if (!(level instanceof ServerLevel serverLevel)) return false;
 
@@ -560,13 +582,13 @@ public class HiveNetwork {
 
         for (BlockPos pos : members) {
             ChunkPos chunkPos = new ChunkPos(pos);
-            // getPlayers возвращает List, проверяем через isEmpty()
             if (!chunkMap.getPlayers(chunkPos, false).isEmpty()) {
                 return true;
             }
         }
         return false;
     }
+
     private void upgradeSoilToNest(Level level, BlockPos pos) {
         BlockEntity be = level.getBlockEntity(pos);
         if (!(be instanceof HiveSoilBlockEntity soil)) return;
@@ -574,14 +596,25 @@ public class HiveNetwork {
         UUID netId = soil.getNetworkId();
         if (netId == null || !netId.equals(this.id)) return;
 
+        // Сохраняем UUID
+        UUID preservedId = netId;
+
         // Заменяем блок
-        level.setBlockAndUpdate(pos, ModBlocks.DEPTH_WORM_NEST.get().defaultBlockState());
+        level.setBlock(pos, ModBlocks.DEPTH_WORM_NEST.get().defaultBlockState(), 3);
 
-        // Обновляем данные сети
-        wormCounts.put(pos, 0);
-        killsPool -= 15;
+        // Принудительно создаём гнездо с сохранённым UUID
+        BlockEntity newBe = ModBlockEntities.DEPTH_WORM_NEST.get().create(pos, ModBlocks.DEPTH_WORM_NEST.get().defaultBlockState());
+        if (newBe instanceof DepthWormNestBlockEntity nest) {
+            nest.setNetworkId(preservedId);
+            level.setBlockEntity(nest);
 
-        System.out.println("[Hive] Построено новое гнездо в " + pos);
+            // Обновляем данные сети
+            wormCounts.put(pos, 0);
+            nestWormData.put(pos, new ArrayList<>());
+            killsPool -= 15;
+
+            System.out.println("[Hive] New nest built at " + pos + " for network " + preservedId);
+        }
     }
 
     private void spawnNewWorm(DepthWormNestBlockEntity nest, BlockPos pos) {
@@ -589,12 +622,12 @@ public class HiveNetwork {
         newWorm.putFloat("Health", 15.0F);
         newWorm.putInt("Kills", 0);
         nest.addWormTag(newWorm);
-        wormCounts.put(pos, wormCounts.getOrDefault(pos, 0) + 1);
+        addWormDataToNest(pos, newWorm); // НОВОЕ
         killsPool -= 10;
-        System.out.println("[Hive] Рожден новый червь в " + pos + ". Остаток очков: " + killsPool);
+        System.out.println("[Hive] New worm spawned at " + pos + ". Points remaining: " + killsPool);
     }
 
-    // ==================== СЕРИАЛИЗАЦИЯ ====================
+    // ==================== SERIALIZATION ====================
 
     public CompoundTag toNBT() {
         CompoundTag tag = new CompoundTag();
@@ -613,12 +646,19 @@ public class HiveNetwork {
             pTag.putBoolean("IsNest", wormCounts.containsKey(p));
             if (wormCounts.containsKey(p)) {
                 pTag.putInt("WormCount", wormCounts.get(p));
+
+                // НОВОЕ: Сохраняем данные червей гнезда
+                ListTag wormDataList = new ListTag();
+                List<CompoundTag> wormData = nestWormData.get(p);
+                if (wormData != null) {
+                    wormDataList.addAll(wormData);
+                }
+                pTag.put("WormData", wormDataList);
             }
             membersList.add(pTag);
         }
         tag.put("Members", membersList);
 
-        // Сохраняем опасные зоны
         ListTag dangerList = new ListTag();
         for (BlockPos p : dangerZones) {
             dangerList.add(NbtUtils.writeBlockPos(p));
@@ -635,7 +675,6 @@ public class HiveNetwork {
         net.killsPool = tag.getInt("KillsPool");
         net.lastFedTime = tag.getLong("LastFed");
 
-        // Восстанавливаем состояние
         try {
             net.currentState = HiveState.valueOf(tag.getString("CurrentState"));
         } catch (IllegalArgumentException e) {
@@ -656,10 +695,17 @@ public class HiveNetwork {
             net.members.add(pos);
             if (isNest) {
                 net.wormCounts.put(pos, pTag.getInt("WormCount"));
+
+                // НОВОЕ: Восстанавливаем данные червей
+                ListTag wormDataList = pTag.getList("WormData", 10);
+                List<CompoundTag> wormData = new ArrayList<>();
+                for (int j = 0; j < wormDataList.size(); j++) {
+                    wormData.add(wormDataList.getCompound(j));
+                }
+                net.nestWormData.put(pos, wormData);
             }
         }
 
-        // Восстанавливаем опасные зоны
         ListTag dangerList = tag.getList("DangerZones", 10);
         for (int i = 0; i < dangerList.size(); i++) {
             net.dangerZones.add(NbtUtils.readBlockPos(dangerList.getCompound(i)));
@@ -669,7 +715,7 @@ public class HiveNetwork {
     }
 
     private void die(Level level) {
-        System.out.println("[HiveNetwork] КРИТИЧЕСКАЯ ОШИБКА: Сеть " + id + " погибла от голода!");
+        System.out.println("[HiveNetwork] CRITICAL: Network " + id + " died of starvation!");
 
         for (BlockPos pos : new HashSet<>(members)) {
             BlockState state = level.getBlockState(pos);
@@ -688,6 +734,7 @@ public class HiveNetwork {
 
         members.clear();
         wormCounts.clear();
+        nestWormData.clear(); // НОВОЕ
         killsPool = 0;
     }
 

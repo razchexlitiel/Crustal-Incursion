@@ -32,6 +32,20 @@ public class HiveSoilBlock extends Block implements EntityBlock {
     public void onPlace(BlockState state, Level level, BlockPos pos, BlockState oldState, boolean isMoving) {
         if (level.isClientSide) return;
 
+        // НОВОЕ: Проверяем, не установлен ли уже UUID (например, при экспансии)
+        BlockEntity existingBE = level.getBlockEntity(pos);
+        if (existingBE instanceof HiveSoilBlockEntity soil) {
+            UUID existingId = soil.getNetworkId();
+            if (existingId != null) {
+                // UUID уже установлен — просто регистрируем в менеджере
+                HiveNetworkManager manager = HiveNetworkManager.get(level);
+                if (manager != null) {
+                    manager.addNode(existingId, pos, false);
+                }
+                return;
+            }
+        }
+
         UUID finalNetId = null;
         HiveNetworkManager manager = HiveNetworkManager.get(level);
 

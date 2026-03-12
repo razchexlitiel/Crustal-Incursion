@@ -67,9 +67,24 @@ public class DepthWormNestBlock extends BaseEntityBlock {
     public void onPlace(BlockState state, Level level, BlockPos pos, BlockState oldState, boolean isMoving) {
         if (level.isClientSide) return;
 
+        // НОВОЕ: Проверяем, не установлен ли уже UUID (например, при апгрейде почвы)
+        BlockEntity existingBE = level.getBlockEntity(pos);
+        if (existingBE instanceof DepthWormNestBlockEntity nest) {
+            UUID existingId = nest.getNetworkId();
+            if (existingId != null) {
+                // UUID уже установлен — просто регистрируем в менеджере
+                HiveNetworkManager manager = HiveNetworkManager.get(level);
+                if (manager != null) {
+                    manager.addNode(existingId, pos, true);
+                }
+                return;
+            }
+        }
+
         UUID finalNetId = null;
         HiveNetworkManager manager = HiveNetworkManager.get(level);
 
+        // Ищем соседей
         for (Direction dir : Direction.values()) {
             BlockEntity neighbor = level.getBlockEntity(pos.relative(dir));
             if (neighbor instanceof HiveNetworkMember member) {
@@ -77,24 +92,24 @@ public class DepthWormNestBlock extends BaseEntityBlock {
                 if (neighborId == null) continue;
 
                 if (finalNetId == null) {
-                    finalNetId = neighborId; // Первый найденный ID станет основным
+                    finalNetId = neighborId;
                 } else if (!finalNetId.equals(neighborId)) {
-                    // Мы нашли ВТОРУЮ сеть — сливаем её с основной!
                     manager.mergeNetworks(finalNetId, neighborId, level);
                 }
             }
         }
 
-        if (finalNetId == null) finalNetId = UUID.randomUUID();
+        // Если не нашли соседей — критическая ошибка, гнездо не должно быть изолировано
+        if (finalNetId == null) {
+            System.out.println("[Hive] WARNING: Nest placed without network neighbors at " + pos);
+            finalNetId = UUID.randomUUID(); // Запасной вариант
+        }
 
-        // Привязываем текущий блок ядра
         BlockEntity be = level.getBlockEntity(pos);
         if (be instanceof HiveNetworkMember member) {
             member.setNetworkId(finalNetId);
-            // Добавляем TRUE, так как это гнездо
             manager.addNode(finalNetId, pos, true);
         }
-
     }
 
 
