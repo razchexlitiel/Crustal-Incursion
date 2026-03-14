@@ -4,6 +4,7 @@ import com.cim.api.energy.ConnectorTier;
 import com.cim.block.basic.deco.BeamBlock;
 import com.cim.block.basic.deco.BeamCollisionBlock;
 import com.cim.block.basic.energy.*;
+import com.cim.block.basic.necrosis.hive.HiveRootsBlock;
 import com.cim.block.basic.rotation.*;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -82,6 +83,8 @@ public class ModBlocks {
             () -> new DepthWormNestBlock(BlockBehaviour.Properties.copy(Blocks.MUD).sound(SoundType.MUD)));
     public static final RegistryObject<Block> HIVE_SOIL_DEAD = registerBlock("hive_soil_dead",
             () -> new HiveSoilBlock(BlockBehaviour.Properties.copy(Blocks.MUD).sound(SoundType.MUD)));
+    public static final RegistryObject<Block> HIVE_ROOTS = registerBlock("hive_roots",
+            () -> new HiveRootsBlock(BlockBehaviour.Properties.copy(Blocks.SPORE_BLOSSOM).noCollission().instabreak()));
 
 
     //ОБЫЧНЫЕ БЛОКИ
