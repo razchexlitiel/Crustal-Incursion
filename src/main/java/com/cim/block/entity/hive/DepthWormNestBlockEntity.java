@@ -54,35 +54,29 @@ public class DepthWormNestBlockEntity extends BlockEntity implements HiveNetwork
 
         CompoundTag tag = new CompoundTag();
         worm.save(tag);
-
-        // Сохраняем привязку к этому гнезду
         tag.putLong("BoundNest", this.worldPosition.asLong());
 
         storedWorms.add(tag);
         worm.discard();
 
+        // Только обновляем счётчик в сети
         if (!level.isClientSide && networkId != null) {
             HiveNetworkManager manager = HiveNetworkManager.get(level);
             if (manager != null) {
                 manager.updateWormCount(networkId, worldPosition, 1);
-                // НОВОЕ: Добавляем данные в сеть для отслеживания
-                HiveNetwork network = manager.getNetwork(networkId);
-                if (network != null) {
-                    network.addWormDataToNest(worldPosition, tag);
-                }
             }
         }
         setChanged();
     }
 
     public void addWormTag(CompoundTag tag) {
-        // Убедимся что есть привязка к этому гнезду
         if (!tag.contains("BoundNest")) {
             tag.putLong("BoundNest", this.worldPosition.asLong());
         }
         storedWorms.add(tag);
         setChanged();
     }
+
 
     public static void tick(Level level, BlockPos pos, BlockState state, DepthWormNestBlockEntity blockEntity) {
         if (level.isClientSide) return;
@@ -115,15 +109,13 @@ public class DepthWormNestBlockEntity extends BlockEntity implements HiveNetwork
             }
         }
     }
-
     public List<CompoundTag> getStoredWorms() {
-        return this.storedWorms;
+        return new ArrayList<>(this.storedWorms); // Копия для безопасности
     }
 
     public int getStoredWormsCount() {
         return this.storedWorms.size();
     }
-
     public boolean hasInjuredWorms() {
         for (CompoundTag tag : storedWorms) {
             float h = tag.contains("Health") ? tag.getFloat("Health") : 20.0f;
@@ -187,18 +179,15 @@ public class DepthWormNestBlockEntity extends BlockEntity implements HiveNetwork
         int countBefore = this.storedWorms.size();
         if (countBefore == 0) return;
 
-        // Уведомляем сеть что червяки выходят (становятся активными)
+        // Уведомляем сеть что червяки выходят
         if (this.networkId != null) {
             HiveNetworkManager manager = HiveNetworkManager.get(this.level);
             if (manager != null) {
                 HiveNetwork network = manager.getNetwork(this.networkId);
                 if (network != null) {
-                    // Добавляем в активные, НЕ очищаем полностью
                     for (int i = 0; i < countBefore; i++) {
                         network.addActiveWorm(this.worldPosition);
                     }
-                    // Очищаем stored данные - они теперь "на улице"
-                    network.clearNestWormData(this.worldPosition);
                 }
             }
         }

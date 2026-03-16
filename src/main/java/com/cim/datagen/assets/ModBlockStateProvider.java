@@ -125,11 +125,55 @@ public class ModBlockStateProvider extends BlockStateProvider {
 
     public void hiveRootsBlock(RegistryObject<Block> block) {
         getVariantBuilder(block.get()).forAllStates(state -> {
-            String suffix = state.getValue(HiveRootsBlock.HALF) == DoubleBlockHalf.LOWER ? "" : "_top";
+            boolean up = state.getValue(HiveRootsBlock.UP);
+            boolean down = state.getValue(HiveRootsBlock.DOWN);
+            boolean hanging = state.getValue(HiveRootsBlock.HANGING);
+
+            // Определяем модель ТОЛЬКО на основе конфигурации, без возраста
+            String modelName = block.getId().getPath();
+
+            if (hanging) {
+                // Висячие корни
+                if (!down) {
+                    // Конец висящей цепочки (нижний конец)
+                    modelName += "_hanging_end";
+                } else if (!up) {
+                    // Начало висящей цепочки (верхний конец, у опоры)
+                    modelName += "_hanging_top";
+                } else {
+                    // Середина
+                    modelName += "_hanging_middle";
+                }
+            } else {
+                // Растущие вверх корни
+                if (!up) {
+                    // Верхушка (конец)
+                    modelName += "_top";
+                } else if (!down) {
+                    // Низ (у опоры)
+                    modelName += "_bottom";
+                } else {
+                    // Середина
+                    modelName += "_middle";
+                }
+            }
+
+            // УБРАНО: добавление возраста к имени модели
+            // if (age > 0) {
+            //     modelName += "_age" + age;
+            // }
+
             return ConfiguredModel.builder()
-                    .modelFile(models().cross(block.getId().getPath() + suffix, modLoc("block/" + block.getId().getPath() + suffix)))
+                    .modelFile(models()
+                            .cross(modelName, modLoc("block/" + modelName))
+                            .renderType("cutout"))
                     .build();
         });
+
+        // Для инвентаря используем нижнюю часть (у опоры)
+        simpleBlockItem(block.get(), models()
+                .cross(block.getId().getPath() + "_bottom", modLoc("block/" + block.getId().getPath() + "_bottom"))
+                .renderType("cutout"));
     }
 
 

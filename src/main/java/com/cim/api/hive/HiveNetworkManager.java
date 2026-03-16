@@ -24,21 +24,19 @@ public class HiveNetworkManager {
         List<HiveNetwork> safeCopy = new ArrayList<>(networks.values());
 
         for (HiveNetwork network : safeCopy) {
-            // НЕ удаляем сразу, даём шанс на восстановление
-            if (network.isDead()) {
+            // ⭐ ИСПРАВЛЕНО: Передаём level в isDead()
+            if (network.isDead(level)) {
                 // Проверяем ещё раз через тик - может червяк вернулся
-                if (network.isDead()) {
+                if (network.isDead(level)) {
                     networks.remove(network.id);
                     System.out.println("[HiveManager] Removed dead network " + network.id);
                 }
                 continue;
             }
 
-            // Проверяем заброшенность только если нет активных червяков долгое время
-            if (network.isAbandoned()) {
+            // ⭐ ИСПРАВЛЕНО: Передаём level в isAbandoned()
+            if (network.isAbandoned(level)) {
                 System.out.println("[HiveManager] Network " + network.id + " is abandoned but keeping for now");
-                // НЕ удаляем сразу, просто логируем
-                // networks.remove(network.id);
                 continue;
             }
 
@@ -63,6 +61,7 @@ public class HiveNetworkManager {
         networkNodes.computeIfAbsent(networkId, k -> new HashSet<>()).add(pos);
     }
 
+    // ⭐ ИСПРАВЛЕНО: mergeNetworks без nestWormData
     public void mergeNetworks(UUID mainId, UUID secondId, Level level) {
         if (mainId.equals(secondId)) return;
 
@@ -72,7 +71,7 @@ public class HiveNetworkManager {
 
         System.out.println("[Hive] Merging networks! " + secondId + " into " + mainId);
 
-        // Сначала копируем данные, потом модифицируем
+        // Переносим очки
         int killsToTransfer = Math.min(50, secondNet.killsPool);
         mainNet.killsPool = Math.min(50, mainNet.killsPool + killsToTransfer);
 
@@ -87,15 +86,18 @@ public class HiveNetworkManager {
 
             posToNetwork.put(pos, mainId);
 
-            // Копируем данные о червяках если есть
+            // ⭐ ИСПРАВЛЕНО: Копируем только счётчики, не дублируем данные червей
             if (secondNet.wormCounts.containsKey(pos)) {
                 int wormCount = secondNet.wormCounts.getOrDefault(pos, 0);
-                List<CompoundTag> wormData = secondNet.getNestWormData(pos);
-
+                // Получаем данные напрямую из BlockEntity, не из кеша сети
                 mainNet.wormCounts.put(pos, wormCount);
-                mainNet.nestWormData.put(pos, new ArrayList<>(wormData));
             }
             mainNet.members.add(pos);
+        }
+
+        // Переносим активных червей
+        for (Map.Entry<BlockPos, Integer> entry : secondNet.activeWormCounts.entrySet()) {
+            mainNet.activeWormCounts.merge(entry.getKey(), entry.getValue(), Integer::sum);
         }
 
         // Удаляем вторую сеть
@@ -109,7 +111,7 @@ public class HiveNetworkManager {
         HiveNetwork network = networks.get(networkId);
         if (network != null) {
             network.removeMember(pos);
-            if (network.members.isEmpty()) {
+            if (network.isDead(level)) { // ⭐ ИСПРАВЛЕНО
                 networks.remove(networkId);
             }
         }
@@ -136,23 +138,38 @@ public class HiveNetworkManager {
         return closest;
     }
 
+    // ⭐ ИСПРАВЛЕНО: addWormToNetwork с проверкой заполненности
     public boolean addWormToNetwork(UUID networkId, CompoundTag wormData, BlockPos entryPos, Level level) {
         HiveNetwork network = getNetwork(networkId);
         if (network == null) return false;
 
+        // Ищем ближайшее НЕ ЗАПОЛНЕННОЕ гнездо
+        BlockPos bestNest = null;
+        int minWorms = Integer.MAX_VALUE;
+
         for (BlockPos pos : network.members) {
+            if (!network.wormCounts.containsKey(pos)) continue; // Только гнезда
+
             BlockEntity be = level.getBlockEntity(pos);
-            if (be instanceof DepthWormNestBlockEntity nest) {
-                if (!nest.isFull()) {
-                    nest.addWormTag(wormData);
-                    network.updateWormCount(pos, 1);
-                    network.addWormDataToNest(pos, wormData);
-                    System.out.println("[Hive] Worm bound to nest at " + pos + ". Total in nest: " +
-                            network.getNestWormData(pos).size());
-                    return true;
-                }
+            if (!(be instanceof DepthWormNestBlockEntity nest)) continue;
+            if (nest.isFull()) continue; // Пропускаем заполненные!
+
+            int count = nest.getStoredWormsCount();
+            if (count < minWorms) {
+                minWorms = count;
+                bestNest = pos;
             }
         }
+
+        if (bestNest == null) return false; // Нет места
+
+        BlockEntity be = level.getBlockEntity(bestNest);
+        if (be instanceof DepthWormNestBlockEntity nest) {
+            nest.addWormTag(wormData);
+            network.wormCounts.put(bestNest, nest.getStoredWormsCount());
+            return true;
+        }
+
         return false;
     }
 
@@ -182,12 +199,14 @@ public class HiveNetworkManager {
             }
         }
     }
+
     public void updateWormCount(UUID networkId, BlockPos pos, int delta) {
         HiveNetwork network = getNetwork(networkId);
         if (network != null) {
             network.updateWormCount(pos, delta);
         }
     }
+
     public static final Capability<HiveNetworkManager> HIVE_NETWORK_MANAGER =
             CapabilityManager.get(new CapabilityToken<>(){});
 }

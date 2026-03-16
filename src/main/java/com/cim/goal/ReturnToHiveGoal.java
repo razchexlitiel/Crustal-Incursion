@@ -218,8 +218,7 @@ public class ReturnToHiveGoal extends Goal {
             enterNetwork(targetPos);
         }
     }
-
-    // НОВОЕ: Общая логика входа в сеть
+    
     private void enterNetwork(BlockPos entryPos) {
         HiveNetworkManager manager = HiveNetworkManager.get(worm.level());
         if (manager == null) return;
@@ -236,15 +235,18 @@ public class ReturnToHiveGoal extends Goal {
         HiveNetwork network = manager.getNetwork(netId);
         if (network == null) return;
 
-        // НОВОЕ: Уменьшаем счётчик активных червяков
+        // ⭐ Добавляем очки (автоматически активирует сеть если была в спячке)
+        int kills = worm.getKills();
+        if (kills > 0) {
+            network.addPoints(kills, worm.level());
+        }
+
+        // Уменьшаем счётчик активных червяков
         BlockPos boundNest = worm.getBoundNestPos();
         if (boundNest != null) {
             network.removeActiveWorm(boundNest);
         }
 
-        // Начисляем очки
-        int kills = worm.getKills();
-        network.killsPool = Math.min(50, network.killsPool + kills);
         System.out.println("[Hive] Worm returned to network via " + (targetIsSoil ? "soil" : "nest") +
                 ". Points: " + network.killsPool + " | Active remaining: " +
                 network.activeWormCounts.getOrDefault(boundNest, 0));
@@ -254,7 +256,7 @@ public class ReturnToHiveGoal extends Goal {
         worm.saveWithoutId(tag);
         tag.putInt("Kills", 0);
         tag.putLong("BoundNest", targetPos.asLong());
-        tag.putBoolean("EnteredViaSoil", targetIsSoil); // Метка для статистики
+        tag.putBoolean("EnteredViaSoil", targetIsSoil);
 
         // Отправляем в ближайшее свободное гнездо сети
         if (manager.addWormToNetwork(netId, tag, entryPos, worm.level())) {
