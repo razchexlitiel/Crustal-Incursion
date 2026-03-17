@@ -22,7 +22,8 @@ public class ReturnToHiveGoal extends Goal {
     private BlockPos targetPos;
     private int nextSearchTick;
     private boolean targetIsSoil = false; // НОВОЕ: Цель — почва, не гнездо
-
+    private int soilEntryAttempts = 0;
+    private static final int MAX_SOIL_ATTEMPTS = 20; // ~10 секунд
     public ReturnToHiveGoal(DepthWormEntity worm) {
         this.worm = worm;
         this.setFlags(EnumSet.of(Flag.MOVE, Flag.LOOK));
@@ -180,6 +181,18 @@ public class ReturnToHiveGoal extends Goal {
     public void tick() {
         if (targetPos == null) return;
 
+        // ⭐ ИСПРАВЛЕНО: Защита от застревания в почве
+        if (targetIsSoil && soilEntryAttempts > MAX_SOIL_ATTEMPTS) {
+            System.out.println("[Hive] Worm giving up on soil entry, finding nest directly");
+            this.targetPos = null;
+            this.targetIsSoil = false;
+            this.soilEntryAttempts = 0;
+            return;
+        }
+
+        if (targetIsSoil) {
+            soilEntryAttempts++;
+        }
         double targetX = targetPos.getX() + 0.5;
         double targetY = targetPos.getY() + (targetIsSoil ? 0.5 : 0.8); // Для почвы — центр блока
         double targetZ = targetPos.getZ() + 0.5;
@@ -218,7 +231,7 @@ public class ReturnToHiveGoal extends Goal {
             enterNetwork(targetPos);
         }
     }
-    
+
     private void enterNetwork(BlockPos entryPos) {
         HiveNetworkManager manager = HiveNetworkManager.get(worm.level());
         if (manager == null) return;
@@ -235,41 +248,52 @@ public class ReturnToHiveGoal extends Goal {
         HiveNetwork network = manager.getNetwork(netId);
         if (network == null) return;
 
-        // ⭐ Добавляем очки (автоматически активирует сеть если была в спячке)
         int kills = worm.getKills();
         if (kills > 0) {
             network.addPoints(kills, worm.level());
         }
 
-        // Уменьшаем счётчик активных червяков
         BlockPos boundNest = worm.getBoundNestPos();
-        if (boundNest != null) {
-            network.removeActiveWorm(boundNest);
+
+        // ⭐ ИСПРАВЛЕНО: Если привязки нет или вошли через почву — находим ближайшее гнездо
+        BlockPos actualNest = boundNest;
+        if (actualNest == null || targetIsSoil) {
+            actualNest = findNearestNest(entryPos);
         }
 
-        System.out.println("[Hive] Worm returned to network via " + (targetIsSoil ? "soil" : "nest") +
-                ". Points: " + network.killsPool + " | Active remaining: " +
-                network.activeWormCounts.getOrDefault(boundNest, 0));
-
-        // Сохраняем данные червя
         CompoundTag tag = new CompoundTag();
         worm.saveWithoutId(tag);
         tag.putInt("Kills", 0);
-        tag.putLong("BoundNest", targetPos.asLong());
+        tag.putLong("BoundNest", actualNest.asLong()); // ⭐ Всегда реальное гнездо
         tag.putBoolean("EnteredViaSoil", targetIsSoil);
 
-        // Отправляем в ближайшее свободное гнездо сети
-        if (manager.addWormToNetwork(netId, tag, entryPos, worm.level())) {
+        boolean success = manager.addWormToNetwork(netId, tag, entryPos, worm.level());
+
+        if (success) {
+            // ⭐ ИСПРАВЛЕНО: Уменьшаем по фактическому гнезду, не точке входа
+            network.removeActiveWorm(actualNest);
             worm.discard();
+
+            System.out.println("[Hive] Worm returned to network via " + (targetIsSoil ? "soil" : "nest") +
+                    ". Points: " + network.killsPool + " | Active remaining: " +
+                    network.activeWormCounts.getOrDefault(actualNest, 0));
+        } else {
+            System.out.println("[Hive] Worm failed to enter network — nest full, seeking another");
+            this.targetPos = null;
+            this.soilEntryAttempts = 0;
         }
     }
+
 
     @Override
     public boolean canContinueToUse() {
         if (targetPos == null) return false;
 
-        // Для почвы — продолжаем пока не "провалился" достаточно
         if (targetIsSoil) {
+            // ⭐ Защита от бесконечного проваливания
+            if (soilEntryAttempts > MAX_SOIL_ATTEMPTS) {
+                return false; // Сдаёмся, ищем нормальное гнездо
+            }
             return worm.getY() > targetPos.getY() - 2.0 && worm.getTarget() == null;
         }
 

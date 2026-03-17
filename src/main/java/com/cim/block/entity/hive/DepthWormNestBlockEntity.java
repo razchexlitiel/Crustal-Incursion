@@ -44,7 +44,7 @@ public class DepthWormNestBlockEntity extends BlockEntity implements HiveNetwork
         this.networkId = id;
         this.setChanged(); // Важно!
     }
-
+    private long lastReleaseTime = 0;
     public boolean isFull() {
         return storedWorms.size() >= 3;
     }
@@ -102,10 +102,7 @@ public class DepthWormNestBlockEntity extends BlockEntity implements HiveNetwork
                 } else {
                     blockEntity.releaseWorms(blockEntity.worldPosition, target);
                 }
-
-                if (blockEntity.networkId != null) {
-                    manager.updateWormCount(blockEntity.networkId, blockEntity.worldPosition, -blockEntity.storedWorms.size());
-                }
+                // ⭐ УБРАНО: updateWormCount здесь — делается в releaseWorms через addActiveWorm
             }
         }
     }
@@ -179,14 +176,30 @@ public class DepthWormNestBlockEntity extends BlockEntity implements HiveNetwork
         int countBefore = this.storedWorms.size();
         if (countBefore == 0) return;
 
+        // ⭐ Проверяем не выпущены ли уже (защита от двойного вызова)
+        if (this.level.getGameTime() - lastReleaseTime < 5) {
+            System.out.println("[Hive] Nest at " + this.worldPosition + " release blocked — too soon");
+            return;
+        }
+        lastReleaseTime = this.level.getGameTime();
+
         // Уведомляем сеть что червяки выходят
         if (this.networkId != null) {
             HiveNetworkManager manager = HiveNetworkManager.get(this.level);
             if (manager != null) {
                 HiveNetwork network = manager.getNetwork(this.networkId);
                 if (network != null) {
+                    // ⭐ Добавляем в active ТОЛЬКО если реально выпустим
                     for (int i = 0; i < countBefore; i++) {
                         network.addActiveWorm(this.worldPosition);
+                    }
+
+                    // Проверяем не ушли ли в минус (баг восстановления)
+                    int activeNow = network.activeWormCounts.getOrDefault(this.worldPosition, 0);
+                    if (activeNow > countBefore + 5) { // Подозрительно много
+                        System.out.println("[Hive] WARNING: Active worm count suspicious (" + activeNow +
+                                ") for nest with " + countBefore + " stored. Resetting.");
+                        network.activeWormCounts.put(this.worldPosition, countBefore);
                     }
                 }
             }
