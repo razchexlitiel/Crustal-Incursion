@@ -1,6 +1,7 @@
+// HiveSoilBlock.java — усиленная защита от создания сиротских сетей
 package com.cim.block.basic.necrosis.hive;
 
-import com.cim.block.entity.hive.DepthWormNestBlockEntity;
+import com.cim.block.basic.ModBlocks;
 import com.cim.block.entity.hive.HiveSoilBlockEntity;
 import com.cim.api.hive.HiveNetworkManager;
 import com.cim.api.hive.HiveNetworkMember;
@@ -33,38 +34,69 @@ public class HiveSoilBlock extends Block implements EntityBlock {
         BlockEntity existingBE = level.getBlockEntity(pos);
         if (existingBE instanceof HiveSoilBlockEntity soil) {
             UUID existingId = soil.getNetworkId();
+
+            // ⭐ Если есть ID из NBT — проверяем валидность
             if (existingId != null) {
                 HiveNetworkManager manager = HiveNetworkManager.get(level);
-                if (manager != null) {
+                if (manager != null && manager.getNetwork(existingId) != null) {
+                    // Сеть существует — подключаемся
                     manager.addNode(existingId, pos, false);
+                    System.out.println("[Hive] Soil reconnected to network " + existingId + " at " + pos);
+                    return;
                 }
-                return;
+                // Сеть мертва — сбрасываем ID
+                soil.setNetworkId(null);
             }
         }
 
+        // ⭐ Ищем соседнюю сеть — ТОЛЬКО если есть соседи-колонисты
         UUID finalNetId = null;
         HiveNetworkManager manager = HiveNetworkManager.get(level);
+        boolean hasColonyNeighbor = false;
 
+        // Сначала ищем гнезда (приоритет)
         for (Direction dir : Direction.values()) {
             BlockEntity neighbor = level.getBlockEntity(pos.relative(dir));
             if (neighbor instanceof HiveNetworkMember member) {
                 UUID neighborId = member.getNetworkId();
                 if (neighborId == null) continue;
 
+                hasColonyNeighbor = true;
+
+                // Если это гнездо — берём его сеть сразу
+                if (level.getBlockState(pos.relative(dir)).is(ModBlocks.DEPTH_WORM_NEST.get())) {
+                    finalNetId = neighborId;
+                    break;
+                }
+                // Иначе запоминаем но продолжаем искать гнездо
                 if (finalNetId == null) {
                     finalNetId = neighborId;
                 } else if (!finalNetId.equals(neighborId)) {
+                    // Конфликт сетей — мержим
                     manager.mergeNetworks(finalNetId, neighborId, level);
                 }
             }
         }
 
-        if (finalNetId == null) finalNetId = UUID.randomUUID();
+        // ⭐ КРИТИЧНО: Если не нашли соседей-колонистов — НЕ создаём сеть!
+        // Почва остаётся "мертвой" — не тикает, не расходует ресурсы
+        if (!hasColonyNeighbor) {
+            System.out.println("[Hive] Orphan soil at " + pos + " — no colony neighbors, remains dormant");
+            // НЕ устанавливаем ID — почва будет без сети
+            return;
+        }
+
+        // Если нашли соседей но не определили сеть (только другая почва без гнёзд)
+        if (finalNetId == null) {
+            System.out.println("[Hive] Soil at " + pos + " — neighbors have no network, remains dormant");
+            return;
+        }
 
         BlockEntity be = level.getBlockEntity(pos);
         if (be instanceof HiveNetworkMember member) {
             member.setNetworkId(finalNetId);
             manager.addNode(finalNetId, pos, false);
+            System.out.println("[Hive] Soil connected to network " + finalNetId + " at " + pos);
         }
     }
 
@@ -80,10 +112,6 @@ public class HiveSoilBlock extends Block implements EntityBlock {
                     if (manager != null) {
                         manager.removeNode(netId, pos, level);
                     }
-                }
-
-                if (be instanceof DepthWormNestBlockEntity nest) {
-                    nest.releaseWormsAndNotify();
                 }
             }
         }

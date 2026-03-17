@@ -245,10 +245,6 @@ public class CrustalIncursionMod {
             event.accept(ModBlocks.HIVE_SOIL);
             event.accept(ModBlocks.HIVE_ROOTS.get()); // Обычная версия
 
-            // Высокая версия (создаем стак с нужным состоянием)
-            ItemStack tallStack = new ItemStack(ModBlocks.HIVE_ROOTS.get());
-            tallStack.getOrCreateTag().putString("BlockStateTag", "half=upper");
-            event.accept(tallStack);
             event.accept(ModBlocks.DEPTH_WORM_NEST_DEAD);
             event.accept(ModBlocks.HIVE_SOIL_DEAD);
         }
