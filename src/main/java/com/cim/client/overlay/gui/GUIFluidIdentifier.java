@@ -171,11 +171,16 @@ public class GUIFluidIdentifier extends Screen {
         if (timerSearch > 0) graphics.blit(TEXTURE, x + 22, y + 9, 167, 80, 15, 15);
         if (timerClear > 0) graphics.blit(TEXTURE, x + 105, y + 33, 154, 80, 12, 33);
 
-        renderRecentFluids(graphics, x, y, mouseX, mouseY);
+        // 1. Рисуем иконки истории и ПОЛУЧАЕМ тултип (но пока не рисуем его)
+        Component recentTooltip = renderRecentFluids(graphics, x, y, mouseX, mouseY);
+
+        // 2. Рисуем скролл-список (внутри включается и выключается Scissor)
         renderScrollableList(graphics, x, y, mouseX, mouseY);
+
+        // 3. Рисуем скроллбар
         renderScrollBar(graphics, x, y);
 
-        // Рисуем текст и курсор вручную, без вызова searchBox.render()
+        // Рисуем текст поиска вручную
         String content = searchBox.getValue();
         boolean focused = searchBox.isFocused();
         String cursorSymbol = (focused && (cursorTimer / 10 % 2 == 0)) ? "_" : "";
@@ -184,40 +189,40 @@ public class GUIFluidIdentifier extends Screen {
             fullText = this.font.plainSubstrByWidth(fullText, 60, true);
         }
         graphics.drawString(this.font, fullText, searchBox.getX(), searchBox.getY(), COLOR_INFO, false);
+
+        // 4. И ТОЛЬКО ТЕПЕРЬ, в самом конце, рисуем тултип поверх всего
+        if (recentTooltip != null) {
+            graphics.renderTooltip(this.font, recentTooltip, mouseX, mouseY);
+        }
     }
 
-    private void renderRecentFluids(GuiGraphics graphics, int x, int y, int mouseX, int mouseY) {
+    // Измени тип возвращаемого значения с void на Component
+    private Component renderRecentFluids(GuiGraphics graphics, int x, int y, int mouseX, int mouseY) {
+        Component tooltipToRender = null;
+
         for (int i = 0; i < recentFluids.size(); i++) {
             if (i >= 10) break;
             String fluidId = recentFluids.get(i);
-            if (fluidId == null || fluidId.isEmpty() || fluidId.equals("null")) continue; // ← добавить эту проверку
+            // Твоя проверка на null
+            if (fluidId == null || fluidId.isEmpty() || fluidId.equals("null")) continue;
 
             int drawX = x + 22 + ((i % 5) * 16);
             int drawY = y + 33 + ((i / 5) * 17);
 
             renderFluidIcon(graphics, fluidId, drawX, drawY);
 
+            // Проверяем наводку мыши
             if (mouseX >= drawX && mouseX < drawX + 16 && mouseY >= drawY && mouseY < drawY + 16) {
-                Component tooltip = getFluidDisplayName(fluidId);
-                // Дополнительная защита: если компонент пустой, подставить заглушку
-                if (tooltip.getString().trim().isEmpty()) {
-                    tooltip = Component.literal("Unknown");
+                tooltipToRender = getFluidDisplayName(fluidId);
+                // Защита от пустого текста
+                if (tooltipToRender.getString().trim().isEmpty()) {
+                    tooltipToRender = Component.literal("Unknown");
                 }
-                graphics.renderTooltip(this.font, tooltip, mouseX, mouseY);
+                // ВАЖНО: Мы НЕ вызываем graphics.renderTooltip здесь!
+                // Мы просто запомнили тултип, чтобы вернуть его.
             }
         }
         return tooltipToRender;
-    }
-
-    private Component getFluidDisplayName(String fluidId) {
-        if (fluidId.equals("none")) {
-            return Component.literal("Ничего");
-        }
-        Fluid fluid = BuiltInRegistries.FLUID.get(new ResourceLocation(fluidId));
-        if (fluid != null) {
-            return fluid.getFluidType().getDescription();
-        }
-        return Component.literal(fluidId.replace("minecraft:", "").replace("cim:", ""));
     }
 
     private Component getFluidDisplayName(String fluidId) {
