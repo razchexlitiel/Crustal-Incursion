@@ -1,10 +1,7 @@
 package com.cim.network;
 
 
-import com.cim.network.packet.fluids.ClearFluidHistoryPacket;
-import com.cim.network.packet.fluids.SelectFluidPacket;
-import com.cim.network.packet.fluids.ToggleFavoriteFluidPacket;
-import com.cim.network.packet.fluids.UpdateBarrelModeC2SPacket;
+import com.cim.network.packet.fluids.*;
 import com.cim.network.packet.rotation.PacketToggleRetractMode;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.network.NetworkRegistry;

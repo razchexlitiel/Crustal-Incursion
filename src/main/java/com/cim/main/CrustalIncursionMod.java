@@ -153,6 +153,8 @@ public class CrustalIncursionMod {
             event.accept(ModBlocks.SHAFT_PLACER);
             event.accept(ModBlocks.MINING_PORT);
 
+            event.accept(ModBlocks.FLUID_BARREL);
+
             event.accept(ModBlocks.CONNECTOR);
             event.accept(ModBlocks.MEDIUM_CONNECTOR);
             event.accept(ModBlocks.LARGE_CONNECTOR);
@@ -160,12 +162,7 @@ public class CrustalIncursionMod {
             event.accept(ModBlocks.SWITCH);
             event.accept(ModBlocks.CONVERTER_BLOCK);
             event.accept(ModBlocks.MACHINE_BATTERY);
-
             event.accept(ModItems.ENERGY_CELL_BASIC);
-
-            event.accept(ModBlocks.FLUID_BARREL);
-
-
             event.accept(ModItems.CREATIVE_BATTERY);
             List<RegistryObject<Item>> batteriesToAdd = List.of(
                     ModItems.BATTERY,
@@ -209,13 +206,13 @@ public class CrustalIncursionMod {
             event.accept(ModItems.GRENADE_IF_SLIME);
             event.accept(ModItems.GRENADE_IF_FIRE);
             event.accept(ModItems.GRENADE_NUC);
-            event.accept(ModItems.ENERGY_CELL_BASIC);
         }
 
         if (event.getTab() == ModCreativeTabs.CIM_TOOLS_TAB.get()) {
 
             event.accept(ModItems.SCREWDRIVER.get());
             event.accept(ModItems.BEAM_PLACER.get());
+            event.accept(ModItems.FLUID_IDENTIFIER.get());
             event.accept(ModItems.CROWBAR.get());
             event.accept(ModItems.WIRE_COIL);
             event.accept(ModItems.MORY_LAH);
