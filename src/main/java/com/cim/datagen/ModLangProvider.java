@@ -34,7 +34,17 @@ public class ModLangProvider extends LanguageProvider {
         add("itemGroup.cim.cim_weapons_tab", " Arsenal");
         add("itemGroup.cim.cim_tools_tab", "Tools");
         add("itemGroup.cim.cim_nature_tab", "Nature");
+// Fluid Identifier
+        add("item.cim.fluid_identifier", "Fluid Identifier");
+        add("fluid.cim.none", "None");
+        add("tooltip.cim.fluid.unknown", "Unknown Fluid");
+        add("tooltip.cim.fluid.invalid", "Invalid Fluid");
 
+// Fluids
+        add("fluid_type.cim.hydrogen_peroxide", "Hydrogen Peroxide");
+        add("fluid_type.cim.sulfuric_acid", "Sulfuric Acid");
+        add("fluid_type.cim.natural_gas", "Natural Gas");
+        add("fluid_type.cim.steam", "Steam");
         // Подказки
         add("tooltip.cim.detminer.line1", "Mines blocks in explosion radius");
         add("tooltip.cim.detminer.line2", "Completely harmless to entities");
@@ -69,6 +79,8 @@ public class ModLangProvider extends LanguageProvider {
         // Нэкроз
         add(ModBlocks.DEPTH_WORM_NEST.get(), "Depth worm nest");
         add(ModBlocks.HIVE_SOIL.get(), "Depth worm hive flesh");
+
+
 
         //Блоки
         add(ModBlocks.CRATE.get(), "Crate");
@@ -274,7 +286,17 @@ public class ModLangProvider extends LanguageProvider {
         // Тултипы
         add("tooltip.cim.detminer.line1", "Добывает блоки в радиусе взрыва");
         add("tooltip.cim.detminer.line2", "Не наносит урон сущностям");
+// Fluid Identifier
+        add("item.cim.fluid_identifier", "Жидкостный индефикатор");
+        add("fluid.cim.none", "Ничего");
+        add("tooltip.cim.fluid.unknown", "Неизвестная жидкость");
+        add("tooltip.cim.fluid.invalid", "Недействительная жидкость");
 
+// Fluids
+        add("fluid_type.cim.hydrogen_peroxide", "Пероксид водорода");
+        add("fluid_type.cim.sulfuric_acid", "Серная кислота");
+        add("fluid_type.cim.natural_gas", "Природный газ");
+        add("fluid_type.cim.steam", "Пар");
         // Энтити
         add("entity.cim.turret_light", "Лёгкая турель");
         add("entity.cim.turret_light_linked", "Связанная лёгкая турель");
@@ -298,7 +320,17 @@ public class ModLangProvider extends LanguageProvider {
         add("itemGroup.cim.cim_weapons_tab", "Арсенал");
         add("itemGroup.cim.cim_tools_tab", "Інструменти");
         add("itemGroup.cim.cim_nature_tab", "Природа");
+// Fluid Identifier
+        add("item.cim.fluid_identifier", "Ідентифікатор рідин");
+        add("fluid.cim.none", "Нічого");
+        add("tooltip.cim.fluid.unknown", "Невідома рідина");
+        add("tooltip.cim.fluid.invalid", "Недійсна рідина");
 
+// Fluids
+        add("fluid_type.cim.hydrogen_peroxide", "Перекис водню");
+        add("fluid_type.cim.sulfuric_acid", "Сірчана кислота");
+        add("fluid_type.cim.natural_gas", "Природний газ");
+        add("fluid_type.cim.steam", "Пара");
         // Підказки
         add("tooltip.cim.detminer.line1", "Видобуває блоки в радіусі вибуху");
         add("tooltip.cim.detminer.line2", "Не завдає шкоди істотам");
