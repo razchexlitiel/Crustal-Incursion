@@ -1,42 +1,50 @@
 package com.cim.client.overlay.gui;
 
+import com.cim.api.fluids.ModFluids;
 import com.cim.item.tools.FluidIdentifierItem;
 import com.cim.main.CrustalIncursionMod;
+import com.cim.network.ModPacketHandler;
+import com.cim.network.packet.fluids.ClearFluidHistoryPacket;
+import com.cim.network.packet.fluids.SelectFluidPacket;
+import com.cim.network.packet.fluids.ToggleFavoriteFluidPacket;
 import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.material.Fluid;
+import net.minecraft.world.level.material.Fluids;
 import net.minecraftforge.client.extensions.common.IClientFluidTypeExtensions;
-import net.minecraftforge.registries.ForgeRegistries;
+import net.minecraftforge.fluids.FluidStack;
 
 import java.util.ArrayList;
 import java.util.List;
 
 public class GUIFluidIdentifier extends Screen {
-
     private static final ResourceLocation TEXTURE = new ResourceLocation(CrustalIncursionMod.MOD_ID, "textures/gui/item/fluid_identifier_gui.png");
     private final ItemStack identifierStack;
 
-    // Размеры
-    private final int imageWidth = 153;
-    private final int imageHeight = 229;
+    private static final int IMAGE_WIDTH = 153;
+    private static final int IMAGE_HEIGHT = 229;
     private int leftPos, topPos;
 
-    // Списки данных
-    private List<String> recentFluids;
-    private List<String> favorites;
-    private List<String> displayList = new ArrayList<>();
+    private final List<String> recentFluids = new ArrayList<>();
+    private final List<String> favorites = new ArrayList<>();
+    private final List<String> displayList = new ArrayList<>();
 
-    // Скролл
     private float scrollAmount = 0f;
-    private boolean isScrolling = false;
-    private boolean isClearButtonPressed = false;
+    private int timerClear = 0;
+    private int timerSearch = 0;
+    private int cursorTimer = 0;
+    private static final int PRESS_DURATION = 10;
+    private static final int COLOR_INFO = 0xAEC6CF;
+    private static final int COLOR_HAZARDOUS = 0xFFFF5555;
+    private static final int COLOR_RADIOACTIVE = 0xFF55FF55;
 
-    // Поиск
     private EditBox searchBox;
 
     public GUIFluidIdentifier(ItemStack stack) {
@@ -47,53 +55,108 @@ public class GUIFluidIdentifier extends Screen {
     @Override
     protected void init() {
         super.init();
-        this.leftPos = (this.width - this.imageWidth) / 2;
-        this.topPos = (this.height - this.imageHeight) / 2;
+        this.leftPos = (this.width - IMAGE_WIDTH) / 2;
+        this.topPos = (this.height - IMAGE_HEIGHT) / 2;
 
-        this.recentFluids = FluidIdentifierItem.getRecentFluids(identifierStack);
-        this.favorites = FluidIdentifierItem.getFavorites(identifierStack);
+        this.recentFluids.clear();
+        this.recentFluids.addAll(FluidIdentifierItem.getRecentFluids(identifierStack));
+        this.favorites.clear();
+        this.favorites.addAll(FluidIdentifierItem.getFavorites(identifierStack));
 
-        // Настройка строки поиска (координаты х39 у9, размер 64х15)
-        this.searchBox = new EditBox(this.font, this.leftPos + 40, this.topPos + 12, 64, 15, Component.literal("Search"));
-        this.searchBox.setBordered(false); // Убираем стандартную рамку MC
-        this.searchBox.setTextColor(0xFFFFFF);
+        this.searchBox = new EditBox(this.font, this.leftPos + 40, this.topPos + 12, 64, 15, Component.empty());
+        this.searchBox.setBordered(false);
+        this.searchBox.setMaxLength(16);
+        this.searchBox.setTextColor(0x00FFFFFF);
+        this.searchBox.setFocused(true);
         this.searchBox.setResponder(text -> updateFluidList());
-        this.addRenderableWidget(this.searchBox);
+
+        // НЕ добавляем в renderables чтобы избежать двойного рендера
+        // this.addRenderableWidget(this.searchBox);
 
         updateFluidList();
     }
 
-    private void updateFluidList() {
-        displayList.clear();
-        displayList.add("none");
+    @Override
+    public void tick() {
+        super.tick();
+        if (timerClear > 0) timerClear--;
+        if (timerSearch > 0) timerSearch--;
+        cursorTimer++;
+    }
 
-        String search = searchBox.getValue().toLowerCase();
+    private String getFluidSearchString(Fluid fluid) {
+        StringBuilder sb = new StringBuilder();
 
-        // 1. Избранное
-        for (String fav : favorites) {
-            String displayName = fav.replace("minecraft:", "").replace("cim:", "");
-            if (displayName.toLowerCase().contains(search)) displayList.add(fav);
+        ResourceLocation id = BuiltInRegistries.FLUID.getKey(fluid);
+        if (id != null) {
+            String path = id.getPath().toLowerCase();
+            sb.append(id.toString().toLowerCase()).append(" ");
+            sb.append(path).append(" ");
+
+            // Добавляем части пути для поиска (например "hydrogen_peroxide" -> "hydrogen" "peroxide")
+            for (String part : path.split("_")) {
+                sb.append(part).append(" ");
+            }
         }
 
-        // 2. Остальные жидкости
-        for (net.minecraft.world.level.material.Fluid fluid : ForgeRegistries.FLUIDS.getValues()) {
-            // Пропускаем пустоту
-            if (fluid == net.minecraft.world.level.material.Fluids.EMPTY) continue;
+        sb.append(fluid.getFluidType().getDescription().getString().toLowerCase()).append(" ");
 
-            // Оставляем ТОЛЬКО источники, отсекая текучие (flowing) версии
-            if (!fluid.defaultFluidState().isSource()) continue;
+        FluidStack stack = new FluidStack(fluid, 1000);
+        int corrosivity = com.cim.api.fluids.FluidPropertyHelper.getCorrosivity(stack);
+        int radioactivity = com.cim.api.fluids.FluidPropertyHelper.getRadioactivity(stack);
+        int temperature = com.cim.api.fluids.FluidPropertyHelper.getTemperature(stack);
 
-            ResourceLocation fluidLoc = ForgeRegistries.FLUIDS.getKey(fluid);
-            if (fluidLoc == null) continue;
+        if (corrosivity > 0) {
+            sb.append("corrosive acid кислота коррозия едкий ");
+            if (corrosivity >= 2) sb.append("strong сильный ");
+        }
+        if (radioactivity > 0) {
+            sb.append("radioactive radiation радиоактивный радиация ");
+            if (radioactivity >= 2) sb.append("nuclear ядерный ");
+        }
+        if (temperature > 500) sb.append("hot heat горячий пар steam ");
+        if (temperature < 273) sb.append("cold ice холодный лед ");
 
-            String id = fluidLoc.toString();
-            String displayName = id.replace("minecraft:", "").replace("cim:", "");
+        int baseTemp = fluid.getFluidType().getTemperature();
+        if (baseTemp > 1000) sb.append("lava магма magma ");
+        if (fluid.getFluidType().getDensity() < 0) sb.append("gas газ пар steam ");
 
-            if (!favorites.contains(id) && displayName.toLowerCase().contains(search)) {
+        return sb.toString();
+    }
+
+    private void updateFluidList() {
+        displayList.clear();
+        String search = searchBox.getValue().toLowerCase().trim();
+
+        // 1. Добавляем все избранные жидкости (включая "none", если оно там)
+        for (String fav : favorites) {
+            if (fav.equals("none")) {
+                displayList.add(fav); // "none" добавляем как есть
+                continue;
+            }
+            Fluid fluid = BuiltInRegistries.FLUID.get(new ResourceLocation(fav));
+            if (fluid == null || !fluid.defaultFluidState().isSource()) continue;
+            if (search.isEmpty() || getFluidSearchString(fluid).contains(search)) {
+                displayList.add(fav);
+            }
+        }
+
+        // 2. Если "none" НЕ в избранном, но подходит под поиск – добавляем его (после избранных)
+        boolean noneInFavorites = favorites.contains("none");
+        boolean shouldAddNone = !noneInFavorites && (search.isEmpty() || "none ничего пусто empty".contains(search));
+        if (shouldAddNone) {
+            displayList.add("none");
+        }
+
+        // 3. Добавляем все остальные жидкости, кроме уже добавленных
+        for (Fluid fluid : BuiltInRegistries.FLUID) {
+            if (fluid == Fluids.EMPTY || !fluid.defaultFluidState().isSource()) continue;
+            String id = BuiltInRegistries.FLUID.getKey(fluid).toString();
+            if (displayList.contains(id)) continue;
+            if (search.isEmpty() || getFluidSearchString(fluid).contains(search)) {
                 displayList.add(id);
             }
         }
-        scrollAmount = 0;
     }
 
     @Override
@@ -102,186 +165,243 @@ public class GUIFluidIdentifier extends Screen {
         int x = this.leftPos;
         int y = this.topPos;
 
-        // 1. Основной фон
         RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
-        graphics.blit(TEXTURE, x, y, 0, 0, imageWidth, imageHeight);
+        graphics.blit(TEXTURE, x, y, 0, 0, IMAGE_WIDTH, IMAGE_HEIGHT);
 
-        // 2. Кнопка очистки истории (x105, y33)
-        if (isClearButtonPressed) {
-            graphics.blit(TEXTURE, x + 105, y + 33, 154, 80, 12, 33); // Темная версия
-        }
+        if (timerSearch > 0) graphics.blit(TEXTURE, x + 22, y + 9, 167, 80, 15, 15);
+        if (timerClear > 0) graphics.blit(TEXTURE, x + 105, y + 33, 154, 80, 12, 33);
 
-        // 3. Недавние жидкости (2 ряда по 5)
-        renderRecentFluids(graphics, x, y);
-
-        // 4. Основной список с маской (ножницами)
+        renderRecentFluids(graphics, x, y, mouseX, mouseY);
         renderScrollableList(graphics, x, y, mouseX, mouseY);
-
-        // 5. Ползунок
         renderScrollBar(graphics, x, y);
 
-        super.render(graphics, mouseX, mouseY, partialTick); // Отрисует EditBox
+        // Рисуем текст и курсор вручную, без вызова searchBox.render()
+        String content = searchBox.getValue();
+        boolean focused = searchBox.isFocused();
+        String cursorSymbol = (focused && (cursorTimer / 10 % 2 == 0)) ? "_" : "";
+        String fullText = content + cursorSymbol;
+        if (this.font.width(fullText) > 60) {
+            fullText = this.font.plainSubstrByWidth(fullText, 60, true);
+        }
+        graphics.drawString(this.font, fullText, searchBox.getX(), searchBox.getY(), COLOR_INFO, false);
     }
 
-    private void renderRecentFluids(GuiGraphics graphics, int x, int y) {
+    private void renderRecentFluids(GuiGraphics graphics, int x, int y, int mouseX, int mouseY) {
         for (int i = 0; i < recentFluids.size(); i++) {
-            if (i >= 10) break; // Максимум 10
-            int row = i / 5;
-            int col = i % 5;
-            int drawX = x + 22 + (col * 16);
-            int drawY = y + 33 + (row * 17); // 17 чтобы был отступ в 1 пиксель между рядами (у33 и у50)
+            if (i >= 10) break;
+            int drawX = x + 22 + ((i % 5) * 16);
+            int drawY = y + 33 + ((i / 5) * 17);
 
-            ItemStack dummy = new ItemStack(identifierStack.getItem());
-            dummy.getOrCreateTag().putString("SelectedFluid", recentFluids.get(i));
-            graphics.renderItem(dummy, drawX, drawY);
+            String fluidId = recentFluids.get(i);
+            renderFluidIcon(graphics, fluidId, drawX, drawY);
+
+            // ИСПРАВЛЕНО: точная проверка границ 16x16
+            if (mouseX >= drawX && mouseX < drawX + 16 && mouseY >= drawY && mouseY < drawY + 16) {
+                Component tooltip = getFluidDisplayName(fluidId);
+                graphics.renderTooltip(this.font, tooltip, mouseX, mouseY);
+            }
         }
+    }
+
+    private Component getFluidDisplayName(String fluidId) {
+        if (fluidId.equals("none")) {
+            return Component.literal("Ничего");
+        }
+        Fluid fluid = BuiltInRegistries.FLUID.get(new ResourceLocation(fluidId));
+        if (fluid != null) {
+            return fluid.getFluidType().getDescription();
+        }
+        return Component.literal(fluidId.replace("minecraft:", "").replace("cim:", ""));
     }
 
     private void renderScrollableList(GuiGraphics graphics, int x, int y, int mouseX, int mouseY) {
         int listX = x + 22;
         int listY = y + 75;
-        int listWidth = 99;
-        int listHeight = 141;
+        graphics.enableScissor(listX, listY, listX + 99, listY + 141);
 
-        // Включаем обрезку рендера
-        graphics.enableScissor(listX, listY, listX + listWidth, listY + listHeight);
-
-        int maxScroll = Math.max(0, (displayList.size() * 19) - listHeight);
+        int maxScroll = Math.max(0, (displayList.size() * 19) - 141);
         int currentOffset = (int) (scrollAmount * maxScroll);
+        String selectedFluid = FluidIdentifierItem.getSelectedFluid(identifierStack);
 
         for (int i = 0; i < displayList.size(); i++) {
             String fluidId = displayList.get(i);
             int entryY = listY + (i * 19) - currentOffset;
 
-            // Рендерим только видимые плашки
-            if (entryY + 19 >= listY && entryY <= listY + listHeight) {
-                boolean isFav = favorites.contains(fluidId);
+            if (entryY + 19 < listY || entryY > listY + 141) continue;
 
-                // Плашка (х154 у20 если избранное, иначе х154 у0)
-                int vOffset = isFav ? 20 : 0;
-                graphics.blit(TEXTURE, listX, entryY, 154, vOffset, 99, 19);
+            boolean isFav = favorites.contains(fluidId);
+            boolean isCurrent = fluidId.equals(selectedFluid);
+            int vOffset = isCurrent ? (isFav ? 60 : 40) : (isFav ? 20 : 0);
 
-                // Иконка: Сдвигаем на 1 вправо и 1 вниз (было +2, +2, стало +3, +3)
-                ItemStack dummy = new ItemStack(identifierStack.getItem());
-                dummy.getOrCreateTag().putString("SelectedFluid", fluidId);
+            graphics.blit(TEXTURE, listX, entryY, 154, vOffset, 99, 19);
 
-                graphics.pose().pushPose();
-                graphics.pose().translate(listX + 3, entryY + 3, 0);
-                graphics.pose().scale(13f/16f, 13f/16f, 1f);
-                graphics.renderItem(dummy, 0, 0);
-                graphics.pose().popPose();
+            if (!fluidId.equals("none")) {
+                renderFluidIcon(graphics, fluidId, listX + 3, entryY + 3);
 
-                // Название жидкости
-                String displayName = fluidId.equals("none") ? "Ничего" : fluidId.replace("minecraft:", "").replace("cim:", "");
+                // Индикаторы характеристик
+                Fluid fluid = BuiltInRegistries.FLUID.get(new ResourceLocation(fluidId));
+                if (fluid != null) {
+                    FluidStack stack = new FluidStack(fluid, 1000);
+                    int cx = listX + 88;
 
-                // Цвет жидкости (с хардкодом лавы)
-                int color = 0xFFDDDDDD; // Светло-серый по умолчанию
-                if (fluidId.equals("minecraft:lava")) {
-                    color = 0xFFFF5500; // Оранжевый
-                } else if (!fluidId.equals("none")) {
-                    var fluid = ForgeRegistries.FLUIDS.getValue(new ResourceLocation(fluidId));
-                    if (fluid != null) {
-                        int tint = IClientFluidTypeExtensions.of(fluid).getTintColor();
-                        if (tint != -1 && tint != 0xFFFFFFFF) color = tint;
+                    if (com.cim.api.fluids.FluidPropertyHelper.getCorrosivity(stack) > 0) {
+                        graphics.fill(cx, entryY + 4, cx + 2, entryY + 6, COLOR_HAZARDOUS);
+                        cx -= 3;
+                    }
+                    if (com.cim.api.fluids.FluidPropertyHelper.getRadioactivity(stack) > 0) {
+                        graphics.fill(cx, entryY + 4, cx + 2, entryY + 6, COLOR_RADIOACTIVE);
                     }
                 }
-
-                graphics.drawString(this.font, displayName, listX + 20, entryY + 5, color, false);
             }
-        }
 
+            Component name = getFluidDisplayName(fluidId);
+            graphics.drawString(this.font, name, listX + 20, entryY + 5, getFluidColor(fluidId), false);
+        }
         graphics.disableScissor();
-    }
-
-    private void renderScrollBar(GuiGraphics graphics, int x, int y) {
-        int trackHeight = 141 - 15; // Высота пути ползунка минус сам ползунок
-        int thumbY = y + 75 + (int)(scrollAmount * trackHeight);
-        graphics.blit(TEXTURE, x + 123, thumbY, 215, 80, 8, 15);
-    }
-
-    // --- ЛОГИКА МЫШИ (КЛИКИ И СКРОЛЛ) ---
-
-    @Override
-    public boolean mouseScrolled(double mouseX, double mouseY, double delta) {
-        int maxScroll = Math.max(0, (displayList.size() * 19) - 141);
-        if (maxScroll > 0) {
-            scrollAmount -= (float) (delta * 19 / maxScroll); // Крутим по 1 элементу (19px)
-            scrollAmount = Math.max(0f, Math.min(1f, scrollAmount));
-            return true;
-        }
-        return super.mouseScrolled(mouseX, mouseY, delta);
     }
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
         if (button != 0) return super.mouseClicked(mouseX, mouseY, button);
-
         int x = this.leftPos;
         int y = this.topPos;
 
-        // 1. Клик по кнопке очистки истории (x105, y33, размер 12x33)
-        if (mouseX >= x + 105 && mouseX <= x + 105 + 12 && mouseY >= y + 33 && mouseY <= y + 33 + 33) {
-            com.cim.network.ModPacketHandler.INSTANCE.sendToServer(new com.cim.network.packet.fluids.ClearFluidHistoryPacket());
-            // Обновляем визуально сразу
-            this.recentFluids.clear();
-            this.isClearButtonPressed = true; // Для отрисовки нажатой кнопки
-            // Можно запустить таймер или просто сбросить в false в tick(), но для простоты оставим так (сбросится при переоткрытии)
+        // Поиск
+        if (mouseX >= x + 22 && mouseX <= x + 37 && mouseY >= y + 9 && mouseY <= y + 24) {
+            timerSearch = PRESS_DURATION;
+            playClickSound();
+            this.searchBox.setFocused(true);
             return true;
         }
 
-        // 2. Клик по недавним жидкостям (х22, у33 и у50)
-        for (int i = 0; i < recentFluids.size(); i++) {
-            if (i >= 10) break;
-            int row = i / 5;
-            int col = i % 5;
-            int drawX = x + 22 + (col * 16);
-            int drawY = y + 33 + (row * 17);
+        // Очистка
+        if (mouseX >= x + 105 && mouseX <= x + 117 && mouseY >= y + 33 && mouseY <= y + 66) {
+            timerClear = PRESS_DURATION;
+            playClickSound();
+            ModPacketHandler.INSTANCE.sendToServer(new ClearFluidHistoryPacket());
+            this.recentFluids.clear();
+            return true;
+        }
 
-            if (mouseX >= drawX && mouseX <= drawX + 16 && mouseY >= drawY && mouseY <= drawY + 16) {
-                String clickedFluid = recentFluids.get(i);
-                com.cim.network.ModPacketHandler.INSTANCE.sendToServer(new com.cim.network.packet.fluids.SelectFluidPacket(clickedFluid));
-                this.minecraft.player.closeContainer(); // Закрываем GUI
+        // Клик по списку
+        int listX = x + 22;
+        int listY = y + 75;
+        if (mouseX >= listX && mouseX <= listX + 99 && mouseY >= listY && mouseY <= listY + 141) {
+            int maxScroll = Math.max(0, (displayList.size() * 19) - 141);
+            int currentOffset = (int) (scrollAmount * maxScroll);
+            int clickedIndex = (int) ((mouseY - listY + currentOffset) / 19);
+
+            if (clickedIndex >= 0 && clickedIndex < displayList.size()) {
+                String fluid = displayList.get(clickedIndex);
+                int entryY = listY + (clickedIndex * 19) - currentOffset;
+                playClickSound();
+
+                // Клик по звездочке (избранное)
+                if (mouseX >= listX + 88 && mouseX <= listX + 97 && mouseY >= entryY + 4 && mouseY <= entryY + 14) {
+                    toggleFavorite(fluid);
+                } else {
+                    selectFluid(fluid);
+                }
                 return true;
             }
         }
 
-        // 3. Клик по основному списку
-        int listX = x + 22;
-        int listY = y + 75;
-        int listWidth = 99;
-        int listHeight = 141;
-
-        if (mouseX >= listX && mouseX <= listX + listWidth && mouseY >= listY && mouseY <= listY + listHeight) {
-            int maxScroll = Math.max(0, (displayList.size() * 19) - listHeight);
-            int currentOffset = (int) (scrollAmount * maxScroll);
-
-            // Вычисляем, на какую по счету плашку нажали
-            int clickedIndex = (int) ((mouseY - listY + currentOffset) / 19);
-
-            if (clickedIndex >= 0 && clickedIndex < displayList.size()) {
-                String clickedFluid = displayList.get(clickedIndex);
-                int entryY = listY + (clickedIndex * 19) - currentOffset;
-
-                // Проверяем, кликнули ли по звездочке (x88, y4 на плашке, размер примерно 10x10)
-                if (mouseX >= listX + 88 && mouseX <= listX + 97 && mouseY >= entryY + 4 && mouseY <= entryY + 14) {
-                    // Игнорируем звездочку для пункта "Ничего"
-                    if (!clickedFluid.equals("none")) {
-                        com.cim.network.ModPacketHandler.INSTANCE.sendToServer(new com.cim.network.packet.fluids.ToggleFavoriteFluidPacket(clickedFluid));
-                        // Обновляем локально для мгновенной реакции GUI
-                        if (favorites.contains(clickedFluid)) favorites.remove(clickedFluid);
-                        else favorites.add(clickedFluid);
-                        updateFluidList();
-                    }
-                    return true;
-                } else {
-                    // Кликнули по самой плашке -> выбираем жидкость
-                    com.cim.network.ModPacketHandler.INSTANCE.sendToServer(new com.cim.network.packet.fluids.SelectFluidPacket(clickedFluid));
-                    this.minecraft.player.closeContainer(); // Закрываем GUI
-                    return true;
-                }
+        // Клик по недавним
+        for (int i = 0; i < recentFluids.size(); i++) {
+            int drawX = x + 22 + ((i % 5) * 16);
+            int drawY = y + 33 + ((i / 5) * 17);
+            if (mouseX >= drawX && mouseX < drawX + 16 && mouseY >= drawY && mouseY < drawY + 16) {
+                playClickSound();
+                selectFluid(recentFluids.get(i));
+                return true;
             }
         }
 
         return super.mouseClicked(mouseX, mouseY, button);
+    }
+
+    private void selectFluid(String fluid) {
+        ModPacketHandler.INSTANCE.sendToServer(new SelectFluidPacket(fluid));
+        identifierStack.getOrCreateTag().putString("SelectedFluid", fluid);
+        if (!fluid.equals("none")) {
+            recentFluids.remove(fluid);
+            recentFluids.add(0, fluid);
+            if (recentFluids.size() > 10) recentFluids.remove(10);
+        }
+    }
+
+    private void toggleFavorite(String fluid) {
+        ModPacketHandler.INSTANCE.sendToServer(new ToggleFavoriteFluidPacket(fluid));
+        if (favorites.contains(fluid)) favorites.remove(fluid);
+        else favorites.add(fluid);
+        updateFluidList();
+    }
+
+    private void renderFluidIcon(GuiGraphics graphics, String id, int x, int y) {
+        if (id.equals("none")) {
+            // Используем иконку пара как заглушку
+            Fluid steam = ModFluids.STEAM_SOURCE.get(); // предполагается, что ModFluids доступен
+            if (steam != null) {
+                ResourceLocation steamId = BuiltInRegistries.FLUID.getKey(steam);
+                ItemStack dummy = new ItemStack(identifierStack.getItem());
+                dummy.getOrCreateTag().putString("SelectedFluid", steamId.toString());
+                graphics.pose().pushPose();
+                graphics.pose().translate(x, y, 0);
+                graphics.pose().scale(13f / 16f, 13f / 16f, 1f);
+                graphics.renderItem(dummy, 0, 0);
+                graphics.pose().popPose();
+            } else {
+                // Если пар не зарегистрирован – запасной вариант (серый квадрат)
+                graphics.fill(x, y, x + 13, y + 13, 0xFFAAAAAA);
+            }
+            return;
+        }
+
+        // Стандартный рендер для обычных жидкостей
+        ItemStack dummy = new ItemStack(identifierStack.getItem());
+        dummy.getOrCreateTag().putString("SelectedFluid", id);
+        graphics.pose().pushPose();
+        graphics.pose().translate(x, y, 0);
+        graphics.pose().scale(13f / 16f, 13f / 16f, 1f);
+        graphics.renderItem(dummy, 0, 0);
+        graphics.pose().popPose();
+    }
+
+    private int getFluidColor(String id) {
+        if (id.equals("none")) return 0xFFAAAAAA; // серый
+        if (id.equals("minecraft:lava")) return 0xFFFF5500;
+        Fluid fluid = BuiltInRegistries.FLUID.get(new ResourceLocation(id));
+        return (fluid != null) ? IClientFluidTypeExtensions.of(fluid).getTintColor() : 0xFFDDDDDD;
+    }
+
+    private void playClickSound() {
+        Minecraft.getInstance().getSoundManager().play(
+                net.minecraft.client.resources.sounds.SimpleSoundInstance.forUI(
+                        net.minecraft.sounds.SoundEvents.UI_BUTTON_CLICK, 1.0F));
+    }
+
+    private void renderScrollBar(GuiGraphics graphics, int x, int y) {
+        int thumbY = y + 75 + (int) (scrollAmount * (141 - 15));
+        graphics.blit(TEXTURE, x + 123, thumbY, 215, 80, 8, 15);
+    }
+
+    @Override
+    public boolean mouseScrolled(double mx, double my, double d) {
+        int ms = Math.max(0, (displayList.size() * 19) - 141);
+        if (ms > 0) {
+            scrollAmount = Math.max(0f, Math.min(1f, scrollAmount - (float) (d * 19 / ms)));
+            return true;
+        }
+        return false;
+    }
+
+    @Override
+    public boolean charTyped(char c, int m) {
+        return searchBox.charTyped(c, m);
+    }
+
+    @Override
+    public boolean keyPressed(int k, int s, int m) {
+        return searchBox.keyPressed(k, s, m) || super.keyPressed(k, s, m);
     }
 }
