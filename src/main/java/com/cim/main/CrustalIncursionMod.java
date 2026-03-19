@@ -3,6 +3,7 @@ package com.cim.main;
 
 import com.cim.api.fluids.ModFluids;
 import com.cim.api.hive.HiveNetworkManager;
+import com.cim.multiblock.MultiblockEventHandler;
 import com.mojang.logging.LogUtils;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
@@ -68,6 +69,7 @@ public class CrustalIncursionMod {
         ModSounds.register(modEventBus);
         ModMenuTypes.MENUS.register(modEventBus);
         modEventBus.addListener(this::entityAttributeEvent);
+        MinecraftForge.EVENT_BUS.register(new MultiblockEventHandler());
         modEventBus.addListener(this::commonSetup);
         MinecraftForge.EVENT_BUS.register(this);
         modEventBus.addListener(this::addCreative);
@@ -157,8 +159,6 @@ public class CrustalIncursionMod {
             event.accept(ModBlocks.SHAFT_PLACER);
             event.accept(ModBlocks.MINING_PORT);
 
-            event.accept(ModBlocks.FLUID_BARREL);
-
             event.accept(ModBlocks.CONNECTOR);
             event.accept(ModBlocks.MEDIUM_CONNECTOR);
             event.accept(ModBlocks.LARGE_CONNECTOR);
@@ -174,6 +174,10 @@ public class CrustalIncursionMod {
                     ModItems.BATTERY_LITHIUM,
                     ModItems.BATTERY_TRIXITE
             );
+
+            event.accept(ModBlocks.FLUID_BARREL);
+
+            event.accept(ModItems.HEATER_ITEM);
 
             for (RegistryObject<Item> batteryRegObj : batteriesToAdd) {
                 Item item = batteryRegObj.get();
@@ -303,5 +307,4 @@ public class CrustalIncursionMod {
             }
         }
     }
-
 }

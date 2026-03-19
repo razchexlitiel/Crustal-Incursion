@@ -4,6 +4,8 @@ import com.cim.block.entity.deco.BeamCollisionBlockEntity;
 import com.cim.block.entity.energy.*;
 import com.cim.block.entity.fluids.FluidBarrelBlockEntity;
 import com.cim.block.entity.rotation.*;
+import com.cim.multiblock.industrial.HeaterBlockEntity;
+import com.cim.multiblock.part.MultiblockPartEntity;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraftforge.eventbus.api.IEventBus;
@@ -65,7 +67,13 @@ public class ModBlockEntities {
             BLOCK_ENTITIES.register("converter_be",
                     () -> BlockEntityType.Builder.of(ConverterBlockEntity::new, ModBlocks.CONVERTER_BLOCK.get()).build(null));
 
+    public static final RegistryObject<BlockEntityType<MultiblockPartEntity>> MULTIBLOCK_PART =
+            BLOCK_ENTITIES.register("multiblock_part", () ->
+                    BlockEntityType.Builder.of(MultiblockPartEntity::new, ModBlocks.MULTIBLOCK_PART.get()).build(null));
 
+    public static final RegistryObject<BlockEntityType<HeaterBlockEntity>> HEATER_BE =
+            BLOCK_ENTITIES.register("heater_be", () ->
+                    BlockEntityType.Builder.of(HeaterBlockEntity::new, ModBlocks.HEATER.get()).build(null));
 
     public static final RegistryObject<BlockEntityType<SwitchBlockEntity>> SWITCH_BE =
             BLOCK_ENTITIES.register("switch_be", () ->

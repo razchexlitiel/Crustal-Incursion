@@ -10,11 +10,9 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-// И этот класс для предметов
 import net.minecraft.world.item.Item;
 
 public class ModBlockLootTableProvider extends BlockLootSubProvider {
-    // Список блоков, которые мы обработали вручную (исключения)
     private final Set<Block> exceptions = new HashSet<>();
 
     public ModBlockLootTableProvider() {
@@ -23,44 +21,38 @@ public class ModBlockLootTableProvider extends BlockLootSubProvider {
 
     @Override
     protected void generate() {
-        // --- ИСКЛЮЧЕНИЯ (Сюда вписывай то, что НЕ просто dropSelf) ---
+        // --- ИСКЛЮЧЕНИЯ (ручные правила) ---
+        // (здесь могут быть registerOre1 и registerCustomDrop)
 
-        // Пример руды с Fortune (Тип 1)
-        // registerOre1(ModBlocks.ALUMINUM_ORE, ModItems.ALUMINUM_RAW);
-
-        // Пример блока, который дропает не себя (например, глина)
-        // registerCustomDrop(ModBlocks.MY_CLAY, Items.CLAY_BALL);
-
-        // --- ДЕФОЛТ (Для всех остальных) ---
+        // --- ДЕФОЛТ ДЛЯ ВСЕХ ОСТАЛЬНЫХ БЛОКОВ ---
         for (RegistryObject<Block> entry : ModBlocks.BLOCKS.getEntries()) {
             Block block = entry.get();
-            // Добавляем проверку, чтобы цикл пропускал наш BEAM_COLLISION
-            if (!exceptions.contains(block) && block != ModBlocks.BEAM_COLLISION.get()) {
-                this.dropSelf(block);
-            }
+
+            // Пропускаем блоки, которые не должны иметь стандартного дропа
+            if (exceptions.contains(block)) continue;
+            if (block == ModBlocks.BEAM_COLLISION.get()) continue;
+            if (block == ModBlocks.MULTIBLOCK_PART.get()) continue; // добавлено
+
+            this.dropSelf(block);
         }
     }
 
-    // Вспомогательный метод для руд
-    private void registerOre1(RegistryObject<Block> block, RegistryObject<net.minecraft.world.item.Item> item) {
+    private void registerOre1(RegistryObject<Block> block, RegistryObject<Item> item) {
         this.add(block.get(), createOreDrop(block.get(), item.get()));
         exceptions.add(block.get());
     }
 
-    // Вспомогательный метод для кастомного дропа
     private void registerCustomDrop(RegistryObject<Block> block, RegistryObject<Item> drop) {
-        // Используем встроенный метод createSingleItemTable, передавая .get()
         this.add(block.get(), createSingleItemTable(drop.get()));
         exceptions.add(block.get());
     }
-
 
     @Override
     protected Iterable<Block> getKnownBlocks() {
         return ModBlocks.BLOCKS.getEntries().stream()
                 .map(RegistryObject::get)
-                // Исключаем наш технический блок из проверки на наличие лута
                 .filter(block -> block != ModBlocks.BEAM_COLLISION.get())
+                .filter(block -> block != ModBlocks.MULTIBLOCK_PART.get()) // добавлено
                 .collect(Collectors.toList());
     }
 }
