@@ -173,10 +173,6 @@ public class CrustalIncursionMod {
                     ModItems.BATTERY_TRIXITE
             );
 
-            event.accept(ModBlocks.FLUID_BARREL);
-
-            event.accept(ModItems.HEATER_ITEM);
-
             for (RegistryObject<Item> batteryRegObj : batteriesToAdd) {
                 Item item = batteryRegObj.get();
                 if (item instanceof ModBatteryItem batteryItem) {
@@ -187,6 +183,10 @@ public class CrustalIncursionMod {
                     event.accept(chargedStack);
                 }
             }
+
+            event.accept(ModBlocks.FLUID_BARREL);
+
+            event.accept(ModItems.HEATER_ITEM);
         }
 
 
