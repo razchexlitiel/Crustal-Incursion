@@ -141,7 +141,7 @@ public class ModItems {
                     .saturation(0.5F)
                     .alwaysEat()
                     .eatDuration(16)
-                    .effect(MobEffects.MOVEMENT_SPEED, 30, 1)
+                    .effect(MobEffects.MOVEMENT_SPEED, 30, 1)));
 
     //БАТАРЕИ
     public static final RegistryObject<Item> ENERGY_CELL_BASIC = ITEMS.register("energy_cell_basic",
@@ -159,6 +159,4 @@ public class ModItems {
             () -> new ModBatteryItem(new Item.Properties(), 250000, 1000, 1000));
     public static final RegistryObject<Item> BATTERY_TRIXITE = ITEMS.register("battery_trixite",
             () -> new ModBatteryItem(new Item.Properties(), 5000000, 40000, 200000));
-    public static final RegistryObject<Item> MORY_LAH = ITEMS.register("mory_lah",
-            () -> new Item(new Item.Properties()));
 }

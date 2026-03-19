@@ -124,6 +124,9 @@ public class CrustalIncursionMod {
             event.accept(ModBlocks.CONCRETE_HAZARD_OLD_SLAB.get());
             event.accept(ModBlocks.CONCRETE_HAZARD_OLD_STAIRS.get());
 
+            event.accept(ModBlocks.MORY_BLOCK);
+            event.accept(ModBlocks.ANTON_CHIGUR);
+
             event.accept(ModBlocks.DECO_STEEL.get());
             event.accept(ModBlocks.DECO_STEEL_DARK.get());
             event.accept(ModBlocks.DECO_STEEL_SMOG.get());
@@ -133,8 +136,9 @@ public class CrustalIncursionMod {
             // Другие строительные блоки
             event.accept(ModBlocks.CRATE.get());
             event.accept(ModBlocks.CRATE_AMMO.get());
-            event.accept(ModBlocks.MORY_BLOCK);
-            event.accept(ModBlocks.ANTON_CHIGUR);        }
+
+
+        }
 
 
         if (event.getTab() == ModCreativeTabs.CIM_TECH_TAB.get()) {

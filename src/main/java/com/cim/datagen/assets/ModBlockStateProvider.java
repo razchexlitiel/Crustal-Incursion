@@ -71,7 +71,6 @@ public class ModBlockStateProvider extends BlockStateProvider {
 
         cubeAllWithItem(ModBlocks.DIRT_ROUGH);
         cubeAllWithItem(ModBlocks.BASALT_ROUGH);
-        cubeAllWithItem(ModBlocks.MORY_BLOCK);
 
         cubeAllWithItem(ModBlocks.CRATE);
         cubeAllWithItem(ModBlocks.CRATE_AMMO);
