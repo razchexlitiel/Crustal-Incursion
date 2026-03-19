@@ -15,6 +15,7 @@ public class HeaterBlockItem extends BlockItem {
     public InteractionResult place(BlockPlaceContext context) {
         Level level = context.getLevel();
         if (!level.isClientSide) {
+            // Теперь метод существует в HeaterBlock
             if (!HeaterBlock.canPlace(level, context.getClickedPos())) {
                 return InteractionResult.FAIL;
             }

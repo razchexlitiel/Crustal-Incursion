@@ -1,55 +1,48 @@
 package com.cim.multiblock.system.part;
 
 import com.cim.block.entity.ModBlockEntities;
+import com.cim.multiblock.system.MultiblockBlockEntity;
+import com.cim.multiblock.system.MultiblockPattern;
 import net.minecraft.core.BlockPos;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.protocol.Packet;
-import net.minecraft.network.protocol.game.ClientGamePacketListener;
-import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
-import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
-import org.jetbrains.annotations.Nullable;
 
-public class MultiblockPartEntity extends BlockEntity {
-    private BlockPos controllerPos;
+/**
+ * BlockEntity для частей мультиблока (не контроллеров)
+ */
+public class MultiblockPartEntity extends MultiblockBlockEntity {
 
     public MultiblockPartEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.MULTIBLOCK_PART.get(), pos, state);
     }
 
-    public void setControllerPos(BlockPos controllerPos) {
-        this.controllerPos = controllerPos;
-        setChanged();
-    }
-
-    public BlockPos getControllerPos() {
-        return controllerPos;
+    @Override
+    public MultiblockPattern getPattern() {
+        // Части не имеют своего паттерна, возвращаем null
+        // (или можно получать от контроллера при необходимости)
+        return null;
     }
 
     @Override
-    protected void saveAdditional(CompoundTag tag) {
-        super.saveAdditional(tag);
-        if (controllerPos != null) {
-            tag.putLong("ControllerPos", controllerPos.asLong());
-        }
+    protected Block getPartBlock() {
+        return null; // Части не создают других частей
     }
 
     @Override
-    public void load(CompoundTag tag) {
-        super.load(tag);
-        if (tag.contains("ControllerPos")) {
-            controllerPos = BlockPos.of(tag.getLong("ControllerPos"));
-        }
-    }
-
-    @Nullable
-    @Override
-    public Packet<ClientGamePacketListener> getUpdatePacket() {
-        return ClientboundBlockEntityDataPacket.create(this);
+    protected void onMultiblockBreak() {
+        // Части не инициируют глобальное разрушение
     }
 
     @Override
-    public CompoundTag getUpdateTag() {
-        return saveWithoutMetadata();
+    public void tickMultiblock() {
+        // Части не тикают самостоятельно
+    }
+
+    @Override
+    public InteractionResult onMultiblockUse(net.minecraft.world.entity.player.Player player,
+                                             net.minecraft.world.InteractionHand hand,
+                                             net.minecraft.world.phys.BlockHitResult hit) {
+        return InteractionResult.PASS;
     }
 }

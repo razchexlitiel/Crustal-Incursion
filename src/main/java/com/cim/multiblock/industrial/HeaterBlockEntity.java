@@ -2,204 +2,94 @@ package com.cim.multiblock.industrial;
 
 import com.cim.block.basic.ModBlocks;
 import com.cim.block.entity.ModBlockEntities;
+import com.cim.multiblock.system.MultiblockBlockEntity;
 import com.cim.multiblock.system.MultiblockPattern;
-import com.cim.multiblock.system.part.IMultiblockController;
-import com.cim.multiblock.system.part.MultiblockPartBlock;
-import com.cim.multiblock.system.part.MultiblockPartEntity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.protocol.Packet;
-import net.minecraft.network.protocol.game.ClientGamePacketListener;
-import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
+import net.minecraft.network.chat.Component;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.block.entity.BlockEntityTicker;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
-import net.minecraft.world.phys.shapes.Shapes;
-import net.minecraft.world.phys.shapes.VoxelShape;
-import org.jetbrains.annotations.Nullable;
 
-import java.util.ArrayList;
-import java.util.List;
-
-public class HeaterBlockEntity extends BlockEntity implements IMultiblockController, BlockEntityTicker<HeaterBlockEntity> {
-    private HeaterMultiblock controller;
-    private List<BlockPos> partPositions = new ArrayList<>();
-    private boolean isDestroying = false;
-    private boolean isFormed = false; // Флаг что мультиблок собран
-    private BlockPos minPos;
-    private BlockPos maxPos;
-    private BlockPos controllerPos;
+public class HeaterBlockEntity extends MultiblockBlockEntity {
+    private int heatLevel = 0;
+    private static final int MAX_HEAT = 1000;
 
     public HeaterBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.HEATER_BE.get(), pos, state);
     }
 
-    public void createMultiblock(Level level, BlockPos origin, BlockPos controllerPosition) {
-        this.controllerPos = controllerPosition;
-        this.controller = new HeaterMultiblock(level, origin);
-        MultiblockPattern pattern = controller.getPattern();
+    /**
+     * Статический метод для тикера
+     */
+    public static void serverTick(net.minecraft.world.level.Level level, BlockPos pos, BlockState state, HeaterBlockEntity be) {
+        be.tickMultiblock();
+    }
 
-        minPos = origin;
-        maxPos = origin.offset(pattern.getWidth() - 1, pattern.getHeight() - 1, pattern.getDepth() - 1);
+    @Override
+    public void tickMultiblock() {
+        if (!isFormed || !isController) return;
 
-        for (int y = 0; y < pattern.getHeight(); y++) {
-            for (int x = 0; x < pattern.getWidth(); x++) {
-                for (int z = 0; z < pattern.getDepth(); z++) {
-                    BlockPos partPos = origin.offset(x, y, z);
+        if (heatLevel < MAX_HEAT) {
+            heatLevel++;
+        }
 
-                    if (partPos.equals(controllerPosition)) continue;
+        if (level.getGameTime() % 20 == 0) {
+            setChanged();
+        }
+    }
 
-                    MultiblockPattern.PatternEntry entry = pattern.getEntry(x, y, z);
-                    if (entry == MultiblockPattern.PatternEntry.EMPTY || entry == MultiblockPattern.PatternEntry.AIR) {
-                        continue;
-                    }
+    @Override
+    public InteractionResult onMultiblockUse(Player player, InteractionHand hand, BlockHitResult hit) {
+        if (!level.isClientSide()) {
+            player.sendSystemMessage(Component.literal(
+                    "§6[HEATER] §fHeat: §c" + heatLevel + "§f/§c" + MAX_HEAT +
+                            " §7| Valid: " + (isFormed ? "§aYES" : "§cNO")
+            ));
+        }
+        return InteractionResult.SUCCESS;
+    }
 
-                    level.setBlock(partPos, ModBlocks.MULTIBLOCK_PART.get().defaultBlockState(), 3);
-                    BlockEntity be = level.getBlockEntity(partPos);
-                    if (be instanceof MultiblockPartEntity part) {
-                        part.setControllerPos(controllerPosition);
-                    }
-                    partPositions.add(partPos);
+    @Override
+    public MultiblockPattern getPattern() {
+        return MultiblockPattern.fromLayers(
+                """
+                ###
+                #O#
+                ###
+                """
+        );
+    }
+
+    @Override
+    protected Block getPartBlock() {
+        // Возвращаем блок частей, а не контроллер!
+        return ModBlocks.MULTIBLOCK_PART.get();
+    }
+
+    @Override
+    protected void onMultiblockBreak() {
+        if (level != null && !level.isClientSide) {
+            level.players().forEach(p -> {
+                if (p.distanceToSqr(worldPosition.getCenter()) < 256) {
+                    p.sendSystemMessage(Component.literal("§cHeater destroyed!"));
                 }
-            }
-        }
-
-        isFormed = controller.validate();
-        setChanged();
-    }
-
-    public boolean isFormed() {
-        return isFormed && controller != null && controller.isValid();
-    }
-
-    @Override
-    public void destroyMultiblock() {
-        if (isDestroying || level == null) return;
-        isDestroying = true;
-        isFormed = false;
-
-        for (BlockPos pos : partPositions) {
-            if (level.getBlockState(pos).getBlock() instanceof MultiblockPartBlock) {
-                level.removeBlock(pos, false);
-            }
-        }
-
-        if (controller != null) {
-            controller.onBreak();
-        }
-    }
-
-    @Override
-    public void destroyMultiblockFromPart(BlockPos brokenPartPos) {
-        if (isDestroying || level == null) return;
-        isDestroying = true;
-        isFormed = false;
-
-        for (BlockPos pos : partPositions) {
-            if (!pos.equals(brokenPartPos) && level.getBlockState(pos).getBlock() instanceof MultiblockPartBlock) {
-                level.removeBlock(pos, false);
-            }
-        }
-
-        level.removeBlock(worldPosition, false);
-
-        if (controller != null) {
-            controller.onBreak();
-        }
-    }
-
-    @Override
-    public VoxelShape getMultiblockShape() {
-        if (minPos == null || maxPos == null) return Shapes.block();
-        return Shapes.block();
-    }
-
-    public VoxelShape getFullMultiblockShape(BlockPos relativePos) {
-        if (minPos == null || maxPos == null) return Shapes.block();
-
-        int relX = relativePos.getX() - minPos.getX();
-        int relY = relativePos.getY() - minPos.getY();
-        int relZ = relativePos.getZ() - minPos.getZ();
-
-        double x1 = -relX;
-        double y1 = -relY;
-        double z1 = -relZ;
-        double x2 = x1 + (maxPos.getX() - minPos.getX() + 1);
-        double y2 = y1 + (maxPos.getY() - minPos.getY() + 1);
-        double z2 = z1 + (maxPos.getZ() - minPos.getZ() + 1);
-
-        return Shapes.box(x1, y1, z1, x2, y2, z2);
-    }
-
-    public boolean isDestroying() {
-        return isDestroying;
-    }
-
-    @Override
-    public InteractionResult onUse(Player player, InteractionHand hand, BlockHitResult hit, BlockPos clickedPos) {
-        if (controller != null) {
-            return controller.onUse(player, hand, hit, clickedPos);
-        }
-        return InteractionResult.PASS;
-    }
-
-    @Override
-    public void tick(Level level, BlockPos pos, BlockState state, HeaterBlockEntity be) {
-        if (controller != null && !isDestroying) {
-            controller.tick();
-            // Проверяем валидность периодически
-            if (level.getGameTime() % 20 == 0) {
-                isFormed = controller.validate();
-            }
+            });
         }
     }
 
     @Override
     protected void saveAdditional(CompoundTag tag) {
         super.saveAdditional(tag);
-        if (controller != null) {
-            CompoundTag controllerTag = new CompoundTag();
-            controller.save(controllerTag);
-            tag.put("Controller", controllerTag);
-        }
-        tag.putLongArray("Parts", partPositions.stream().mapToLong(BlockPos::asLong).toArray());
-        tag.putBoolean("IsFormed", isFormed);
-        if (minPos != null) tag.putLong("MinPos", minPos.asLong());
-        if (maxPos != null) tag.putLong("MaxPos", maxPos.asLong());
-        if (controllerPos != null) tag.putLong("ControllerPos", controllerPos.asLong());
+        tag.putInt("Heat", heatLevel);
     }
 
     @Override
     public void load(CompoundTag tag) {
         super.load(tag);
-        if (tag.contains("Controller") && level != null) {
-            BlockPos savedOrigin = tag.contains("MinPos") ? BlockPos.of(tag.getLong("MinPos")) : worldPosition;
-            controller = new HeaterMultiblock(level, savedOrigin);
-            controller.load(tag.getCompound("Controller"));
-        }
-        partPositions.clear();
-        for (long l : tag.getLongArray("Parts")) {
-            partPositions.add(BlockPos.of(l));
-        }
-        isFormed = tag.getBoolean("IsFormed");
-        if (tag.contains("MinPos")) minPos = BlockPos.of(tag.getLong("MinPos"));
-        if (tag.contains("MaxPos")) maxPos = BlockPos.of(tag.getLong("MaxPos"));
-        if (tag.contains("ControllerPos")) controllerPos = BlockPos.of(tag.getLong("ControllerPos"));
-    }
-
-    @Nullable
-    @Override
-    public Packet<ClientGamePacketListener> getUpdatePacket() {
-        return ClientboundBlockEntityDataPacket.create(this);
-    }
-
-    @Override
-    public CompoundTag getUpdateTag() {
-        return saveWithoutMetadata();
+        heatLevel = tag.getInt("Heat");
     }
 }
