@@ -210,6 +210,8 @@ public class CrustalIncursionMod {
             event.accept(ModItems.GRENADE_IF_SLIME);
             event.accept(ModItems.GRENADE_IF_FIRE);
             event.accept(ModItems.GRENADE_NUC);
+            event.accept(ModItems.MORY_LAH);
+
         }
 
         if (event.getTab() == ModCreativeTabs.CIM_TOOLS_TAB.get()) {
@@ -222,7 +224,7 @@ public class CrustalIncursionMod {
             event.accept(ModItems.PROTECTOR_STEEL);
             event.accept(ModItems.PROTECTOR_LEAD);
             event.accept(ModItems.PROTECTOR_TUNGSTEN);
-            event.accept(ModItems.MORY_LAH);
+
 
             event.accept(ModItems.TURRET_CHIP);
 
