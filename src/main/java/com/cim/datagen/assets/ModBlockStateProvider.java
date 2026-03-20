@@ -43,7 +43,7 @@ public class ModBlockStateProvider extends BlockStateProvider {
         cubeAllWithItem(ModBlocks.SEQUOIA_BARK_LIGHT);
         cubeAllWithItem(ModBlocks.SEQUOIA_BARK_MOSSY);
         cubeAllWithItem(ModBlocks.SEQUOIA_BIOME_MOSS);
-
+        cubeAllWithItem(ModBlocks.FIREBRICK_BLOCK);
         cubeAllWithItem(ModBlocks.DEPTH_WORM_NEST);
         cubeAllWithItem(ModBlocks.HIVE_SOIL);
         cubeAllWithItem(ModBlocks.HIVE_SOIL_DEAD);
@@ -117,6 +117,7 @@ public class ModBlockStateProvider extends BlockStateProvider {
 
 
         stairsAndSlabs(ModBlocks.CONCRETE.get(), ModBlocks.CONCRETE_STAIRS.get(), ModBlocks.CONCRETE_SLAB.get());
+        stairsAndSlabs(ModBlocks.FIREBRICK_BLOCK.get(), ModBlocks.FIREBRICK_STAIRS.get(), ModBlocks.FIREBRICK_SLAB.get());
         stairsAndSlabs(ModBlocks.CONCRETE_RED.get(), ModBlocks.CONCRETE_RED_STAIRS.get(), ModBlocks.CONCRETE_RED_SLAB.get());
         stairsAndSlabs(ModBlocks.CONCRETE_BLUE.get(), ModBlocks.CONCRETE_BLUE_STAIRS.get(), ModBlocks.CONCRETE_BLUE_SLAB.get());
         stairsAndSlabs(ModBlocks.CONCRETE_GREEN.get(), ModBlocks.CONCRETE_GREEN_STAIRS.get(), ModBlocks.CONCRETE_GREEN_SLAB.get());

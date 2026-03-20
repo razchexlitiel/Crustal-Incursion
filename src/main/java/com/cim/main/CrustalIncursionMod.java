@@ -123,6 +123,10 @@ public class CrustalIncursionMod {
             event.accept(ModBlocks.CONCRETE_HAZARD_OLD.get());
             event.accept(ModBlocks.CONCRETE_HAZARD_OLD_SLAB.get());
             event.accept(ModBlocks.CONCRETE_HAZARD_OLD_STAIRS.get());
+            
+            event.accept(ModBlocks.FIREBRICK_BLOCK.get());
+            event.accept(ModBlocks.FIREBRICK_SLAB.get());
+            event.accept(ModBlocks.FIREBRICK_STAIRS.get());
 
             event.accept(ModBlocks.MORY_BLOCK);
             event.accept(ModBlocks.ANTON_CHIGUR);
