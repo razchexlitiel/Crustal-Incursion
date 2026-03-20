@@ -85,9 +85,9 @@ public class ModItems {
     public static final RegistryObject<Item> PROTECTOR_TUNGSTEN = ITEMS.register("protector_tungsten",
             () -> new Item(new Item.Properties().stacksTo(1)));
 
+
     public static final RegistryObject<Item> INFINITE_FLUID_BARREL = ITEMS.register("infinite_fluid_barrel",
             () -> new com.cim.item.tools.InfiniteFluidBarrelItem(new Item.Properties()));
-
 
 
 
