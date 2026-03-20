@@ -1,4 +1,4 @@
-package com.cim.client;
+package com.cim.client.overlay.hud;
 
 import com.cim.main.CrustalIncursionMod;
 import com.cim.multiblock.industrial.HeaterBlockEntity;
