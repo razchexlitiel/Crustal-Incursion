@@ -249,6 +249,7 @@ public class CrustalIncursionMod {
             event.accept(ModItems.FIREBRICK.get());
             event.accept(ModItems.REINFORCEDBRICK.get());
             event.accept(ModItems.MOLD_INGOT.get());
+            event.accept(ModItems.FUEL_ASH.get());
         }
 
         if (event.getTab() == ModCreativeTabs.CIM_NATURE_TAB.get()) {

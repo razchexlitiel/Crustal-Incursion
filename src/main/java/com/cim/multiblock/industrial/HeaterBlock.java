@@ -120,9 +120,14 @@ public class HeaterBlock extends BaseEntityBlock implements IMultiblockControlle
     @Override
     public InteractionResult use(BlockState state, Level level, BlockPos pos, Player player, InteractionHand hand, BlockHitResult hit) {
         if (!level.isClientSide && level.getBlockEntity(pos) instanceof HeaterBlockEntity heater) {
-            return heater.onUse(player);
+            net.minecraftforge.network.NetworkHooks.openScreen(
+                    (net.minecraft.server.level.ServerPlayer) player,
+                    heater,
+                    pos
+            );
+            return InteractionResult.CONSUME;
         }
-        return InteractionResult.SUCCESS;
+        return InteractionResult.sidedSuccess(level.isClientSide);
     }
 
     @Nullable

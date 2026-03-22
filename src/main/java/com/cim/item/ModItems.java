@@ -81,6 +81,9 @@ public class ModItems {
     public static final RegistryObject<Item> FLUID_IDENTIFIER = ITEMS.register("fluid_identifier",
             () -> new FluidIdentifierItem(new Item.Properties()));
 
+    public static final RegistryObject<Item> FUEL_ASH = ITEMS.register("fuel_ash",
+            () -> new Item(new Item.Properties()));
+
     public static final RegistryObject<Item> PROTECTOR_LEAD = ITEMS.register("protector_lead",
             () -> new Item(new Item.Properties().stacksTo(1)));
 

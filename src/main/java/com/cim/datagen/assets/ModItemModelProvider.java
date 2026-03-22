@@ -85,7 +85,7 @@ public class ModItemModelProvider extends ItemModelProvider {
         simpleBlockItem(ModBlocks.CONNECTOR);
         simpleBlockItem(ModBlocks.MEDIUM_CONNECTOR);
         simpleBlockItem(ModBlocks.LARGE_CONNECTOR);
-
+        simpleItem(ModItems.FUEL_ASH);
         complexBlockItem(ModBlocks.FLUID_BARREL);
 
         // Пример регистрации блоков как предметов (если это обычный куб)
