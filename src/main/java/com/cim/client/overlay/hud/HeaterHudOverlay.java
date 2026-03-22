@@ -28,55 +28,63 @@ public class HeaterHudOverlay {
         if (mc.player == null || mc.level == null) return;
 
         HitResult hit = mc.hitResult;
-        if (hit instanceof BlockHitResult blockHit && hit.getType() == HitResult.Type.BLOCK) {
-            BlockPos pos = blockHit.getBlockPos();
-            BlockEntity be = mc.level.getBlockEntity(pos);
+        if (!(hit instanceof BlockHitResult blockHit) || hit.getType() != HitResult.Type.BLOCK) return;
 
-            // Если кликнули по части мультиблока, ищем контроллер
-            if (be instanceof IMultiblockPart part && part.getControllerPos() != null) {
-                be = mc.level.getBlockEntity(part.getControllerPos());
-            }
+        BlockPos pos = blockHit.getBlockPos();
+        BlockEntity be = mc.level.getBlockEntity(pos);
+        if (be == null) return;
 
-            if (be instanceof HeaterBlockEntity heater) {
-                GuiGraphics graphics = event.getGuiGraphics();
-                Font font = mc.font;
-
-                int temp = heater.getTemperature();
-                int maxTemp = HeaterBlockEntity.MAX_TEMP;
-                float tempPercent = (float) temp / maxTemp;
-
-                // Получаем цвет в зависимости от температуры (3 фазы: серый->оранж->красный)
-                int color = getSmoothTemperatureColor(tempPercent);
-
-                // Текст температуры
-                String tempText = String.format("%d / %d °C", temp, maxTemp);
-                int textWidth = font.width(tempText);
-
-                int screenWidth = event.getWindow().getGuiScaledWidth();
-                int screenHeight = event.getWindow().getGuiScaledHeight();
-                int x = screenWidth / 2 + 15; // Справа от прицела
-                int y = screenHeight / 2 + 5;  // Слегка ниже прицела
-
-                // Фон под текст
-                graphics.fill(x - 2, y - 2, x + textWidth + 2, y + font.lineHeight + 1, 0x80000000);
-
-                // Рисуем текст температуры
-                graphics.drawString(font, tempText, x, y, color, true);
-
-                // Если нагреватель работает - показываем индикатор под температурой
-                if (heater.isBurning()) {
-                    String status = "§6● §7Нагрев";
-                    int statusWidth = font.width(status);
-                    int statusY = y + font.lineHeight + 2;
-
-                    // Расширяем фон если нужно
-                    if (statusWidth > textWidth) {
-                        graphics.fill(x - 2, y - 2, x + statusWidth + 2, statusY + font.lineHeight + 1, 0x80000000);
-                    }
-
-                    graphics.drawString(font, status, x, statusY, 0xFFAA00, true);
+        // Ищем нагреватель (контроллер)
+        HeaterBlockEntity heater = null;
+        if (be instanceof IMultiblockPart part) {
+            BlockPos controllerPos = part.getControllerPos();
+            if (controllerPos != null) {
+                BlockEntity controller = mc.level.getBlockEntity(controllerPos);
+                if (controller instanceof HeaterBlockEntity h) {
+                    heater = h;
                 }
             }
+        } else if (be instanceof HeaterBlockEntity h) {
+            heater = h;
+        }
+
+        if (heater == null) return;
+
+        // Проверяем, что данные актуальны (не 0 если нагреватель работал)
+        int temp = heater.getTemperature();
+
+        GuiGraphics graphics = event.getGuiGraphics();
+        Font font = mc.font;
+        int maxTemp = HeaterBlockEntity.MAX_TEMP;
+        float tempPercent = (float) temp / maxTemp;
+        int color = getSmoothTemperatureColor(tempPercent);
+
+        String tempText = String.format("%d / %d °C", temp, maxTemp);
+        int textWidth = font.width(tempText);
+
+        int screenWidth = event.getWindow().getGuiScaledWidth();
+        int screenHeight = event.getWindow().getGuiScaledHeight();
+        int x = screenWidth / 2 + 12;
+        int y = screenHeight / 2 + 4;
+
+        if (x + textWidth + 4 > screenWidth) {
+            x = screenWidth / 2 - textWidth - 12;
+        }
+
+        // Фон
+        graphics.fill(x - 3, y - 2, x + textWidth + 3, y + font.lineHeight + 2, 0x90000000);
+        graphics.drawString(font, tempText, x, y, color, true);
+
+        if (heater.isBurning()) {
+            String status = "§6● §fНагрев";
+            int statusWidth = font.width(status);
+            int statusY = y + font.lineHeight + 3;
+
+            if (statusWidth > textWidth) {
+                graphics.fill(x - 3, y - 2, x + statusWidth + 3, statusY + font.lineHeight + 2, 0x90000000);
+            }
+
+            graphics.drawString(font, status, x, statusY, 0xFFAA00, true);
         }
     }
 

@@ -6,8 +6,13 @@ import com.cim.item.ModItems;
 import com.cim.menu.HeaterMenu;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.Connection;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.protocol.Packet;
+import net.minecraft.network.protocol.game.ClientGamePacketListener;
+import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
 import net.minecraft.world.Container;
+import net.minecraft.world.Containers;
 import net.minecraft.world.MenuProvider;
 import net.minecraft.world.SimpleContainer;
 import net.minecraft.world.entity.player.Inventory;
@@ -24,6 +29,8 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraftforge.items.ItemStackHandler;
 import net.minecraftforge.items.wrapper.RecipeWrapper;
+
+import javax.annotation.Nullable;
 
 public class HeaterBlockEntity extends BlockEntity implements MenuProvider {
     // Инвентарь: 0 - вход (топливо), 1 - выход (зола)
@@ -69,27 +76,47 @@ public class HeaterBlockEntity extends BlockEntity implements MenuProvider {
     }
 
     public static void serverTick(Level level, BlockPos pos, BlockState state, HeaterBlockEntity be) {
-        boolean wasBurning = be.burnTime > 0;
         boolean changed = false;
 
+        // === ОХЛАЖДЕНИЕ С ЕСТЕСТВЕННЫМИ КОЛЕБАНИЯМИ ===
+        int baseCooling = (be.temperature * be.temperature) / 512000;
+
+        // Добавляем "термический шум": случайное отклонение -2..+2 градуса
+        // Колебания заметны только при высоких температурах (>200°C),
+        // чтобы не мешать начальному разогреву
+        int thermalNoise = 0;
+        if (be.temperature > 200 && baseCooling > 0) {
+            thermalNoise = level.random.nextInt(5) - 2; // -2, -1, 0, +1, +2
+        }
+
+        int cooling = Math.max(0, baseCooling + thermalNoise);
+
+        if (cooling > 0 && be.temperature > 0) {
+            be.temperature = Math.max(0, be.temperature - cooling);
+            changed = true;
+        }
+
+        // === НАГРЕВ ===
         if (be.burnTime > 0) {
-            // Горим - нагреваемся
             be.burnTime--;
             int heatPerTick = TIER_STATS[be.fuelTier][0];
+
+            // Нагреваемся (с учетом колебаний охлаждения выше)
             be.temperature = Math.min(MAX_TEMP, be.temperature + heatPerTick);
 
-            // Если сгорело и тир >= 2 - выдаем золу
+            // Выдача золы при сгорании высоких тиров
             if (be.burnTime == 0 && be.fuelTier >= 2) {
-                ItemStack ash = new ItemStack(ModItems.FUEL_ASH.get());
-                ItemStack result = be.inventory.insertItem(1, ash, false);
-                // Если не влезло, зола пропадает (или можно дропнуть в мир)
-                if (!result.isEmpty()) {
-                    // Container.popResource(level, pos, result);
+                ItemStack ash = new ItemStack(ModItems.FUEL_ASH.get(), 1); // Явно указываем 1 штуку
+                ItemStack remaining = be.inventory.insertItem(1, ash, false);
+
+                // Если не влезло в инвентарь - дропаем в мир (не пропадает!)
+                if (!remaining.isEmpty()) {
+                    Containers.dropItemStack(level, pos.getX(), pos.getY(), pos.getZ(), remaining);
                 }
             }
             changed = true;
         } else {
-            // Не горим - пытаемся взять топливо или охлаждаемся
+            // Пытаемся взять новое топливо
             ItemStack fuel = be.inventory.getStackInSlot(0);
             if (!fuel.isEmpty()) {
                 int tier = be.getFuelTier(fuel);
@@ -101,13 +128,9 @@ public class HeaterBlockEntity extends BlockEntity implements MenuProvider {
                     changed = true;
                 }
             }
-
-            // Охлаждение: чем выше температура, тем быстрее охлаждение
-            int cooling = Math.max(1, (be.temperature * be.temperature) / 40000);
-            be.temperature = Math.max(0, be.temperature - cooling);
         }
 
-        // Обновляем данные для контейнера
+        // === СИНХРОНИЗАЦИЯ ДАННЫХ ===
         be.data.set(DATA_TEMP, be.temperature);
         be.data.set(DATA_BURN_TIME, be.burnTime);
         be.data.set(DATA_TOTAL_BURN_TIME, be.totalBurnTime);
@@ -118,6 +141,7 @@ public class HeaterBlockEntity extends BlockEntity implements MenuProvider {
             level.sendBlockUpdated(pos, state, state, 3);
         }
     }
+
 
     public boolean isFuel(ItemStack stack) {
         return getFuelTier(stack) >= 0;
@@ -200,5 +224,48 @@ public class HeaterBlockEntity extends BlockEntity implements MenuProvider {
     @Override
     public AbstractContainerMenu createMenu(int id, Inventory inv, Player player) {
         return new HeaterMenu(id, inv, this, data);
+    }
+
+    // === СИНХРОНИЗАЦИЯ ДЛЯ HUD (критически важно!) ===
+    @Override
+    public CompoundTag getUpdateTag() {
+        CompoundTag tag = super.getUpdateTag();
+        tag.putInt("Temperature", temperature);
+        tag.putInt("BurnTime", burnTime);
+        tag.putInt("TotalBurnTime", totalBurnTime);
+        tag.putInt("FuelTier", fuelTier);
+        return tag;
+    }
+
+    @Override
+    public void handleUpdateTag(CompoundTag tag) {
+        super.handleUpdateTag(tag);
+        if (tag.contains("Temperature")) {
+            temperature = tag.getInt("Temperature");
+            burnTime = tag.getInt("BurnTime");
+            totalBurnTime = tag.getInt("TotalBurnTime");
+            fuelTier = tag.getInt("FuelTier");
+
+            // Обновляем данные для GUI/HUD
+            data.set(DATA_TEMP, temperature);
+            data.set(DATA_BURN_TIME, burnTime);
+            data.set(DATA_TOTAL_BURN_TIME, totalBurnTime);
+            data.set(DATA_IS_BURNING, burnTime > 0 ? 1 : 0);
+        }
+    }
+
+    // Для немедленной синхронизации когда игрок смотрит на блок
+    @Nullable
+    @Override
+    public Packet<ClientGamePacketListener> getUpdatePacket() {
+        return ClientboundBlockEntityDataPacket.create(this);
+    }
+
+    @Override
+    public void onDataPacket(Connection net, ClientboundBlockEntityDataPacket pkt) {
+        CompoundTag tag = pkt.getTag();
+        if (tag != null) {
+            handleUpdateTag(tag);
+        }
     }
 }
