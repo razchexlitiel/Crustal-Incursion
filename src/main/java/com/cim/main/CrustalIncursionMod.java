@@ -140,6 +140,7 @@ public class CrustalIncursionMod {
             event.accept(ModBlocks.DECO_BEAM.get());
             event.accept(ModBlocks.BEAM_BLOCK.get());
             event.accept(ModBlocks.STEEL_PROPS.get());
+            event.accept(ModBlocks.PIPE_TEST.get());
             // Другие строительные блоки
             event.accept(ModBlocks.CRATE.get());
             event.accept(ModBlocks.CRATE_AMMO.get());
@@ -195,6 +196,8 @@ public class CrustalIncursionMod {
 
             event.accept(ModItems.HEATER_ITEM);
             event.accept(ModBlocks.SMELTER);
+            event.accept(ModBlocks.CASTING_POT);
+            event.accept(ModBlocks.CASTING_DESCENT);
         }
 
 

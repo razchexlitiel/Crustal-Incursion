@@ -3,6 +3,7 @@ package com.cim.block.basic;
 import com.cim.api.energy.ConnectorTier;
 import com.cim.block.basic.deco.BeamBlock;
 import com.cim.block.basic.deco.BeamCollisionBlock;
+import com.cim.block.basic.direction.SideOBlock;
 import com.cim.block.basic.energy.*;
 import com.cim.block.basic.fluids.FluidBarrelBlock;
 import com.cim.block.basic.necrosis.hive.HiveRootsBlock;
@@ -99,8 +100,11 @@ public class ModBlocks {
     public static final RegistryObject<Block> CONCRETE = registerBlock("concrete",
             () -> new Block(BlockBehaviour.Properties.of()
                     .strength(0.5F, 6.0F).sound(SoundType.STONE).requiresCorrectToolForDrops()));
-    public static final RegistryObject<Block> SMELTER = registerBlock("smelter",
+    public static final RegistryObject<Block> PIPE_TEST = registerBlock("pipe_test",
             () -> new Block(BlockBehaviour.Properties.of()
+                    .strength(0.5F, 6.0F).sound(SoundType.STONE).requiresCorrectToolForDrops()));
+    public static final RegistryObject<Block> SMELTER = registerBlock("smelter",
+            () -> new HeaterBlock(BlockBehaviour.Properties.of()
                     .strength(0.5F, 6.0F).sound(SoundType.STONE).requiresCorrectToolForDrops().noCollission()));
     public static final RegistryObject<Block> CONCRETE_RED = registerBlock("concrete_red",
             () -> new Block(BlockBehaviour.Properties.of()
@@ -161,6 +165,12 @@ public class ModBlocks {
     public static final RegistryObject<Block> DECO_BEAM = registerBlock("deco_beam",
             () -> new Block(BlockBehaviour.Properties.of()
                     .strength(0.5F, 6.0F).sound(SoundType.NETHERITE_BLOCK).requiresCorrectToolForDrops()));
+    public static final RegistryObject<Block> CASTING_DESCENT = registerBlock("casting_descent",
+            () -> new SideOBlock(BlockBehaviour.Properties.of()
+                    .strength(0.5F, 6.0F).sound(SoundType.STONE).requiresCorrectToolForDrops().noOcclusion()));
+    public static final RegistryObject<Block> CASTING_POT = registerBlock("casting_pot",
+            () -> new Block(BlockBehaviour.Properties.of()
+                    .strength(0.5F, 6.0F).sound(SoundType.STONE).requiresCorrectToolForDrops().noOcclusion()));
     public static final RegistryObject<Block> STEEL_PROPS = registerBlock("steel_props",
             () -> new FullOBlock(BlockBehaviour.Properties.of()
                     .strength(0.5F, 6.0F).sound(SoundType.STONE).requiresCorrectToolForDrops().noOcclusion()));
