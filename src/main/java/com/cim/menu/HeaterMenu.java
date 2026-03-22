@@ -58,11 +58,16 @@ public class HeaterMenu extends AbstractContainerMenu {
     }
 
     // Фабрика для сети
+    // Фабрика для сети
     public static HeaterMenu create(int id, Inventory inv, FriendlyByteBuf buf) {
         BlockPos pos = buf.readBlockPos();
         BlockEntity entity = inv.player.level().getBlockEntity(pos);
-        SimpleContainerData data = new SimpleContainerData(4);
-        return new HeaterMenu(id, inv, (HeaterBlockEntity) entity, data);
+        // !!! ИСПРАВЛЕНИЕ: Используем данные из сущности, а не создаем пустые !!!
+        if (entity instanceof HeaterBlockEntity heater) {
+            return new HeaterMenu(id, inv, heater, heater.getData());
+        }
+        // Fallback (не должен произойти, но для безопасности)
+        return new HeaterMenu(id, inv, (HeaterBlockEntity) entity, new SimpleContainerData(4));
     }
 
     public int getTemperature() {

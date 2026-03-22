@@ -33,18 +33,32 @@ import net.minecraftforge.items.wrapper.RecipeWrapper;
 import javax.annotation.Nullable;
 
 public class HeaterBlockEntity extends BlockEntity implements MenuProvider {
-    // Инвентарь: 0 - вход (топливо), 1 - выход (зола)
+    // Инвентарь с синхронизацией
     private final ItemStackHandler inventory = new ItemStackHandler(2) {
         @Override
         protected void onContentsChanged(int slot) {
             setChanged();
+            // === ФИКС 1: Синхронизация инвентаря с клиентом ===
+            if (level != null && !level.isClientSide) {
+                level.sendBlockUpdated(getBlockPos(), getBlockState(), getBlockState(), 3);
+            }
         }
 
         @Override
         public boolean isItemValid(int slot, ItemStack stack) {
             if (slot == 0) return isFuel(stack);
-            return false; // В выход можно только извлекать
+            return false;
         }
+    };
+
+    // Шансы выпадения золы по тирам (в процентах)
+    private static final int[] ASH_CHANCES = {
+            0,    // Тир 0: 0%
+            0,    // Тир 1: 0%
+            40,   // Тир 2: 40%
+            60,   // Тир 3: 60%
+            80,   // Тир 4: 80%
+            100   // Тир 5: 100%
     };
 
     // Данные для GUI
@@ -75,46 +89,49 @@ public class HeaterBlockEntity extends BlockEntity implements MenuProvider {
         super(ModBlockEntities.HEATER_BE.get(), pos, state);
     }
 
+
     public static void serverTick(Level level, BlockPos pos, BlockState state, HeaterBlockEntity be) {
         boolean changed = false;
 
         // === ОХЛАЖДЕНИЕ С ЕСТЕСТВЕННЫМИ КОЛЕБАНИЯМИ ===
         int baseCooling = (be.temperature * be.temperature) / 512000;
 
-        // Добавляем "термический шум": случайное отклонение -2..+2 градуса
-        // Колебания заметны только при высоких температурах (>200°C),
-        // чтобы не мешать начальному разогреву
-        int thermalNoise = 0;
-        if (be.temperature > 200 && baseCooling > 0) {
-            thermalNoise = level.random.nextInt(5) - 2; // -2, -1, 0, +1, +2
+        // === ФИКС 3: Минимальное охлажение чтобы температура падала до 0 ===
+        if (baseCooling == 0 && be.temperature > 0) {
+            baseCooling = 1;
         }
 
-        int cooling = Math.max(0, baseCooling + thermalNoise);
+        // Термический шум только при высоких температурах
+        int thermalNoise = 0;
+        if (be.temperature > 200 && baseCooling > 1) {
+            thermalNoise = level.random.nextInt(5) - 2;
+        }
 
-        if (cooling > 0 && be.temperature > 0) {
+        int cooling = Math.max(1, baseCooling + thermalNoise);
+
+        if (be.temperature > 0) {
             be.temperature = Math.max(0, be.temperature - cooling);
-            changed = true;
+            changed = true; // Всегда отмечаем изменение при охлаждении
         }
 
         // === НАГРЕВ ===
         if (be.burnTime > 0) {
             be.burnTime--;
             int heatPerTick = TIER_STATS[be.fuelTier][0];
-
-            // Нагреваемся (с учетом колебаний охлаждения выше)
             be.temperature = Math.min(MAX_TEMP, be.temperature + heatPerTick);
+            changed = true;
 
-            // Выдача золы при сгорании высоких тиров
+            // === ФИКС 2: Зола выпадает по шансу ===
             if (be.burnTime == 0 && be.fuelTier >= 2) {
-                ItemStack ash = new ItemStack(ModItems.FUEL_ASH.get(), 1); // Явно указываем 1 штуку
-                ItemStack remaining = be.inventory.insertItem(1, ash, false);
-
-                // Если не влезло в инвентарь - дропаем в мир (не пропадает!)
-                if (!remaining.isEmpty()) {
-                    Containers.dropItemStack(level, pos.getX(), pos.getY(), pos.getZ(), remaining);
+                int chance = ASH_CHANCES[be.fuelTier];
+                if (level.random.nextInt(100) < chance) {
+                    ItemStack ash = new ItemStack(ModItems.FUEL_ASH.get(), 1);
+                    ItemStack remaining = be.inventory.insertItem(1, ash, false);
+                    if (!remaining.isEmpty()) {
+                        Containers.dropItemStack(level, pos.getX(), pos.getY(), pos.getZ(), remaining);
+                    }
                 }
             }
-            changed = true;
         } else {
             // Пытаемся взять новое топливо
             ItemStack fuel = be.inventory.getStackInSlot(0);
@@ -124,13 +141,26 @@ public class HeaterBlockEntity extends BlockEntity implements MenuProvider {
                     be.fuelTier = tier;
                     be.burnTime = TIER_STATS[tier][1];
                     be.totalBurnTime = be.burnTime;
+
+                    // !!! НОВОЕ: Обработка остатка (ведро, бутылка и т.д.) !!!
+                    ItemStack remainder = fuel.getCraftingRemainingItem();
+
                     fuel.shrink(1);
+
+                    // Если слот опустел и есть остаток - кладем его на место топлива
+                    if (fuel.isEmpty() && !remainder.isEmpty()) {
+                        be.inventory.setStackInSlot(0, remainder);
+                    } else if (!remainder.isEmpty()) {
+                        // Если в слоте еще что-то есть (стаки?), выбрасываем остаток
+                        Containers.dropItemStack(level, pos.getX(), pos.getY(), pos.getZ(), remainder);
+                    }
+
                     changed = true;
                 }
             }
         }
 
-        // === СИНХРОНИЗАЦИЯ ДАННЫХ ===
+        // Синхронизация данных
         be.data.set(DATA_TEMP, be.temperature);
         be.data.set(DATA_BURN_TIME, be.burnTime);
         be.data.set(DATA_TOTAL_BURN_TIME, be.totalBurnTime);
@@ -227,9 +257,12 @@ public class HeaterBlockEntity extends BlockEntity implements MenuProvider {
     }
 
     // === СИНХРОНИЗАЦИЯ ДЛЯ HUD (критически важно!) ===
+    // === СИНХРОНИЗАЦИЯ ДЛЯ HUD (критически важно!) ===
     @Override
     public CompoundTag getUpdateTag() {
         CompoundTag tag = super.getUpdateTag();
+        // !!! ДОБАВИТЬ ЭТО: Сериализация инвентаря для клиента !!!
+        tag.put("Inventory", inventory.serializeNBT());
         tag.putInt("Temperature", temperature);
         tag.putInt("BurnTime", burnTime);
         tag.putInt("TotalBurnTime", totalBurnTime);
@@ -240,6 +273,10 @@ public class HeaterBlockEntity extends BlockEntity implements MenuProvider {
     @Override
     public void handleUpdateTag(CompoundTag tag) {
         super.handleUpdateTag(tag);
+        // !!! ДОБАВИТЬ ЭТО: Десериализация инвентаря на клиенте !!!
+        if (tag.contains("Inventory")) {
+            inventory.deserializeNBT(tag.getCompound("Inventory"));
+        }
         if (tag.contains("Temperature")) {
             temperature = tag.getInt("Temperature");
             burnTime = tag.getInt("BurnTime");
@@ -268,4 +305,6 @@ public class HeaterBlockEntity extends BlockEntity implements MenuProvider {
             handleUpdateTag(tag);
         }
     }
+
+
 }
