@@ -1,5 +1,6 @@
 package com.cim.menu;
 
+import com.cim.api.metal.recipe.SmeltingRecipeRegistry;
 import com.cim.block.basic.ModBlocks;
 import com.cim.multiblock.industrial.SmelterBlockEntity;
 import net.minecraft.core.BlockPos;
@@ -26,22 +27,31 @@ public class SmelterMenu extends AbstractContainerMenu {
         this.data = data;
         this.levelAccess = ContainerLevelAccess.create(entity.getLevel(), entity.getBlockPos());
 
-        // Верхний ряд (0-3): x95 y13
+        // Инициализация рецептов
+        if (SmeltingRecipeRegistry.getAllSimpleRecipes().isEmpty()) {
+            SmeltingRecipeRegistry.init();
+        }
+
+        // Верхний ряд (0-3): x95 y13 - для сплавов (любые предметы)
         for (int i = 0; i < 4; i++) {
+            final int slotIndex = i;
             this.addSlot(new SlotItemHandler(entity.getInventory(), i, 95 + i * 18, 13) {
                 @Override
                 public boolean mayPlace(ItemStack stack) {
-                    return SmelterBlockEntity.getSmeltingResult(stack) != null;
+                    // В верхний ряд можно положить любой предмет
+                    // Точная проверка рецепта будет в BlockEntity
+                    return !stack.isEmpty();
                 }
             });
         }
 
-        // Нижний ряд (4-7): x95 y45
+        // Нижний ряд (4-7): x95 y45 - для обычной плавки
         for (int i = 0; i < 4; i++) {
             this.addSlot(new SlotItemHandler(entity.getInventory(), 4 + i, 95 + i * 18, 45) {
                 @Override
                 public boolean mayPlace(ItemStack stack) {
-                    return SmelterBlockEntity.getSmeltingResult(stack) != null;
+                    // В нижний ряд только то, что можно переплавить
+                    return SmeltingRecipeRegistry.findSimpleRecipe(stack) != null;
                 }
             });
         }
@@ -62,7 +72,8 @@ public class SmelterMenu extends AbstractContainerMenu {
     public static SmelterMenu create(int id, Inventory inv, FriendlyByteBuf buf) {
         BlockPos pos = buf.readBlockPos();
         BlockEntity entity = inv.player.level().getBlockEntity(pos);
-        SimpleContainerData data = new SimpleContainerData(7);
+        // Важно: data должна быть размером 9 как в BlockEntity!
+        SimpleContainerData data = new SimpleContainerData(9);
         return new SmelterMenu(id, inv, (SmelterBlockEntity) entity, data);
     }
 
@@ -73,6 +84,8 @@ public class SmelterMenu extends AbstractContainerMenu {
     public int getMaxProgressBottom() { return data.get(4); }
     public boolean isSmeltingTop() { return data.get(5) > 0; }
     public boolean isSmeltingBottom() { return data.get(6) > 0; }
+    public boolean hasTopRecipe() { return data.get(7) > 0; } // Есть ли рецепт в верхнем ряду
+    public boolean hasBottomRecipe() { return data.get(8) > 0; } // Есть ли рецепт в нижнем ряду
 
     public SmelterBlockEntity getBlockEntity() { return blockEntity; }
 
@@ -91,20 +104,25 @@ public class SmelterMenu extends AbstractContainerMenu {
             returnStack = stack.copy();
 
             if (index < 8) {
+                // Из печи в инвентарь
                 if (!this.moveItemStackTo(stack, 8, 44, true)) {
                     return ItemStack.EMPTY;
                 }
             } else {
-                if (SmelterBlockEntity.getSmeltingResult(stack) != null) {
-                    if (!this.moveItemStackTo(stack, 0, 4, false)) {
-                        if (!this.moveItemStackTo(stack, 4, 8, false)) {
+                // В печь
+                // Сначала пробуем в нижний ряд (обычная плавка)
+                if (SmeltingRecipeRegistry.findSimpleRecipe(stack) != null) {
+                    if (!this.moveItemStackTo(stack, 4, 8, false)) {
+                        // Если не поместилось в нижний, пробуем верхний
+                        if (!this.moveItemStackTo(stack, 0, 4, false)) {
                             return ItemStack.EMPTY;
                         }
                     }
-                } else if (index >= 8 && index < 35) {
-                    if (!this.moveItemStackTo(stack, 35, 44, false)) return ItemStack.EMPTY;
-                } else if (index >= 35 && !this.moveItemStackTo(stack, 8, 35, false)) {
-                    return ItemStack.EMPTY;
+                } else {
+                    // Если не плавится просто - в верхний ряд (для сплавов)
+                    if (!this.moveItemStackTo(stack, 0, 4, false)) {
+                        return ItemStack.EMPTY;
+                    }
                 }
             }
 
