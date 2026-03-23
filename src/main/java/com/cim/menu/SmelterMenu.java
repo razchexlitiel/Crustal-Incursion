@@ -26,7 +26,7 @@ public class SmelterMenu extends AbstractContainerMenu {
         this.data = data;
         this.levelAccess = ContainerLevelAccess.create(entity.getLevel(), entity.getBlockPos());
 
-        // Верхний ряд (0-3): x95 y13, шаг 18
+        // Верхний ряд (0-3): x95 y13
         for (int i = 0; i < 4; i++) {
             this.addSlot(new SlotItemHandler(entity.getInventory(), i, 95 + i * 18, 13) {
                 @Override
@@ -46,13 +46,12 @@ public class SmelterMenu extends AbstractContainerMenu {
             });
         }
 
-        // Инвентарь игрока (сдвинут вниз из-за большого GUI)
+        // Инвентарь игрока
         for (int row = 0; row < 3; row++) {
             for (int col = 0; col < 9; col++) {
                 this.addSlot(new Slot(inv, col + row * 9 + 9, 8 + col * 18, 102 + row * 18));
             }
         }
-        // Хотбар
         for (int i = 0; i < 9; i++) {
             this.addSlot(new Slot(inv, i, 8 + i * 18, 160));
         }
@@ -63,15 +62,17 @@ public class SmelterMenu extends AbstractContainerMenu {
     public static SmelterMenu create(int id, Inventory inv, FriendlyByteBuf buf) {
         BlockPos pos = buf.readBlockPos();
         BlockEntity entity = inv.player.level().getBlockEntity(pos);
-        SimpleContainerData data = new SimpleContainerData(5);
+        SimpleContainerData data = new SimpleContainerData(7);
         return new SmelterMenu(id, inv, (SmelterBlockEntity) entity, data);
     }
 
     public int getTemperature() { return data.get(0); }
     public int getProgressTop() { return data.get(1); }
-    public int getProgressBottom() { return data.get(2); }
-    public boolean isSmeltingTop() { return data.get(3) > 0; }
-    public boolean isSmeltingBottom() { return data.get(4) > 0; }
+    public int getMaxProgressTop() { return data.get(2); }
+    public int getProgressBottom() { return data.get(3); }
+    public int getMaxProgressBottom() { return data.get(4); }
+    public boolean isSmeltingTop() { return data.get(5) > 0; }
+    public boolean isSmeltingBottom() { return data.get(6) > 0; }
 
     public SmelterBlockEntity getBlockEntity() { return blockEntity; }
 
@@ -90,14 +91,11 @@ public class SmelterMenu extends AbstractContainerMenu {
             returnStack = stack.copy();
 
             if (index < 8) {
-                // Из плавильни в инвентарь
                 if (!this.moveItemStackTo(stack, 8, 44, true)) {
                     return ItemStack.EMPTY;
                 }
             } else {
-                // В плавильню
                 if (SmelterBlockEntity.getSmeltingResult(stack) != null) {
-                    // Пытаемся в верхний, потом в нижний
                     if (!this.moveItemStackTo(stack, 0, 4, false)) {
                         if (!this.moveItemStackTo(stack, 4, 8, false)) {
                             return ItemStack.EMPTY;

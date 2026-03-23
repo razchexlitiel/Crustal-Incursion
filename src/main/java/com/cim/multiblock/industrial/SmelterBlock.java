@@ -95,6 +95,18 @@ public class SmelterBlock extends BaseEntityBlock implements IMultiblockControll
         super.setPlacedBy(level, pos, state, placer, stack);
         if (!level.isClientSide) {
             Direction facing = state.getValue(FACING);
+
+            // Проверка перед установкой
+            Player player = placer instanceof Player ? (Player) placer : null;
+            if (!getStructureHelper().checkPlacement(level, pos, facing, player)) {
+                // Отмена установки
+                level.removeBlock(pos, false);
+                if (player != null && !player.getAbilities().instabuild) {
+                    popResource(level, pos, new ItemStack(this));
+                }
+                return;
+            }
+
             getStructureHelper().placeStructure(level, pos, facing, this);
         }
     }
