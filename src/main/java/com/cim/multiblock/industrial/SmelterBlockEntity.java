@@ -1,9 +1,9 @@
 package com.cim.multiblock.industrial;
 
-import com.cim.api.metal.MetalRegistry;
-import com.cim.api.metal.MetalType;
+import com.cim.api.metal.Metal;
+import com.cim.api.metal.MetallurgyRegistry;
+import com.cim.api.metal.MetalUnits;
 import com.cim.api.metal.recipe.SmeltingRecipe;
-import com.cim.api.metal.recipe.SmeltingRecipeRegistry;
 import com.cim.block.entity.ModBlockEntities;
 import com.cim.menu.SmelterMenu;
 import net.minecraft.core.BlockPos;
@@ -30,13 +30,16 @@ import net.minecraftforge.items.ItemStackHandler;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 public class SmelterBlockEntity extends BlockEntity implements MenuProvider {
     public static final int MAX_TEMP = 1600;
-    public static final int TANK_CAPACITY = 4000; // максимум в мб
+    // ЁМКОСТЬ: 4 блока = 4000 мб (но храним как константу в блоках для понятности)
+    public static final int BLOCK_CAPACITY = 4;
+    public static final int TANK_CAPACITY = BLOCK_CAPACITY * MetalUnits.MB_PER_BLOCK; // 4000
 
     private final ItemStackHandler inventory = new ItemStackHandler(8) {
         @Override
@@ -50,44 +53,37 @@ public class SmelterBlockEntity extends BlockEntity implements MenuProvider {
 
         @Override
         public boolean isItemValid(int slot, ItemStack stack) {
-            // Верхний ряд (0-3) - проверяем есть ли рецепт или это часть рецепта
-            // Нижний ряд (4-7) - проверяем есть ли простой рецепт
             if (slot < 4) {
-                // Для верхнего ряда принимаем любые предметы, проверка на валидность рецепта будет в тике
-                return true;
+                return true; // Верхний ряд - любые предметы
             } else {
-                return SmeltingRecipeRegistry.findSimpleRecipe(stack) != null;
+                // Нижний ряд - только плавильные (проверка через registry)
+                return MetallurgyRegistry.findSimpleRecipe(stack.getItem()) != null;
             }
         }
     };
 
-    private final Map<MetalType, Integer> metalTank = new HashMap<>();
+    private final Map<Metal, Integer> metalTank = new HashMap<>();
     private int totalMetalAmount = 0;
     private int temperature = 0;
 
-    // Прогресс для двух рядов
     private final int[] smeltProgress = new int[2];
     private final int[] smeltMaxProgress = new int[2];
     private final boolean[] isSmelting = new boolean[2];
-    private final int[] currentHeatConsumption = new int[2]; // Текущее потребление тепла
+    private final int[] currentHeatConsumption = new int[2];
 
-    // Информация о текущем рецепте (для GUI и логики)
     private SmeltingRecipe currentTopRecipe = null;
-    private SmeltingRecipeRegistry.SimpleSmeltRecipe currentBottomRecipe = null;
+    private MetallurgyRegistry.SimpleSmeltingRecipe currentBottomRecipe = null;
 
-    private final ContainerData data = new SimpleContainerData(9); // +2 для типа рецепта
+    private final ContainerData data = new SimpleContainerData(9);
 
     public SmelterBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.SMELTER_BE.get(), pos, state);
     }
 
     public static void serverTick(Level level, BlockPos pos, BlockState state, SmelterBlockEntity be) {
-        // Инициализация рецептов если нужно
-        if (SmeltingRecipeRegistry.getAllRecipes().isEmpty()) {
-            SmeltingRecipeRegistry.init();
-        }
+        // УБРАНО: ленивая инициализация. MetallurgyRegistry.init() должен вызываться в FMLCommonSetupEvent!
 
-        // Тепло (без изменений)
+        // Тепло
         int baseCooling = (be.temperature * be.temperature) / 512000;
         if (baseCooling == 0 && be.temperature > 0) baseCooling = 1;
 
@@ -102,13 +98,11 @@ public class SmelterBlockEntity extends BlockEntity implements MenuProvider {
             be.temperature = Math.max(0, be.temperature - cooling);
         }
 
-        // Плавка верхнего ряда (рецепты)
+        // Плавка
         be.tickTopRow();
-
-        // Плавка нижнего ряда (обычная)
         be.tickBottomRow();
 
-        // Синхронизация данных
+        // Синхронизация данных для GUI
         be.data.set(0, be.temperature);
         be.data.set(1, be.smeltProgress[0]);
         be.data.set(2, be.smeltMaxProgress[0]);
@@ -116,8 +110,8 @@ public class SmelterBlockEntity extends BlockEntity implements MenuProvider {
         be.data.set(4, be.smeltMaxProgress[1]);
         be.data.set(5, be.isSmelting[0] ? 1 : 0);
         be.data.set(6, be.isSmelting[1] ? 1 : 0);
-        be.data.set(7, be.currentTopRecipe != null ? 1 : 0); // есть ли рецепт вверху
-        be.data.set(8, be.currentBottomRecipe != null ? 1 : 0); // есть ли рецепт внизу
+        be.data.set(7, be.currentTopRecipe != null ? 1 : 0);
+        be.data.set(8, be.currentBottomRecipe != null ? 1 : 0);
 
         if (be.isSmelting[0] || be.isSmelting[1] || be.temperature > 0) {
             be.setChanged();
@@ -126,7 +120,6 @@ public class SmelterBlockEntity extends BlockEntity implements MenuProvider {
     }
 
     private void tickTopRow() {
-        // Проверяем вместимость перед началом
         if (totalMetalAmount >= TANK_CAPACITY) {
             isSmelting[0] = false;
             currentTopRecipe = null;
@@ -138,13 +131,10 @@ public class SmelterBlockEntity extends BlockEntity implements MenuProvider {
             inputs[i] = inventory.getStackInSlot(i);
         }
 
-        // Ищем рецепт
-        SmeltingRecipe recipe = SmeltingRecipeRegistry.findRecipe(inputs);
+        SmeltingRecipe recipe = MetallurgyRegistry.findAlloyRecipe(inputs);
 
-        // Если нет рецепта - сбрасываем прогресс
         if (recipe == null) {
             if (isSmelting[0]) {
-                // Была плавка, но рецепт сломали - сброс
                 smeltProgress[0] = 0;
                 smeltMaxProgress[0] = 0;
                 isSmelting[0] = false;
@@ -153,39 +143,31 @@ public class SmelterBlockEntity extends BlockEntity implements MenuProvider {
             return;
         }
 
-        // Проверка температуры
-        if (temperature < recipe.getMinTemperature()) {
-            return; // Ждем нагрева
-        }
-
-        // Проверка вместимости для этого конкретного рецепта
-        int potentialAmount = totalMetalAmount + recipe.getOutputAmount();
-        if (potentialAmount > TANK_CAPACITY) {
-            // Не хватит места для результата этого рецепта
+        if (temperature < recipe.getMinTemp()) {
             return;
         }
 
-        // Начинаем или продолжаем плавку
+        int potentialAmount = totalMetalAmount + recipe.getOutputMb();
+        if (potentialAmount > TANK_CAPACITY) {
+            return;
+        }
+
         if (!isSmelting[0] || currentTopRecipe != recipe) {
-            // Новая плавка или смена рецепта
             isSmelting[0] = true;
             currentTopRecipe = recipe;
             smeltProgress[0] = 0;
-            smeltMaxProgress[0] = recipe.getTotalHeatRequired();
+            smeltMaxProgress[0] = recipe.getTotalHeat();
             currentHeatConsumption[0] = recipe.getHeatPerTick();
         }
 
-        // Процесс плавки
         if (smeltMaxProgress[0] > 0) {
             int heatPerTick = Math.min(currentHeatConsumption[0], temperature / 20 + 1);
-            // Ограничиваем чтобы не уйти в минус слишком сильно
             heatPerTick = Math.min(heatPerTick, temperature);
 
             smeltProgress[0] += heatPerTick;
-            temperature = Math.max(0, temperature - (heatPerTick / 2)); // Потребление тепла
+            temperature = Math.max(0, temperature - (heatPerTick / 2));
 
             if (smeltProgress[0] >= smeltMaxProgress[0]) {
-                // Плавка завершена
                 completeTopRecipe(recipe);
                 smeltProgress[0] = 0;
                 smeltMaxProgress[0] = 0;
@@ -196,24 +178,22 @@ public class SmelterBlockEntity extends BlockEntity implements MenuProvider {
     }
 
     private void tickBottomRow() {
-        // Аналогичная проверка вместимости
         if (totalMetalAmount >= TANK_CAPACITY) {
             isSmelting[1] = false;
             currentBottomRecipe = null;
             return;
         }
 
-        // Собираем предметы нижнего ряда и их рецепты
-        Map<SmeltingRecipeRegistry.SimpleSmeltRecipe, Integer> recipeCounts = new HashMap<>();
+        Map<MetallurgyRegistry.SimpleSmeltingRecipe, Integer> recipeCounts = new HashMap<>();
         int totalOutput = 0;
 
         for (int i = 4; i < 8; i++) {
             ItemStack stack = inventory.getStackInSlot(i);
             if (!stack.isEmpty()) {
-                var recipe = SmeltingRecipeRegistry.findSimpleRecipe(stack);
+                var recipe = MetallurgyRegistry.findSimpleRecipe(stack.getItem());
                 if (recipe != null) {
                     recipeCounts.merge(recipe, 1, Integer::sum);
-                    totalOutput += recipe.outputMb;
+                    totalOutput += recipe.outputMb();
                 }
             }
         }
@@ -228,14 +208,12 @@ public class SmelterBlockEntity extends BlockEntity implements MenuProvider {
             return;
         }
 
-        // Проверяем поместится ли результат всех текущих предметов
         if (totalMetalAmount + totalOutput > TANK_CAPACITY) {
             return;
         }
 
-        // Проверяем минимальную температуру для всех рецептов
         int maxMinTemp = recipeCounts.keySet().stream()
-                .mapToInt(r -> r.minTemp)
+                .mapToInt(r -> r.minTemp())
                 .max()
                 .orElse(0);
 
@@ -243,15 +221,14 @@ public class SmelterBlockEntity extends BlockEntity implements MenuProvider {
             return;
         }
 
-        // Рассчитываем общее потребление тепла и время
         int totalHeatRequired = 0;
         int totalHeatPerTick = 0;
 
         for (var entry : recipeCounts.entrySet()) {
             var recipe = entry.getKey();
             int count = entry.getValue();
-            totalHeatRequired += recipe.totalHeat * count;
-            totalHeatPerTick += recipe.heatPerTick * count;
+            totalHeatRequired += recipe.totalHeat() * count;
+            totalHeatPerTick += recipe.heatPerTick() * count;
         }
 
         if (!isSmelting[1]) {
@@ -261,7 +238,6 @@ public class SmelterBlockEntity extends BlockEntity implements MenuProvider {
             currentHeatConsumption[1] = totalHeatPerTick;
         }
 
-        // Плавка
         if (smeltMaxProgress[1] > 0) {
             int heatPerTick = Math.min(currentHeatConsumption[1], temperature / 20 + 1);
             heatPerTick = Math.min(heatPerTick, temperature);
@@ -279,22 +255,19 @@ public class SmelterBlockEntity extends BlockEntity implements MenuProvider {
     }
 
     private void completeTopRecipe(SmeltingRecipe recipe) {
-        // Уменьшаем предметы в верхнем ряду
         for (int i = 0; i < 4; i++) {
-            ItemStack required = recipe.getInputs()[i];
-            if (required != null && !required.isEmpty()) {
+            SmeltingRecipe.Slot req = recipe.getSlot(i);
+            if (!req.isEmpty()) {
                 ItemStack current = inventory.getStackInSlot(i);
-                current.shrink(required.getCount());
+                current.shrink(req.count()); // Теперь всегда shrink(1)
             }
         }
 
-        // Добавляем результат
-        addMetal(recipe.getOutputMetal(), recipe.getOutputAmount());
+        addMetal(recipe.getOutput(), recipe.getOutputMb());
         setChanged();
     }
 
-    private void completeBottomRecipes(Map<SmeltingRecipeRegistry.SimpleSmeltRecipe, Integer> counts) {
-        // Уменьшаем предметы и добавляем металлы
+    private void completeBottomRecipes(Map<MetallurgyRegistry.SimpleSmeltingRecipe, Integer> counts) {
         for (var entry : counts.entrySet()) {
             var recipe = entry.getKey();
             int needed = entry.getValue();
@@ -302,60 +275,18 @@ public class SmelterBlockEntity extends BlockEntity implements MenuProvider {
 
             for (int i = 4; i < 8 && processed < needed; i++) {
                 ItemStack stack = inventory.getStackInSlot(i);
-                if (stack.getItem() == recipe.input) {
+                if (stack.getItem() == recipe.input()) {
                     stack.shrink(1);
                     processed++;
-                    addMetal(recipe.output, recipe.outputMb);
+                    addMetal(recipe.output(), recipe.outputMb());
                 }
             }
         }
         setChanged();
     }
 
-    // Унифицированный метод добавления металла с автоконвертацией
-    private void addMetal(MetalType metal, int amount) {
+    private void addMetal(Metal metal, int amount) {
         metalTank.merge(metal, amount, Integer::sum);
-        totalMetalAmount += amount;
-        normalizeMetalAmounts(); // Фикс конвертации единиц
-    }
-
-    // ФИКС: Нормализация количеств (9 самородков → 1 слиток, 9 слитков → 1 блок)
-    private void normalizeMetalAmounts() {
-        for (var entry : metalTank.entrySet()) {
-            MetalType metal = entry.getKey();
-            int amount = entry.getValue();
-
-            // Конвертация в "стандартные" единицы
-            // 111 мб = 1 слиток, 12 мб = 1 самородок (из твоего кода)
-            // 9 слитков = 1 блок (1000 мб)
-            // Значит: 9 * 111 = 999 мб ≈ 1000 мб (1 блок)
-            // И 9 * 12 = 108 мб ≈ 111 мб (1 слиток) - тут неточность в системе
-
-            // Правильная конвертация:
-            int blocks = amount / 1000;
-            int remainder = amount % 1000;
-            int ingots = remainder / 111;
-            int nuggets = (remainder % 111) / 12;
-            int leftover = (remainder % 111) % 12; // Мелочь < 12 мб
-
-            // Конвертация самородков в слитки
-            if (nuggets >= 9) {
-                ingots += nuggets / 9;
-                nuggets = nuggets % 9;
-            }
-
-            // Конвертация слитков в блоки
-            if (ingots >= 9) {
-                blocks += ingots / 9;
-                ingots = ingots % 9;
-            }
-
-            // Пересчитываем общее количество
-            int newAmount = blocks * 1000 + ingots * 111 + nuggets * 12 + leftover;
-            entry.setValue(newAmount);
-        }
-
-        // Пересчитываем общую сумму
         recalculateTotal();
     }
 
@@ -364,7 +295,6 @@ public class SmelterBlockEntity extends BlockEntity implements MenuProvider {
     }
 
     private void recalculateSmelting() {
-        // Сброс при изменении инвентаря
         if (isSmelting[0] && currentTopRecipe != null) {
             ItemStack[] inputs = new ItemStack[4];
             for (int i = 0; i < 4; i++) inputs[i] = inventory.getStackInSlot(i);
@@ -379,26 +309,30 @@ public class SmelterBlockEntity extends BlockEntity implements MenuProvider {
     public ItemStackHandler getInventory() { return inventory; }
     public ContainerData getData() { return data; }
     public int getTemperature() { return temperature; }
-    public Map<MetalType, Integer> getMetalTank() { return new HashMap<>(metalTank); }
+    public Map<Metal, Integer> getMetalTank() { return Collections.unmodifiableMap(metalTank); }
     public int getTotalMetalAmount() { return totalMetalAmount; }
+    public int getBlockCapacity() { return BLOCK_CAPACITY; }
 
     public List<MetalStack> getMetalStacks() {
         List<MetalStack> list = new ArrayList<>();
         metalTank.forEach((metal, amount) -> {
             if (amount > 0) list.add(new MetalStack(metal, amount));
         });
-        // Сортируем по количеству (больше сверху)
         list.sort((a, b) -> Integer.compare(b.amount, a.amount));
         return list;
     }
 
     public static class MetalStack {
-        public final MetalType metal;
+        public final Metal metal;
         public final int amount;
 
-        public MetalStack(MetalType metal, int amount) {
+        public MetalStack(Metal metal, int amount) {
             this.metal = metal;
             this.amount = amount;
+        }
+
+        public String getFormattedAmount() {
+            return MetalUnits.format(amount);
         }
     }
 
@@ -440,7 +374,6 @@ public class SmelterBlockEntity extends BlockEntity implements MenuProvider {
 
         if (tag.contains("CurrentTopRecipe")) {
             String recipeId = tag.getString("CurrentTopRecipe");
-            // Восстановление рецепта из ID (нужно добавить поиск по ID в реестр)
         }
 
         metalTank.clear();
@@ -449,15 +382,10 @@ public class SmelterBlockEntity extends BlockEntity implements MenuProvider {
             CompoundTag mt = metals.getCompound(i);
             ResourceLocation id = new ResourceLocation(mt.getString("Metal"));
             int amt = mt.getInt("Amount");
-            MetalType metal = MetalRegistry.get(id);
-            if (metal != null) {
-                metalTank.put(metal, amt);
-            }
+            MetallurgyRegistry.get(id).ifPresent(metal -> metalTank.put(metal, amt));
         }
         recalculateTotal();
     }
-
-    // ... остальные методы (getUpdateTag, getDisplayName и т.д.) без изменений ...
 
     @Override
     public CompoundTag getUpdateTag() {
@@ -492,22 +420,5 @@ public class SmelterBlockEntity extends BlockEntity implements MenuProvider {
     @Override
     public AbstractContainerMenu createMenu(int id, Inventory inv, Player player) {
         return new SmelterMenu(id, inv, this, data);
-    }
-
-    // В класс SmelterBlockEntity добавь:
-    @Nullable
-    public static Object getSmeltingResult(ItemStack stack) {
-        // Инициализация если нужно
-        if (SmeltingRecipeRegistry.getAllSimpleRecipes().isEmpty()) {
-            SmeltingRecipeRegistry.init();
-        }
-
-        // Проверяем есть ли простой рецепт для этого предмета (для нижнего ряда)
-        var simple = SmeltingRecipeRegistry.findSimpleRecipe(stack);
-        if (simple != null) return simple;
-
-        // Для верхнего ряда - проверяем может ли предмет быть частью любого рецепта
-        // Пока возвращаем true для любого непустого стака (точная проверка в тике)
-        return stack.isEmpty() ? null : stack;
     }
 }

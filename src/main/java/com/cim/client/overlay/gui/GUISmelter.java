@@ -1,6 +1,8 @@
 package com.cim.client.overlay.gui;
 
+import com.cim.api.metal.Metal;
 import com.cim.api.metal.MetalType;
+import com.cim.api.metal.MetalUnits;
 import com.cim.main.CrustalIncursionMod;
 import com.cim.menu.SmelterMenu;
 import com.cim.multiblock.industrial.SmelterBlockEntity;
@@ -132,7 +134,6 @@ public class GUISmelter extends AbstractContainerScreen<SmelterMenu> {
         }
     }
 
-    // НОВЫЙ МЕТОД: тултип с разделением по металлам
     private void renderMetalTooltip(GuiGraphics gui, int mx, int my) {
         List<Component> lines = new ArrayList<>();
         lines.add(Component.literal("§6§lРасплавленные металлы:"));
@@ -143,35 +144,58 @@ public class GUISmelter extends AbstractContainerScreen<SmelterMenu> {
         } else {
             for (SmelterBlockEntity.MetalStack stack : metals) {
                 int mb = stack.amount;
-                MetalType metal = stack.metal;
+                Metal metal = stack.metal;
 
-                // Формируем цветное название металла
+                // Цвет металла
                 String hexColor = String.format("%06X", metal.getColor() & 0xFFFFFF);
-                String name = metal.getDisplayName();
+                String name = Component.translatable(metal.getTranslationKey()).getString();
 
                 if (hasShiftDown()) {
-                    // Точное количество в мб
-                    lines.add(Component.literal(String.format("§#%s%s§f: §e%d mB", hexColor, name, mb)));
+                    // Для отладки: показываем точное количество мб
+                    lines.add(Component.literal(String.format("§#%s%s§f: §e%d мб", hexColor, name, mb)));
                 } else {
-                    // Формат слитков/самородков для каждого металла отдельно
-                    MetalType.MetalAmount amount = new MetalType.MetalAmount(mb);
+                    // НОВОЕ: используем MetalUnits.convert для разбиения на блоки/слитки/самородки
+                    MetalUnits.MetalStack amount = MetalUnits.convert(mb);
                     StringBuilder sb = new StringBuilder();
-                    sb.append(String.format("§#%s%s§f: §e", hexColor, name));
+                    sb.append(String.format("§#%s%s§f: ", hexColor, name));
 
-                    if (amount.blocks > 0) sb.append(amount.blocks).append(" блоков ");
-                    if (amount.ingots > 0) sb.append(amount.ingots).append(" слитков ");
-                    if (amount.nuggets > 0 || (amount.blocks == 0 && amount.ingots == 0)) {
-                        sb.append(amount.nuggets).append(" самородков");
+                    boolean hasContent = false;
+
+                    if (amount.blocks() > 0) {
+                        sb.append("§e").append(amount.blocks()).append("§7б ");
+                        hasContent = true;
                     }
+                    if (amount.ingots() > 0) {
+                        sb.append("§e").append(amount.ingots()).append("§7сл ");
+                        hasContent = true;
+                    }
+                    if (amount.nuggets() > 0) {
+                        sb.append("§e").append(amount.nuggets()).append("§7см");
+                        hasContent = true;
+                    }
+
+                    // Если есть остаток (< 12мб) и ничего больше не показали
+                    if (!hasContent && amount.leftover() > 0) {
+                        sb.append("§e<1§7см");
+                    }
+
                     lines.add(Component.literal(sb.toString().trim()));
                 }
             }
 
-            // Общая заполненность
+            // Общая заполненность в блоках/слитках
             int total = menu.getBlockEntity().getTotalMetalAmount();
-            int max = SmelterBlockEntity.TANK_CAPACITY;
-            int percent = (total * 100) / max;
-            lines.add(Component.literal(String.format("§7Всего: %d/%d mB (%d%%)", total, max, percent)));
+            MetalUnits.MetalStack totalAmount = MetalUnits.convert(total);
+            int maxBlocks = menu.getBlockEntity().getBlockCapacity();
+
+            StringBuilder totalSb = new StringBuilder("§7Всего: §e");
+            if (totalAmount.blocks() > 0) totalSb.append(totalAmount.blocks()).append("§7б ");
+            if (totalAmount.ingots() > 0) totalSb.append(totalAmount.ingots()).append("§7сл ");
+            if (totalAmount.nuggets() > 0) totalSb.append(totalAmount.nuggets()).append("§7см");
+            totalSb.append(" §8/ ").append(maxBlocks).append("§7б");
+
+            lines.add(Component.literal(totalSb.toString().trim()));
+            lines.add(Component.literal("§8[Shift] точное значение"));
         }
 
         gui.renderComponentTooltip(this.font, lines, mx, my);

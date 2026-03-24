@@ -20,8 +20,8 @@ public class MetalRegistry {
     public static MetalType CAST_IRON; // Чугун
 
     public static void init() {
-        IRON = register("iron", 0xFF6B35, 1538, 2862, Items.IRON_INGOT, Items.IRON_NUGGET);
-        COPPER = register("copper", 0xB87333, 1085, 2562, Items.COPPER_INGOT, null);
+        IRON = register("iron", 0xB87333, 1538, 2862, Items.IRON_INGOT, Items.IRON_NUGGET);
+        COPPER = register("copper", 0xFF6B35, 1085, 2562, Items.COPPER_INGOT, null);
         GOLD = register("gold", 0xFFD700, 1064, 2970, Items.GOLD_INGOT, Items.GOLD_NUGGET);
 
         // Новые металлы только для сплавов (верхний ряд)

@@ -4,6 +4,7 @@ package com.cim.main;
 import com.cim.api.fluids.ModFluids;
 import com.cim.api.hive.HiveNetworkManager;
 import com.cim.api.metal.MetalRegistry;
+import com.cim.api.metal.MetallurgyRegistry;
 import com.mojang.logging.LogUtils;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
@@ -85,8 +86,9 @@ public class CrustalIncursionMod {
             ModPacketHandler.register();
             Regions.register(new ModOverworldRegion(new ResourceLocation(MOD_ID, "overworld"), 5));
             SurfaceRuleManager.addSurfaceRules(SurfaceRuleManager.RuleCategory.OVERWORLD, "cim", ModSurfaceRules.makeRules());
-            MetalRegistry.init();
 
+            // Используем новый объединенный регистр вместо старого MetalRegistry
+            MetallurgyRegistry.init();
         });
     }
 
