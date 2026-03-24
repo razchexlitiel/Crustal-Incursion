@@ -5,12 +5,14 @@ import com.cim.block.basic.deco.BeamBlock;
 import com.cim.block.basic.deco.BeamCollisionBlock;
 import com.cim.block.basic.direction.SideOBlock;
 import com.cim.block.basic.fluids.FluidBarrelBlock;
+import com.cim.block.basic.industrial.casting.CastingDescentBlock;
 import com.cim.block.basic.industrial.casting.CastingPotBlock;
 import com.cim.block.basic.industrial.energy.*;
 import com.cim.block.basic.industrial.rotation.*;
 import com.cim.block.basic.necrosis.hive.HiveRootsBlock;
 
 import com.cim.multiblock.industrial.HeaterBlock;
+import com.cim.multiblock.industrial.SmelterBlock;
 import com.cim.multiblock.system.MultiblockPartBlock;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -105,7 +107,7 @@ public class ModBlocks {
             () -> new Block(BlockBehaviour.Properties.of()
                     .strength(0.5F, 6.0F).sound(SoundType.STONE).requiresCorrectToolForDrops()));
     public static final RegistryObject<Block> SMELTER = registerBlock("smelter",
-            () -> new Block(BlockBehaviour.Properties.of()
+            () -> new SmelterBlock(BlockBehaviour.Properties.of()
                     .strength(0.5F, 6.0F).sound(SoundType.STONE).requiresCorrectToolForDrops().noCollission()));
     public static final RegistryObject<Block> CONCRETE_RED = registerBlock("concrete_red",
             () -> new Block(BlockBehaviour.Properties.of()
@@ -167,7 +169,7 @@ public class ModBlocks {
             () -> new Block(BlockBehaviour.Properties.of()
                     .strength(0.5F, 6.0F).sound(SoundType.NETHERITE_BLOCK).requiresCorrectToolForDrops()));
     public static final RegistryObject<Block> CASTING_DESCENT = registerBlock("casting_descent",
-            () -> new SideOBlock(BlockBehaviour.Properties.of()
+            () -> new CastingDescentBlock(BlockBehaviour.Properties.of()
                     .strength(0.5F, 6.0F).sound(SoundType.STONE).requiresCorrectToolForDrops().noOcclusion()));
     public static final RegistryObject<Block> CASTING_POT = registerBlock("casting_pot",
             () -> new CastingPotBlock(BlockBehaviour.Properties.of()
