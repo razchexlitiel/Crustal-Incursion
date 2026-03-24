@@ -66,6 +66,11 @@ public class ModItems {
 
     public static final RegistryObject<Item> FIREBRICK = ITEMS.register("firebrick",
             () -> new Item(new Item.Properties()));
+    public static final RegistryObject<Item> REINFORCEDBRICK = ITEMS.register("reinforcedbrick",
+            () -> new Item(new Item.Properties()));
+
+    public static final RegistryObject<Item> MOLD_INGOT = ITEMS.register("mold_ingot",
+            () -> new Item(new Item.Properties()));
 
     public static final RegistryObject<Item> WIRE_COIL = ITEMS.register("wire_coil",
             () -> new WireCoilItem(new Item.Properties().stacksTo(1)));
@@ -76,6 +81,9 @@ public class ModItems {
     public static final RegistryObject<Item> FLUID_IDENTIFIER = ITEMS.register("fluid_identifier",
             () -> new FluidIdentifierItem(new Item.Properties()));
 
+    public static final RegistryObject<Item> FUEL_ASH = ITEMS.register("fuel_ash",
+            () -> new Item(new Item.Properties()));
+
     public static final RegistryObject<Item> PROTECTOR_LEAD = ITEMS.register("protector_lead",
             () -> new Item(new Item.Properties().stacksTo(1)));
 
@@ -85,9 +93,9 @@ public class ModItems {
     public static final RegistryObject<Item> PROTECTOR_TUNGSTEN = ITEMS.register("protector_tungsten",
             () -> new Item(new Item.Properties().stacksTo(1)));
 
+
     public static final RegistryObject<Item> INFINITE_FLUID_BARREL = ITEMS.register("infinite_fluid_barrel",
             () -> new com.cim.item.tools.InfiniteFluidBarrelItem(new Item.Properties()));
-
 
 
 
