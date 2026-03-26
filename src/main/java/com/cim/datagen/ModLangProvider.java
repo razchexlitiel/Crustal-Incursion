@@ -32,7 +32,7 @@ public class ModLangProvider extends LanguageProvider {
         add("itemGroup.cim.cim_build_tab", "Building Blocks");
         add("itemGroup.cim.cim_tech_tab", "Technology");
         add("itemGroup.cim.cim_weapons_tab", " Arsenal");
-        add("itemGroup.cim.cim_tools_tab", "Tools");
+        add("itemGroup.cim.cim_recourses_tab", "Recourses");
         add("itemGroup.cim.cim_nature_tab", "Nature");
 // Fluid Identifier
         add("item.cim.fluid_identifier", "Fluid Identifier");
@@ -280,7 +280,7 @@ public class ModLangProvider extends LanguageProvider {
         add("itemGroup.cim.cim_build_tab", "Строительные блоки");
         add("itemGroup.cim.cim_tech_tab", "Технологии");
         add("itemGroup.cim.cim_weapons_tab", "Арсенал");
-        add("itemGroup.cim.cim_tools_tab", "Инструменты");
+        add("itemGroup.cim.cim_recourses_tab", "Ресурсы");
         add("itemGroup.cim.cim_nature_tab", "Природа");
 
         // Тултипы

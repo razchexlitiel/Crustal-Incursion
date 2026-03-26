@@ -31,7 +31,6 @@ public class ModCreativeTabs {
                     .withTabsBefore(new ResourceLocation(CrustalIncursionMod.MOD_ID, "cim_build_tab"))
                     .build());
 
-    // Вкладка WEAPONS – должна быть после TECH
     public static final RegistryObject<CreativeModeTab> CIM_WEAPONS_TAB = CREATIVE_MODE_TABS.register("cim_weapons_tab",
             () -> CreativeModeTab.builder()
                     .title(Component.translatable("itemGroup." + CrustalIncursionMod.MOD_ID + ".cim_weapons_tab"))
@@ -39,21 +38,21 @@ public class ModCreativeTabs {
                     .withTabsBefore(new ResourceLocation(CrustalIncursionMod.MOD_ID, "cim_tech_tab"))
                     .build());
 
-    // Вкладка TOOLS – должна быть после WEAPONS
-    public static final RegistryObject<CreativeModeTab> CIM_TOOLS_TAB = CREATIVE_MODE_TABS.register("cim_tools_tab",
+    public static final RegistryObject<CreativeModeTab> CIM_RECOURSES_TAB = CREATIVE_MODE_TABS.register("cim_recourses_tab",
             () -> CreativeModeTab.builder()
-                    .title(Component.translatable("itemGroup." + CrustalIncursionMod.MOD_ID + ".cim_tools_tab"))
-                    .icon(() -> new ItemStack(ModItems.CROWBAR.get()))
+                    .title(Component.translatable("itemGroup." + CrustalIncursionMod.MOD_ID + ".cim_recourses_tab"))
+                    .icon(() -> new ItemStack(ModItems.FIREBRICK.get()))
                     .withTabsBefore(new ResourceLocation(CrustalIncursionMod.MOD_ID, "cim_weapons_tab"))
                     .build());
 
-    // Вкладка NATURE – должна быть после TOOLS
+
     public static final RegistryObject<CreativeModeTab> CIM_NATURE_TAB = CREATIVE_MODE_TABS.register("cim_nature_tab",
             () -> CreativeModeTab.builder()
                     .title(Component.translatable("itemGroup." + CrustalIncursionMod.MOD_ID + ".cim_nature_tab"))
                     .icon(() -> new ItemStack(ModItems.DEPTH_WORM_SPAWN_EGG.get()))
-                    .withTabsBefore(new ResourceLocation(CrustalIncursionMod.MOD_ID, "cim_tools_tab"))
+                    .withTabsBefore(new ResourceLocation(CrustalIncursionMod.MOD_ID, "cim_recourses_tab"))
                     .build());
+
    // Да мазал я ваши эти вкладки
    public static final RegistryObject<CreativeModeTab> CIM_FOOD_TAB = CREATIVE_MODE_TABS.register("cim_food_tab",
            () -> CreativeModeTab.builder()

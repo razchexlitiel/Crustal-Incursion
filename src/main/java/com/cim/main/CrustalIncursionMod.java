@@ -157,7 +157,9 @@ public class CrustalIncursionMod {
 
 
         if (event.getTab() == ModCreativeTabs.CIM_TECH_TAB.get()) {
-
+            event.accept(ModItems.CROWBAR.get());
+            event.accept(ModItems.BEAM_PLACER.get());
+            event.accept(ModItems.SCREWDRIVER.get());
             event.accept(ModBlocks.SHAFT_WOODEN);
             event.accept(ModBlocks.SHAFT_IRON);
             event.accept(ModBlocks.DRILL_HEAD);
@@ -172,6 +174,7 @@ public class CrustalIncursionMod {
             event.accept(ModBlocks.SHAFT_PLACER);
             event.accept(ModBlocks.MINING_PORT);
 
+            event.accept(ModItems.WIRE_COIL);
             event.accept(ModBlocks.CONNECTOR);
             event.accept(ModBlocks.MEDIUM_CONNECTOR);
             event.accept(ModBlocks.LARGE_CONNECTOR);
@@ -181,10 +184,6 @@ public class CrustalIncursionMod {
             event.accept(ModBlocks.MACHINE_BATTERY);
             event.accept(ModItems.ENERGY_CELL_BASIC);
             event.accept(ModItems.CREATIVE_BATTERY);
-            event.accept(ModBlocks.BRONZE_FLUID_PIPE);
-            event.accept(ModBlocks.STEEL_FLUID_PIPE);
-            event.accept(ModBlocks.LEAD_FLUID_PIPE);
-            event.accept(ModBlocks.TUNGSTEN_FLUID_PIPE);
 
 
             List<RegistryObject<Item>> batteriesToAdd = List.of(
@@ -205,12 +204,24 @@ public class CrustalIncursionMod {
                 }
             }
 
+
+
+            event.accept(ModItems.FLUID_IDENTIFIER.get());
+            event.accept(ModItems.INFINITE_FLUID_BARREL);
+            event.accept(ModItems.PROTECTOR_STEEL);
+            event.accept(ModItems.PROTECTOR_LEAD);
+            event.accept(ModItems.PROTECTOR_TUNGSTEN);
             event.accept(ModBlocks.FLUID_BARREL);
+            event.accept(ModBlocks.BRONZE_FLUID_PIPE);
+            event.accept(ModBlocks.STEEL_FLUID_PIPE);
+            event.accept(ModBlocks.LEAD_FLUID_PIPE);
+            event.accept(ModBlocks.TUNGSTEN_FLUID_PIPE);
 
             event.accept(ModItems.HEATER_ITEM);
             event.accept(ModBlocks.SMELTER);
             event.accept(ModBlocks.CASTING_POT);
             event.accept(ModBlocks.CASTING_DESCENT);
+            event.accept(ModItems.MOLD_INGOT.get());
         }
 
 
@@ -220,16 +231,7 @@ public class CrustalIncursionMod {
             event.accept(ModItems.DETONATOR);
             event.accept(ModItems.MULTI_DETONATOR);
             event.accept(ModItems.RANGE_DETONATOR);
-            event.accept(ModItems.TURRET_CHIP);
-            event.accept(ModItems.TURRET_LIGHT_PORTATIVE_PLACER);
-            event.accept(ModItems.MACHINEGUN);
-            event.accept(ModBlocks.TURRET_LIGHT_PLACER);
-            event.accept(ModItems.AMMO_TURRET);
-            event.accept(ModItems.AMMO_TURRET_HOLLOW);
-            event.accept(ModItems.AMMO_TURRET_PIERCING);
-            event.accept(ModItems.AMMO_TURRET_FIRE);
-            event.accept(ModItems.AMMO_TURRET_RADIO);
-
+            event.accept(ModItems.MORY_LAH);
             event.accept(ModItems.GRENADE);
             event.accept(ModItems.GRENADEHE);
             event.accept(ModItems.GRENADEFIRE);
@@ -240,26 +242,23 @@ public class CrustalIncursionMod {
             event.accept(ModItems.GRENADE_IF_SLIME);
             event.accept(ModItems.GRENADE_IF_FIRE);
             event.accept(ModItems.GRENADE_NUC);
-            event.accept(ModItems.MORY_LAH);
+            event.accept(ModItems.TURRET_CHIP);
+            event.accept(ModItems.TURRET_LIGHT_PORTATIVE_PLACER);
+            event.accept(ModItems.MACHINEGUN);
+            event.accept(ModBlocks.TURRET_LIGHT_PLACER);
+            event.accept(ModItems.AMMO_TURRET);
+            event.accept(ModItems.AMMO_TURRET_HOLLOW);
+            event.accept(ModItems.AMMO_TURRET_PIERCING);
+            event.accept(ModItems.AMMO_TURRET_FIRE);
+            event.accept(ModItems.AMMO_TURRET_RADIO);
+
 
         }
 
-        if (event.getTab() == ModCreativeTabs.CIM_TOOLS_TAB.get()) {
-
-            event.accept(ModItems.SCREWDRIVER.get());
-            event.accept(ModItems.BEAM_PLACER.get());
-            event.accept(ModItems.FLUID_IDENTIFIER.get());
-            event.accept(ModItems.CROWBAR.get());
-            event.accept(ModItems.WIRE_COIL);
-            event.accept(ModItems.PROTECTOR_STEEL);
-            event.accept(ModItems.PROTECTOR_LEAD);
-            event.accept(ModItems.PROTECTOR_TUNGSTEN);
-            event.accept(ModItems.INFINITE_FLUID_BARREL);
-
+        if (event.getTab() == ModCreativeTabs.CIM_RECOURSES_TAB.get()) {
 
             event.accept(ModItems.FIREBRICK.get());
             event.accept(ModItems.REINFORCEDBRICK.get());
-            event.accept(ModItems.MOLD_INGOT.get());
             event.accept(ModItems.FUEL_ASH.get());
         }
 
