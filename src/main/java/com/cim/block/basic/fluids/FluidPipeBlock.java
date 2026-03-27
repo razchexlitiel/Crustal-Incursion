@@ -263,7 +263,8 @@ public class FluidPipeBlock extends Block implements EntityBlock {
                 Fluid myFluid = myBE.getFilterFluid();
                 Fluid neighborFluid = neighborBE.getFilterFluid();
 
-                return myFluid == neighborFluid || myFluid == Fluids.EMPTY || neighborFluid == Fluids.EMPTY;
+                // === ИЗМЕНЕНО: Строгое равенство! Пустые липнут только к пустым, лава только к лаве ===
+                return myFluid == neighborFluid;
             }
         }
 

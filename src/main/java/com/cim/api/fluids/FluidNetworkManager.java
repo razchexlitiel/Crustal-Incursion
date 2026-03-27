@@ -112,10 +112,14 @@ public class FluidNetworkManager extends SavedData {
         BlockEntity be1 = level.getBlockEntity(pos1);
         BlockEntity be2 = level.getBlockEntity(pos2);
 
-        if (be1 instanceof FluidPipeBlockEntity pipe1 && be2 instanceof FluidPipeBlockEntity pipe2) {
+        if (be1 instanceof com.cim.block.entity.fluids.FluidPipeBlockEntity pipe1 &&
+                be2 instanceof com.cim.block.entity.fluids.FluidPipeBlockEntity pipe2) {
+
             Fluid f1 = pipe1.getFilterFluid();
             Fluid f2 = pipe2.getFilterFluid();
-            return f1 == f2 || f1 == Fluids.EMPTY || f2 == Fluids.EMPTY;
+
+            // === ИЗМЕНЕНО: Разрешаем слияние графов только при полном совпадении ===
+            return f1 == f2;
         }
         return false;
     }
