@@ -110,6 +110,7 @@ public class ModBlockStateProvider extends BlockStateProvider {
         fluidPipeBlock(ModBlocks.STEEL_FLUID_PIPE, "steel");
         fluidPipeBlock(ModBlocks.LEAD_FLUID_PIPE, "lead");
         fluidPipeBlock(ModBlocks.TUNGSTEN_FLUID_PIPE, "tungsten");
+        fluidPipeBlock(ModBlocks.PIPE_SPOTS, "pipe_spots");
 
 
         //ПОВОРОТ ДЛЯ 3Д МОДЕЛИ, ПРИМЕР:

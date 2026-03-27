@@ -1,10 +1,19 @@
 package com.cim.block.basic.fluids;
 
 import com.cim.api.fluids.PipeTier;
+import com.cim.block.entity.fluids.FluidPipeBlockEntity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.network.chat.Component;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.BlockGetter;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LevelAccessor;
 import net.minecraft.world.level.block.BaseEntityBlock;
 import net.minecraft.world.level.block.Block;
@@ -15,6 +24,8 @@ import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.level.block.state.properties.IntegerProperty;
+import net.minecraft.world.level.material.Fluids;
+import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
@@ -70,6 +81,42 @@ public class FluidPipeBlock extends BaseEntityBlock {
     @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
         builder.add(NORTH, EAST, SOUTH, WEST, UP, DOWN, NONE, CHANNEL);
+    }
+
+    @Override
+    public InteractionResult use(BlockState state, Level level, BlockPos pos, Player player, InteractionHand hand, BlockHitResult hit) {
+        ItemStack stack = player.getItemInHand(hand);
+
+        // Проверяем, что в руке именно твой Идентификатор
+        if (stack.getItem() instanceof com.cim.item.tools.FluidIdentifierItem) {
+            if (level.getBlockEntity(pos) instanceof com.cim.block.entity.fluids.FluidPipeBlockEntity be) {
+                if (!level.isClientSide) {
+                    if (player.isCrouching()) {
+                        // Shift + ПКМ = Сброс фильтра
+                        be.setFilterFluid(net.minecraft.world.level.material.Fluids.EMPTY);
+                        player.displayClientMessage(net.minecraft.network.chat.Component.literal("§eФильтр сброшен (Труба принимает всё)"), true);
+                    } else {
+                        // Обычный клик = Читаем NBT из Идентификатора
+                        String fluidId = com.cim.item.tools.FluidIdentifierItem.getSelectedFluid(stack);
+
+                        if (!fluidId.equals("none")) {
+                            net.minecraft.world.level.material.Fluid fluid = net.minecraftforge.registries.ForgeRegistries.FLUIDS.getValue(new net.minecraft.resources.ResourceLocation(fluidId));
+
+                            if (fluid != null && fluid != net.minecraft.world.level.material.Fluids.EMPTY) {
+                                be.setFilterFluid(fluid);
+                                // Достаем переведенное название жидкости
+                                String fluidName = net.minecraft.client.resources.language.I18n.get(fluid.getFluidType().getDescriptionId());
+                                player.displayClientMessage(net.minecraft.network.chat.Component.literal("§aФильтр: §f" + fluidName), true);
+                            }
+                        } else {
+                            player.displayClientMessage(net.minecraft.network.chat.Component.literal("§cСначала выберите жидкость в Идентификаторе!"), true);
+                        }
+                    }
+                }
+                return InteractionResult.sidedSuccess(level.isClientSide);
+            }
+        }
+        return super.use(state, level, pos, player, hand, hit);
     }
 
     @Override

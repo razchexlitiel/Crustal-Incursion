@@ -270,6 +270,15 @@ public class ModBlocks {
                     .strength(3.0f, 4.0f).noOcclusion().requiresCorrectToolForDrops()));
 
 
+    // Техническая болванка, из которой мы будем воровать полигоны в PipeBakedModel
+    public static final RegistryObject<Block> PIPE_SPOTS = BLOCKS.register("pipe_spots",
+            () -> new com.cim.block.basic.fluids.FluidPipeBlock(
+                    com.cim.api.fluids.PipeTier.BRONZE, // <--- Просто даем ему любой тир-заглушку
+                    net.minecraft.world.level.block.state.BlockBehaviour.Properties.copy(net.minecraft.world.level.block.Blocks.GLASS)
+                            .noCollission().noOcclusion().noLootTable()
+            ));
+
+
     //БЛОКИ-ВРАЩЕНИЯ
     public static final RegistryObject<Block> DRILL_HEAD = BLOCKS.register("drill_head",
             () -> new DrillHeadBlock(BlockBehaviour.Properties.copy(Blocks.IRON_BLOCK)
