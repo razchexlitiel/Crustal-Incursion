@@ -118,6 +118,7 @@ public class ModBlockStateProvider extends BlockStateProvider {
         fluidPipeBlock(ModBlocks.STEEL_FLUID_PIPE, "steel");
         fluidPipeBlock(ModBlocks.LEAD_FLUID_PIPE, "lead");
         fluidPipeBlock(ModBlocks.TUNGSTEN_FLUID_PIPE, "tungsten");
+        fluidPipeBlock(ModBlocks.PIPE_SPOTS, "pipe_spots");
 
 
         //ПОВОРОТ ДЛЯ 3Д МОДЕЛИ, ПРИМЕР:
@@ -200,27 +201,34 @@ public class ModBlockStateProvider extends BlockStateProvider {
                 .renderType("cutout"));
     }
 
-    // Метод генерации сложных труб (Блокстейт + Модели)
-    public void fluidPipeBlock(RegistryObject<Block> block, String objPrefix) {
+    // Метод генерации сложных труб (Блокстейт + Модели) с ДИНАМИЧЕСКИМИ ТЕКСТУРАМИ
+    public void fluidPipeBlock(RegistryObject<Block> block, String texturePrefix) {
         String name = block.getId().getPath(); // например "copper_fluid_pipe"
+
+        // Путь к нашей картинке, например "cim:block/bronze_pipe"
+        ResourceLocation pipeTexture = modLoc("block/" + texturePrefix + "_pipe");
 
         // ==========================================
         // 1. ГЕНЕРИРУЕМ JSON-ФАЙЛЫ МОДЕЛЕЙ БЛОКА
         // ==========================================
         ModelFile coreModel = models().getBuilder(name + "_core")
                 .customLoader(net.minecraftforge.client.model.generators.loaders.ObjModelBuilder::begin)
-                .modelLocation(modLoc("models/block/" + objPrefix + "_pipe_core.obj"))
+                .modelLocation(modLoc("models/block/base_pipe_core.obj")) // <--- ЕДИНЫЙ БАЗОВЫЙ ФАЙЛ
                 .flipV(true)
-                .end();
+                .end()
+                .texture("pipe_texture", pipeTexture) // <--- ПРОКИДЫВАЕМ ТЕКСТУРУ В MTL
+                .texture("particle", pipeTexture);    // <--- ПРОКИДЫВАЕМ ЧАСТИЦЫ ДЛЯ РАЗРУШЕНИЯ БЛОКА
 
         ModelFile armModel = models().getBuilder(name + "_arm")
                 .customLoader(net.minecraftforge.client.model.generators.loaders.ObjModelBuilder::begin)
-                .modelLocation(modLoc("models/block/" + objPrefix + "_pipe.obj"))
+                .modelLocation(modLoc("models/block/base_pipe.obj")) // <--- ЕДИНЫЙ БАЗОВЫЙ ФАЙЛ
                 .flipV(true)
-                .end();
+                .end()
+                .texture("pipe_texture", pipeTexture)
+                .texture("particle", pipeTexture);
 
         // ==========================================
-        // 2. ГЕНЕРИРУЕМ MULTIPART БЛОКСТЕЙТ
+        // 2. ГЕНЕРИРУЕМ MULTIPART БЛОКСТЕЙТ (КОД ОСТАЛСЯ ПРЕЖНИМ)
         // ==========================================
         var builder = getMultipartBuilder(block.get());
 
@@ -278,13 +286,13 @@ public class ModBlockStateProvider extends BlockStateProvider {
         // 3. ГЕНЕРИРУЕМ МОДЕЛЬ ПРЕДМЕТА (ДЛЯ ИНВЕНТАРЯ)
         // ==========================================
         itemModels().getBuilder(name)
-                // Указываем наш шаблон как родителя (он даст настройки камеры)
                 .parent(new net.minecraftforge.client.model.generators.ModelFile.UncheckedModelFile(modLoc("item/pipe_template")))
-                // Указываем конкретную OBJ модель и лоадер
                 .customLoader(net.minecraftforge.client.model.generators.loaders.ObjModelBuilder::begin)
-                .modelLocation(modLoc("models/item/" + objPrefix + "_pipe_inventory.obj"))
+                .modelLocation(modLoc("models/item/base_pipe_inventory.obj")) // <--- ЕДИНЫЙ БАЗОВЫЙ ФАЙЛ
                 .flipV(true)
-                .end();
+                .end()
+                .texture("pipe_texture", pipeTexture) // <--- ПРОКИДЫВАЕМ ТЕКСТУРУ ДЛЯ ПРЕДМЕТА В ИНВЕНТАРЕ
+                .texture("particle", pipeTexture);
     }
 
     // Метод для прозрачных блоков (стекло, решётки и т.д.)

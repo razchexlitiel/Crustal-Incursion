@@ -30,7 +30,7 @@ public class ModBlockLootTableProvider extends BlockLootSubProvider {
 
             // Пропускаем блоки, которые не должны иметь стандартного дропа
             if (exceptions.contains(block)) continue;
-            if (block == ModBlocks.BEAM_COLLISION.get() || block == ModBlocks.MULTIBLOCK_PART.get()) continue;
+            if (block == ModBlocks.BEAM_COLLISION.get() || block == ModBlocks.MULTIBLOCK_PART.get() || block == ModBlocks.PIPE_SPOTS.get()) continue;
 
             this.dropSelf(block);
         }
