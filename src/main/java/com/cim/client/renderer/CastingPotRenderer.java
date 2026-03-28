@@ -57,11 +57,11 @@ public class CastingPotRenderer implements BlockEntityRenderer<CastingPotBlockEn
         if (blockEntity.getStoredMb() > 0 && output.isEmpty()) {
             float fillLevel = blockEntity.getFillLevel(); // 0.0 - 1.0
 
-            // Высота в пикселях: от 0.1 до 4.0
-            float heightPixels = 0.1f + (4.0f - 0.1f) * fillLevel;
+            // Высота в пикселях: от 0.1 до 2.0 (было до 4.0, убрали 2 пикселя)
+            float heightPixels = 0.1f + (2.0f - 0.1f) * fillLevel;
 
-            // Центр куба по Y: 4.1 + height/2 (чтобы низ был на 4.1)
-            float yCenter = (4.1f + heightPixels / 2.0f) / 16.0f;
+            // Центр куба по Y: 4.35 + height/2 (было 4.1, подняли на 0.25)
+            float yCenter = (4.35f + heightPixels / 2.0f) / 16.0f;
 
             int color = blockEntity.getCurrentMetal() != null ? blockEntity.getCurrentMetal().getColor() : 0xFFFFFF;
 
