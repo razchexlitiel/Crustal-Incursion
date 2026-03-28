@@ -294,7 +294,7 @@ public class FluidBarrelBlockEntity extends BlockEntity implements MenuProvider 
     }
 
     @Override
-    protected void saveAdditional(CompoundTag tag) {
+    public void saveAdditional(CompoundTag tag) {
         super.saveAdditional(tag);
         fluidTank.writeToNBT(tag);
         tag.put("Inventory", itemHandler.serializeNBT());

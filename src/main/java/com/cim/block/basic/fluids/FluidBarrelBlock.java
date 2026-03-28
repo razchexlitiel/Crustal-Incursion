@@ -125,4 +125,93 @@ public class FluidBarrelBlock extends BaseEntityBlock {
             super.onRemove(state, level, pos, newState, isMoving);
         }
     }
+
+    // ==========================================
+    // СОХРАНЕНИЕ ДАННЫХ ПРИ СЛОМЕ И УСТАНОВКЕ
+    // ==========================================
+
+    // 1. Установка бочки (восстановление жидкости, фильтра и инвентаря)
+    @Override
+    public void setPlacedBy(net.minecraft.world.level.Level pLevel, net.minecraft.core.BlockPos pPos, net.minecraft.world.level.block.state.BlockState pState, @org.jetbrains.annotations.Nullable net.minecraft.world.entity.LivingEntity pPlacer, net.minecraft.world.item.ItemStack pStack) {
+        super.setPlacedBy(pLevel, pPos, pState, pPlacer, pStack);
+
+        if (!pLevel.isClientSide) {
+            net.minecraft.world.level.block.entity.BlockEntity be = pLevel.getBlockEntity(pPos);
+            if (be instanceof com.cim.block.entity.fluids.FluidBarrelBlockEntity barrelBE) {
+                net.minecraft.nbt.CompoundTag itemNbt = pStack.getTag();
+                // Если в предмете есть сохраненные внутренности — загружаем их!
+                if (itemNbt != null && itemNbt.contains("BlockEntityTag")) {
+                    barrelBE.load(itemNbt.getCompound("BlockEntityTag"));
+                    barrelBE.setChanged();
+                }
+            }
+        }
+    }
+
+    // 2. Дроп бочки с сохранением NBT при разрушении киркой (игнорирует стандартный лут)
+    @Override
+    @SuppressWarnings("deprecation")
+    public java.util.List<net.minecraft.world.item.ItemStack> getDrops(net.minecraft.world.level.block.state.BlockState pState, net.minecraft.world.level.storage.loot.LootParams.Builder pParams) {
+        net.minecraft.world.level.block.entity.BlockEntity blockEntity = pParams.getOptionalParameter(net.minecraft.world.level.storage.loot.parameters.LootContextParams.BLOCK_ENTITY);
+
+        if (blockEntity instanceof com.cim.block.entity.fluids.FluidBarrelBlockEntity barrel) {
+            net.minecraft.world.item.ItemStack itemStack = new net.minecraft.world.item.ItemStack(this);
+            net.minecraft.nbt.CompoundTag nbt = new net.minecraft.nbt.CompoundTag();
+
+            // Сохраняем все жидкости, инвентарь и режимы в тег
+            barrel.saveAdditional(nbt);
+            itemStack.addTagElement("BlockEntityTag", nbt);
+
+            return java.util.Collections.singletonList(itemStack);
+        }
+
+        return super.getDrops(pState, pParams);
+    }
+
+    // 3. Красивый тултип в инвентаре (как у твоей батарейки)
+    @Override
+    public void appendHoverText(net.minecraft.world.item.ItemStack pStack, @org.jetbrains.annotations.Nullable net.minecraft.world.level.BlockGetter pLevel, java.util.List<net.minecraft.network.chat.Component> pTooltip, net.minecraft.world.item.TooltipFlag pFlag) {
+        super.appendHoverText(pStack, pLevel, pTooltip, pFlag);
+
+        pTooltip.add(net.minecraft.network.chat.Component.literal("§7Хранилище жидкостей"));
+
+        net.minecraft.nbt.CompoundTag nbt = pStack.getTag();
+        if (nbt != null && nbt.contains("BlockEntityTag")) {
+            net.minecraft.nbt.CompoundTag beTag = nbt.getCompound("BlockEntityTag");
+
+            // Читаем жидкость
+            if (beTag.contains("FluidName")) {
+                String fluidName = beTag.getString("FluidName");
+                int amount = beTag.getInt("Amount");
+
+                if (!fluidName.equals("minecraft:empty") && amount > 0) {
+                    net.minecraft.world.level.material.Fluid fluid = net.minecraftforge.registries.ForgeRegistries.FLUIDS.getValue(new net.minecraft.resources.ResourceLocation(fluidName));
+                    if (fluid != null) {
+                        String localizedName = net.minecraft.network.chat.Component.translatable(fluid.getFluidType().getDescriptionId()).getString();
+                        pTooltip.add(net.minecraft.network.chat.Component.literal("§bЖидкость: §f" + localizedName));
+                        pTooltip.add(net.minecraft.network.chat.Component.literal("§eОбъем: §f" + amount + " / 16000 mB"));
+                    }
+                } else {
+                    pTooltip.add(net.minecraft.network.chat.Component.literal("§bЖидкость: §7Пусто"));
+                }
+            } else {
+                pTooltip.add(net.minecraft.network.chat.Component.literal("§bЖидкость: §7Пусто"));
+            }
+
+            // Читаем фильтр
+            String filter = beTag.getString("FluidFilter");
+            if (filter != null && !filter.isEmpty() && !filter.equals("none")) {
+                net.minecraft.world.level.material.Fluid f = net.minecraftforge.registries.ForgeRegistries.FLUIDS.getValue(new net.minecraft.resources.ResourceLocation(filter));
+                if (f != null) {
+                    String fName = net.minecraft.network.chat.Component.translatable(f.getFluidType().getDescriptionId()).getString();
+                    pTooltip.add(net.minecraft.network.chat.Component.literal("§aФильтр: §f" + fName));
+                }
+            } else {
+                pTooltip.add(net.minecraft.network.chat.Component.literal("§aФильтр: §cЗакрыто"));
+            }
+        } else {
+            pTooltip.add(net.minecraft.network.chat.Component.literal("§bЖидкость: §7Пусто"));
+            pTooltip.add(net.minecraft.network.chat.Component.literal("§aФильтр: §cЗакрыто"));
+        }
+    }
 }

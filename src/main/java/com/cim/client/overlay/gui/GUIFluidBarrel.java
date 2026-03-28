@@ -2,9 +2,14 @@ package com.cim.client.overlay.gui;
 
 import com.cim.network.ModPacketHandler;
 import com.mojang.blaze3d.systems.RenderSystem;
+import com.mojang.blaze3d.vertex.BufferBuilder;
+import com.mojang.blaze3d.vertex.DefaultVertexFormat;
+import com.mojang.blaze3d.vertex.Tesselator;
+import com.mojang.blaze3d.vertex.VertexFormat;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.network.chat.Component;
@@ -19,6 +24,7 @@ import net.minecraftforge.fluids.FluidStack;
 import com.cim.main.CrustalIncursionMod;
 import com.cim.menu.FluidBarrelMenu;
 import com.cim.item.ModItems;
+import org.joml.Matrix4f;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -142,11 +148,41 @@ public class GUIFluidBarrel extends AbstractContainerScreen<FluidBarrelMenu> {
         float g = ((color >> 8) & 0xFF) / 255f;
         float b = (color & 0xFF) / 255f;
 
-        RenderSystem.setShaderColor(r, g, b, a);
         RenderSystem.setShaderTexture(0, InventoryMenu.BLOCK_ATLAS);
+        RenderSystem.setShader(GameRenderer::getPositionTexColorShader);
 
-        int drawY = y + (maxFluidHeight - fluidHeight);
-        graphics.blit(x, drawY, 0, 34, fluidHeight, sprite);
+        Matrix4f matrix = graphics.pose().last().pose();
+        BufferBuilder bufferBuilder = Tesselator.getInstance().getBuilder();
+        bufferBuilder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR);
+
+        int startY = y + (maxFluidHeight - fluidHeight);
+        int width = 34;
+
+        // === ИДЕАЛЬНЫЙ ТАЙЛИНГ С ОБРЕЗКОЙ ===
+        for (int i = 0; i < width; i += 16) {
+            int drawWidth = Math.min(width - i, 16);
+
+            for (int j = 0; j < fluidHeight; j += 16) {
+                int drawHeight = Math.min(fluidHeight - j, 16);
+
+                int drawX = x + i;
+                int drawY = startY + fluidHeight - j - drawHeight;
+
+                // Вычисляем, какую именно часть текстуры нужно "вырезать"
+                float minU = sprite.getU0();
+                float maxU = minU + (sprite.getU1() - minU) * ((float) drawWidth / 16.0F);
+
+                float minV = sprite.getV0();
+                float maxV = minV + (sprite.getV1() - minV) * ((float) drawHeight / 16.0F);
+
+                // Рисуем полигон с точными цветами и обрезанной текстурой (Bottom-Left, Bottom-Right, Top-Right, Top-Left)
+                bufferBuilder.vertex(matrix, drawX, drawY + drawHeight, 0).uv(minU, maxV).color(r, g, b, a).endVertex();
+                bufferBuilder.vertex(matrix, drawX + drawWidth, drawY + drawHeight, 0).uv(maxU, maxV).color(r, g, b, a).endVertex();
+                bufferBuilder.vertex(matrix, drawX + drawWidth, drawY, 0).uv(maxU, minV).color(r, g, b, a).endVertex();
+                bufferBuilder.vertex(matrix, drawX, drawY, 0).uv(minU, minV).color(r, g, b, a).endVertex();
+            }
+        }
+        Tesselator.getInstance().end();
 
         RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f);
     }
