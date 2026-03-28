@@ -3,6 +3,8 @@ package com.cim.block.basic.fluids;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.Containers;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
@@ -22,6 +24,7 @@ import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import net.minecraftforge.common.capabilities.ForgeCapabilities;
 import net.minecraftforge.network.NetworkHooks;
+import net.minecraftforge.registries.ForgeRegistries;
 import org.jetbrains.annotations.Nullable;
 
 import com.cim.block.entity.ModBlockEntities;
@@ -69,33 +72,35 @@ public class FluidBarrelBlock extends BaseEntityBlock {
         return RenderShape.MODEL;
     }
 
-    // ====================== ВЗАИМОДЕЙСТВИЕ (ОТКРЫТИЕ GUI) ======================
     @Override
     public InteractionResult use(BlockState state, Level level, BlockPos pos, Player player, InteractionHand hand, BlockHitResult hit) {
-        ItemStack heldItem = player.getItemInHand(hand);
+        net.minecraft.world.item.ItemStack stack = player.getItemInHand(hand);
 
-        // Если в руке идентификатор - НЕ ОТКРЫВАЕМ GUI бочки, а ставим фильтр
-        if (heldItem.getItem() instanceof com.cim.item.tools.FluidIdentifierItem) {
-            if (!level.isClientSide) {
-                String selected = com.cim.item.tools.FluidIdentifierItem.getSelectedFluid(heldItem);
-                BlockEntity be = level.getBlockEntity(pos);
+        // 1. Если кликаем Идентификатором
+        if (stack.getItem() instanceof com.cim.item.tools.FluidIdentifierItem) {
+            if (!level.isClientSide && level.getBlockEntity(pos) instanceof com.cim.block.entity.fluids.FluidBarrelBlockEntity be) {
+                String selectedFluidId = com.cim.item.tools.FluidIdentifierItem.getSelectedFluid(stack);
 
-                if (be instanceof FluidBarrelBlockEntity barrel) {
-                    barrel.setFilter(selected); // Устанавливаем фильтр и (если нужно) стираем жидкость
+                be.setFilter(selectedFluidId); // Поддерживает и "none", и обычные ID
 
-                    // Красивое сообщение в чат
-                    String msgName = selected.equals("none") ? "Ничего (Сброс фильтра)" : selected.replace("minecraft:", "").replace("cim:", "");
-                    player.displayClientMessage(Component.literal("§aФильтр бочки установлен: §e" + msgName), true);
+                if (selectedFluidId.equals("none")) {
+                    player.displayClientMessage(Component.literal("§eBarrel filter reset (Closed)"), true);
+                    level.playSound(null, pos, SoundEvents.ENDERMAN_TELEPORT, SoundSource.BLOCKS, 1.0F, 0.8F);
+                } else {
+                    net.minecraft.world.level.material.Fluid fluidToSet = ForgeRegistries.FLUIDS.getValue(new net.minecraft.resources.ResourceLocation(selectedFluidId));
+                    String fluidName = fluidToSet != null ? Component.translatable(fluidToSet.getFluidType().getDescriptionId()).getString() : selectedFluidId;
+                    player.displayClientMessage(Component.literal("§aBarrel Filter: §f" + fluidName), true);
+                    level.playSound(null, pos, SoundEvents.UI_BUTTON_CLICK.get(), SoundSource.BLOCKS, 1.0F, 1.2F);
                 }
             }
             return InteractionResult.sidedSuccess(level.isClientSide);
         }
 
+        // 2. Стандартный код (открытие GUI бочки)
         if (!level.isClientSide) {
-            BlockEntity be = level.getBlockEntity(pos);
-            if (be instanceof FluidBarrelBlockEntity barrel) {
-                // Открываем GUI
-                NetworkHooks.openScreen((ServerPlayer) player, barrel, pos);
+            BlockEntity entity = level.getBlockEntity(pos);
+            if (entity instanceof com.cim.block.entity.fluids.FluidBarrelBlockEntity) {
+                net.minecraftforge.network.NetworkHooks.openScreen((net.minecraft.server.level.ServerPlayer) player, (com.cim.block.entity.fluids.FluidBarrelBlockEntity) entity, pos);
             }
         }
         return InteractionResult.sidedSuccess(level.isClientSide);
