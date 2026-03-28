@@ -4,7 +4,7 @@ import com.cim.api.energy.ConnectorTier;
 import com.cim.api.fluids.PipeTier;
 import com.cim.block.basic.deco.BeamBlock;
 import com.cim.block.basic.deco.BeamCollisionBlock;
-import com.cim.block.basic.direction.SideOBlock;
+import com.cim.block.basic.deco.SteelPropsBlock;
 import com.cim.block.basic.fluids.FluidBarrelBlock;
 
 import com.cim.block.basic.fluids.FluidPipeBlock;
@@ -201,7 +201,7 @@ public class ModBlocks {
             () -> new CastingPotBlock(BlockBehaviour.Properties.of()
                     .strength(0.5F, 6.0F).sound(SoundType.STONE).requiresCorrectToolForDrops().noOcclusion()));
     public static final RegistryObject<Block> STEEL_PROPS = registerBlock("steel_props",
-            () -> new FullOBlock(BlockBehaviour.Properties.of()
+            () -> new SteelPropsBlock(BlockBehaviour.Properties.of()
                     .strength(0.5F, 6.0F).sound(SoundType.STONE).requiresCorrectToolForDrops().noOcclusion()));
     public static final RegistryObject<Block> CONCRETE_TILE = registerBlock("concrete_tile",
             () -> new Block(BlockBehaviour.Properties.of()
