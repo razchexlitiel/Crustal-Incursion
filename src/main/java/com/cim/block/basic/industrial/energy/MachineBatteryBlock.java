@@ -30,6 +30,9 @@ import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.DirectionProperty;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.phys.shapes.CollisionContext;
+import net.minecraft.world.phys.shapes.Shapes;
+import net.minecraft.world.phys.shapes.VoxelShape;
 import net.minecraftforge.common.capabilities.ForgeCapabilities;
 import net.minecraftforge.network.NetworkHooks;
 import com.cim.api.energy.EnergyNetworkManager;
@@ -56,6 +59,47 @@ public class MachineBatteryBlock extends BaseEntityBlock {
         super(properties);
         this.registerDefaultState(this.stateDefinition.any().setValue(FACING, Direction.NORTH));
     }
+
+    @Override
+    public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+        return getCustomShape(state);
+    }
+
+    @Override
+    public VoxelShape getCollisionShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+        return getCustomShape(state);
+    }
+
+    @Override
+    public VoxelShape getOcclusionShape(BlockState state, BlockGetter level, BlockPos pos) {
+        // Для occlusion culling — чуть меньше полного блока, чтобы не было артефактов
+        return getCustomShape(state);
+    }
+
+    /**
+     * Создаёт хитбокс с углублением 1.5 пикселя (0.09375) на фронтовой стороне.
+     * 1 пиксель = 1/16 = 0.0625
+     */
+    private VoxelShape getCustomShape(BlockState state) {
+        Direction facing = state.getValue(FACING);
+
+        // 1.5 пикселя = 0.09375
+        double inset = 1.5 / 16.0;
+
+        double minX = 0, minY = 0, minZ = 0;
+        double maxX = 1, maxY = 1, maxZ = 1;
+
+        // Углубление с ТЫЛЬНОЙ стороны (противоположной facing)
+        switch (facing) {
+            case NORTH -> minZ += inset; // Тыл на юге (Z+), увеличиваем minZ
+            case SOUTH -> maxZ -= inset; // Тыл на севере (Z-), уменьшаем maxZ
+            case WEST -> minX += inset;  // Тыл на востоке (X+), увеличиваем minX
+            case EAST -> maxX -= inset;  // Тыл на западе (X-), уменьшаем maxX
+        }
+
+        return Shapes.box(minX, minY, minZ, maxX, maxY, maxZ);
+    }
+
 
     @Override
     public BlockState getStateForPlacement(BlockPlaceContext ctx) {
