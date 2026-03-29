@@ -139,7 +139,9 @@ public class FluidPipeBlock extends Block implements EntityBlock, SimpleWaterlog
     @Override
     public void onPlace(BlockState state, Level level, BlockPos pos, BlockState oldState, boolean isMoving) {
         if (!level.isClientSide && !oldState.is(this)) {
-            FluidNetworkManager.get((ServerLevel) level).addNode(pos);
+            com.cim.api.fluids.FluidNetworkManager.get((ServerLevel) level).addNode(pos);
+            // Запускаем отложенную проверку среды (чтобы не лагало при массовой застройке)
+            level.scheduleTick(pos, this, 2);
         }
         super.onPlace(state, level, pos, oldState, isMoving);
     }
@@ -254,6 +256,59 @@ public class FluidPipeBlock extends Block implements EntityBlock, SimpleWaterlog
     }
 
     @Override
+    public void tick(BlockState state, ServerLevel level, BlockPos pos, net.minecraft.util.RandomSource random) {
+        if (checkExternalMeltdown(level, pos)) {
+            return; // Если труба расплавилась, прерываем выполнение
+        }
+    }
+
+    private boolean checkExternalMeltdown(ServerLevel level, BlockPos pos) {
+        com.cim.api.fluids.PipeTier tier = this.getTier();
+
+        // Собираем список для проверки: сам блок трубы + 6 соседей
+        java.util.List<BlockPos> positionsToCheck = new java.util.ArrayList<>();
+        positionsToCheck.add(pos);
+        for (Direction dir : Direction.values()) {
+            positionsToCheck.add(pos.relative(dir));
+        }
+
+        for (BlockPos checkPos : positionsToCheck) {
+            net.minecraft.world.level.material.FluidState fluidState = level.getFluidState(checkPos);
+
+            if (!fluidState.isEmpty()) {
+                Fluid fluid = fluidState.getType();
+                int temp = fluid.getFluidType().getTemperature();
+                int acid = 0;
+
+
+                if (fluid.getFluidType() instanceof com.cim.api.fluids.BaseFluidType base) {
+                    acid = base.getAcidity();
+
+                } else if (fluid == Fluids.LAVA || fluid == Fluids.FLOWING_LAVA) {
+                    temp = 1300; // Температура ванильной лавы
+                }
+
+                // Если агрессивная среда превышает лимиты трубы
+                if (temp > tier.getMaxTemperature() || acid > tier.getMaxAcidity()) {
+
+                    // ВЗРЫВ! (Плавление от внешней среды)
+                    level.destroyBlock(pos, false);
+
+                    // Оставляем на месте трубы ту же жидкость, которая её расплавила!
+                    BlockState fluidBlock = fluidState.createLegacyBlock();
+                    if (!fluidBlock.isAir()) {
+                        level.setBlock(pos, fluidBlock, 3);
+                    }
+
+                    level.playSound(null, pos, net.minecraft.sounds.SoundEvents.LAVA_EXTINGUISH, net.minecraft.sounds.SoundSource.BLOCKS, 1.0F, 1.0F);
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    @Override
     public FluidState getFluidState(BlockState state) {
         // Если труба затоплена, рендерим внутри нее блок воды
         return state.getValue(WATERLOGGED) ? Fluids.WATER.getSource(false) : super.getFluidState(state);
@@ -265,6 +320,12 @@ public class FluidPipeBlock extends Block implements EntityBlock, SimpleWaterlog
         if (state.getValue(WATERLOGGED)) {
             level.scheduleTick(currentPos, Fluids.WATER, Fluids.WATER.getTickDelay(level));
         }
+
+        // Если рядом что-то разлили/поставили - проверяем среду!
+        if (!level.isClientSide()) {
+            level.scheduleTick(currentPos, this, 2);
+        }
+
         return updateConnections(level, currentPos, state);
     }
 
