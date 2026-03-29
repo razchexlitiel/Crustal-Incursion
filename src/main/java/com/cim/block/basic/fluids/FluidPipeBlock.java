@@ -15,17 +15,20 @@ import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LevelAccessor;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.EntityBlock;
+import net.minecraft.world.level.block.SimpleWaterloggedBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.level.material.Fluid;
+import net.minecraft.world.level.material.FluidState;
 import net.minecraft.world.level.material.Fluids;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.CollisionContext;
@@ -34,7 +37,7 @@ import net.minecraft.world.phys.shapes.VoxelShape;
 import net.minecraftforge.common.capabilities.ForgeCapabilities;
 import net.minecraftforge.registries.ForgeRegistries;
 
-public class FluidPipeBlock extends Block implements EntityBlock {
+public class FluidPipeBlock extends Block implements EntityBlock, SimpleWaterloggedBlock {
 
     public static final BooleanProperty NORTH = BlockStateProperties.NORTH;
     public static final BooleanProperty SOUTH = BlockStateProperties.SOUTH;
@@ -43,6 +46,7 @@ public class FluidPipeBlock extends Block implements EntityBlock {
     public static final BooleanProperty UP = BlockStateProperties.UP;
     public static final BooleanProperty DOWN = BlockStateProperties.DOWN;
     public static final BooleanProperty NONE = BooleanProperty.create("none");
+    public static final BooleanProperty WATERLOGGED = BlockStateProperties.WATERLOGGED;
 
     private final PipeTier tier;
 
@@ -64,12 +68,14 @@ public class FluidPipeBlock extends Block implements EntityBlock {
                 .setValue(NORTH, false).setValue(SOUTH, false)
                 .setValue(EAST, false).setValue(WEST, false)
                 .setValue(UP, false).setValue(DOWN, false)
-                .setValue(NONE, true));
+                .setValue(NONE, true)
+                .setValue(WATERLOGGED, false))
+        ;
     }
 
     @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
-        builder.add(NORTH, SOUTH, EAST, WEST, UP, DOWN, NONE);
+        builder.add(NORTH, SOUTH, EAST, WEST, UP, DOWN, NONE, WATERLOGGED); // <--- ДОБАВИЛ СЮДА
     }
 
     // ==========================================
@@ -146,8 +152,12 @@ public class FluidPipeBlock extends Block implements EntityBlock {
         super.onRemove(state, level, pos, newState, isMoving);
     }
 
+    public PipeTier getTier() {
+        return this.tier;
+    }
+
     // ==========================================
-    // ИДЕНТИФИКАТОР + ШИФТ (ОПТИМИЗИРОВАННЫЙ РЕБИЛД СЕТИ)
+    // ИДЕНТИФИКАТОР + ШИФТ (ОБЫЧНАЯ НАСТРОЙКА БЕЗ ВЗРЫВОВ)
     // ==========================================
     @Override
     public InteractionResult use(BlockState state, Level level, BlockPos pos, Player player, InteractionHand hand, BlockHitResult hit) {
@@ -157,7 +167,6 @@ public class FluidPipeBlock extends Block implements EntityBlock {
             ServerLevel serverLevel = (ServerLevel) level;
             String selectedFluidId = FluidIdentifierItem.getSelectedFluid(stack);
 
-            // 1. Резолвим жидкость, которую хотим установить
             Fluid fluidToSet = Fluids.EMPTY;
             if (!selectedFluidId.equals("none")) {
                 fluidToSet = ForgeRegistries.FLUIDS.getValue(new net.minecraft.resources.ResourceLocation(selectedFluidId));
@@ -165,7 +174,6 @@ public class FluidPipeBlock extends Block implements EntityBlock {
             }
 
             if (player.isCrouching()) {
-                // === ОБНОВЛЕНИЕ ВСЕЙ СЕТИ (Shift+ПКМ) ===
                 FluidNetwork network = FluidNetworkManager.get(serverLevel).getNetwork(pos);
                 if (network != null && !network.isEmpty()) {
 
@@ -175,8 +183,6 @@ public class FluidPipeBlock extends Block implements EntityBlock {
                     }
 
                     FluidNetworkManager manager = FluidNetworkManager.get(serverLevel);
-
-                    // Выводим все трубы из сети
                     for (BlockPos nodePos : positionsToUpdate) {
                         manager.removeNode(nodePos);
                     }
@@ -186,7 +192,6 @@ public class FluidPipeBlock extends Block implements EntityBlock {
                         if (serverLevel.isLoaded(nodePos)) {
                             BlockEntity nodeBe = serverLevel.getBlockEntity(nodePos);
 
-                            // Обновляем фильтр и у ТРУБ, и у БОЧЕК в сети!
                             if (nodeBe instanceof FluidPipeBlockEntity pipeBE) {
                                 pipeBE.setFilterFluid(fluidToSet);
                                 updateCount++;
@@ -200,21 +205,18 @@ public class FluidPipeBlock extends Block implements EntityBlock {
                         }
                     }
 
-                    // Обратная связь
                     boolean isResetting = selectedFluidId.equals("none");
                     level.playSound(null, pos, isResetting ? SoundEvents.ENDERMAN_TELEPORT : SoundEvents.PLAYER_LEVELUP, SoundSource.BLOCKS, 1.0F, isResetting ? 0.8F : 1.2F);
-
                     String fluidName = isResetting ? "EMPTY" : Component.translatable(fluidToSet.getFluidType().getDescriptionId()).getString();
                     String msg = isResetting ? "Network filter reset." : "Network filter set: " + fluidName;
                     player.displayClientMessage(Component.literal("§a" + msg + " §7(" + updateCount + " nodes)"), true);
                 }
             } else {
-                // === ОБНОВЛЕНИЕ ТОЛЬКО ОДНОЙ ТРУБЫ (Обычный ПКМ) ===
                 if (level.getBlockEntity(pos) instanceof FluidPipeBlockEntity be) {
                     FluidNetworkManager manager = FluidNetworkManager.get(serverLevel);
 
                     manager.removeNode(pos);
-                    be.setFilterFluid(fluidToSet); // Ставит EMPTY, если выбрано "none"
+                    be.setFilterFluid(fluidToSet);
                     manager.addNode(pos);
                     level.setBlock(pos, this.updateConnections(level, pos, state), 3);
 
@@ -252,7 +254,17 @@ public class FluidPipeBlock extends Block implements EntityBlock {
     }
 
     @Override
+    public FluidState getFluidState(BlockState state) {
+        // Если труба затоплена, рендерим внутри нее блок воды
+        return state.getValue(WATERLOGGED) ? Fluids.WATER.getSource(false) : super.getFluidState(state);
+    }
+
+    @Override
     public BlockState updateShape(BlockState state, Direction dir, BlockState neighborState, LevelAccessor level, BlockPos currentPos, BlockPos neighborPos) {
+        // Поддерживаем течение воды, если труба затоплена
+        if (state.getValue(WATERLOGGED)) {
+            level.scheduleTick(currentPos, Fluids.WATER, Fluids.WATER.getTickDelay(level));
+        }
         return updateConnections(level, currentPos, state);
     }
 
@@ -276,5 +288,11 @@ public class FluidPipeBlock extends Block implements EntityBlock {
             return neighborBE.getCapability(ForgeCapabilities.FLUID_HANDLER, dir.getOpposite()).isPresent();
         }
         return false;
+    }
+
+    @Override
+    public BlockState getStateForPlacement(BlockPlaceContext context) {
+        FluidState fluidstate = context.getLevel().getFluidState(context.getClickedPos());
+        return this.defaultBlockState().setValue(WATERLOGGED, fluidstate.getType() == Fluids.WATER);
     }
 }

@@ -58,7 +58,6 @@ public class FluidPipeBlockEntity extends BlockEntity {
         this.filterFluid = fluid;
         this.setChanged();
         this.requestModelDataUpdate();
-
         if (this.level != null && !this.level.isClientSide) {
             this.level.sendBlockUpdated(this.getBlockPos(), this.getBlockState(), this.getBlockState(), 3);
         }

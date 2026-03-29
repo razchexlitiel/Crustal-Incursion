@@ -46,7 +46,7 @@ public class ModFluids {
     // 2. СЕРНАЯ КИСЛОТА (Жидкость)
     // ==========================================
     public static final RegistryObject<FluidType> SULFURIC_ACID_TYPE = FLUID_TYPES.register("sulfuric_acid",
-            () -> new BaseFluidType(FluidType.Properties.create().density(1830).viscosity(2000).temperature(350),
+            () -> new BaseFluidType(FluidType.Properties.create().density(1830).viscosity(2000).temperature(300),
                     WATER_STILL, WATER_FLOW, 0xCCAAAA00,
                     25,
                     0));
