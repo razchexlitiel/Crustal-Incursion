@@ -236,4 +236,56 @@ public class ClientModEvents {
             return -1; // -1 значит "не перекрашивать"
         }, ModBlocks.BRONZE_FLUID_PIPE.get(), ModBlocks.STEEL_FLUID_PIPE.get(), ModBlocks.LEAD_FLUID_PIPE.get(), ModBlocks.TUNGSTEN_FLUID_PIPE.get() /* Добавь остальные трубы */);
     }
+
+    @SubscribeEvent
+    public static void onModifyBakingResult(ModelEvent.ModifyBakingResult event) {
+        // Перечисляем все наши трубы
+        Block[] pipes = {
+                ModBlocks.BRONZE_FLUID_PIPE.get(),
+                ModBlocks.STEEL_FLUID_PIPE.get(),
+                ModBlocks.LEAD_FLUID_PIPE.get(),
+                ModBlocks.TUNGSTEN_FLUID_PIPE.get()
+                // добавь остальные
+        };
+
+        for (Block pipe : pipes) {
+            for (BlockState state : pipe.getStateDefinition().getPossibleStates()) {
+                ModelResourceLocation location = BlockModelShaper.stateToModelLocation(state);
+                BakedModel original = event.getModels().get(location);
+                if (original != null) {
+                    // Оборачиваем оригинальную модель в наш хардкорный движок
+                    event.getModels().put(location, new PipeBakedModel(original));
+                }
+            }
+        }
+    }
+
+    // 2. АППАРАТНАЯ РАСКРАСКА
+    @SubscribeEvent
+    public static void registerBlockColors(net.minecraftforge.client.event.RegisterColorHandlersEvent.Block event) {
+        event.register((state, level, pos, tintIndex) -> {
+            // tintIndex == 1 мы прописали в PipeBakedModel
+            if (tintIndex == 1 && level != null && pos != null) {
+                if (level.getBlockEntity(pos) instanceof com.cim.block.entity.fluids.FluidPipeBlockEntity be) {
+                    net.minecraft.world.level.material.Fluid fluid = be.getFilterFluid();
+
+                    if (fluid != net.minecraft.world.level.material.Fluids.EMPTY) {
+
+                        // --- ИСКЛЮЧЕНИЕ ДЛЯ ВАНИЛЬНОЙ ЛАВЫ ---
+                        if (fluid == net.minecraft.world.level.material.Fluids.LAVA || fluid == net.minecraft.world.level.material.Fluids.FLOWING_LAVA) {
+                            return 0xFF5500; // Красивый огненно-оранжевый цвет
+                        }
+                        // --- ИСКЛЮЧЕНИЕ ДЛЯ ВАНИЛЬНОЙ ВОДЫ (на всякий случай) ---
+                        if (fluid == net.minecraft.world.level.material.Fluids.WATER || fluid == net.minecraft.world.level.material.Fluids.FLOWING_WATER) {
+                            return 0x3F76E4; // Стандартный синий цвет воды
+                        }
+
+                        // Для всех твоих кастомных жидкостей берем их родной цвет
+                        return net.minecraftforge.client.extensions.common.IClientFluidTypeExtensions.of(fluid).getTintColor();
+                    }
+                }
+            }
+            return -1; // -1 значит "не перекрашивать"
+        }, ModBlocks.BRONZE_FLUID_PIPE.get(), ModBlocks.STEEL_FLUID_PIPE.get(), ModBlocks.LEAD_FLUID_PIPE.get(), ModBlocks.TUNGSTEN_FLUID_PIPE.get() /* Добавь остальные трубы */);
+    }
 }

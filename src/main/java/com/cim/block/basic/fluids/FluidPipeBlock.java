@@ -15,17 +15,20 @@ import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LevelAccessor;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.EntityBlock;
+import net.minecraft.world.level.block.SimpleWaterloggedBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.level.material.Fluid;
+import net.minecraft.world.level.material.FluidState;
 import net.minecraft.world.level.material.Fluids;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.CollisionContext;
@@ -34,7 +37,7 @@ import net.minecraft.world.phys.shapes.VoxelShape;
 import net.minecraftforge.common.capabilities.ForgeCapabilities;
 import net.minecraftforge.registries.ForgeRegistries;
 
-public class FluidPipeBlock extends Block implements EntityBlock {
+public class FluidPipeBlock extends Block implements EntityBlock, SimpleWaterloggedBlock {
 
     public static final BooleanProperty NORTH = BlockStateProperties.NORTH;
     public static final BooleanProperty SOUTH = BlockStateProperties.SOUTH;
@@ -43,6 +46,7 @@ public class FluidPipeBlock extends Block implements EntityBlock {
     public static final BooleanProperty UP = BlockStateProperties.UP;
     public static final BooleanProperty DOWN = BlockStateProperties.DOWN;
     public static final BooleanProperty NONE = BooleanProperty.create("none");
+    public static final BooleanProperty WATERLOGGED = BlockStateProperties.WATERLOGGED;
 
     private final PipeTier tier;
 
@@ -64,12 +68,14 @@ public class FluidPipeBlock extends Block implements EntityBlock {
                 .setValue(NORTH, false).setValue(SOUTH, false)
                 .setValue(EAST, false).setValue(WEST, false)
                 .setValue(UP, false).setValue(DOWN, false)
-                .setValue(NONE, true));
+                .setValue(NONE, true)
+                .setValue(WATERLOGGED, false))
+        ;
     }
 
     @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
-        builder.add(NORTH, SOUTH, EAST, WEST, UP, DOWN, NONE);
+        builder.add(NORTH, SOUTH, EAST, WEST, UP, DOWN, NONE, WATERLOGGED); // <--- ДОБАВИЛ СЮДА
     }
 
     // ==========================================
@@ -133,7 +139,9 @@ public class FluidPipeBlock extends Block implements EntityBlock {
     @Override
     public void onPlace(BlockState state, Level level, BlockPos pos, BlockState oldState, boolean isMoving) {
         if (!level.isClientSide && !oldState.is(this)) {
-            FluidNetworkManager.get((ServerLevel) level).addNode(pos);
+            com.cim.api.fluids.FluidNetworkManager.get((ServerLevel) level).addNode(pos);
+            // Запускаем отложенную проверку среды (чтобы не лагало при массовой застройке)
+            level.scheduleTick(pos, this, 2);
         }
         super.onPlace(state, level, pos, oldState, isMoving);
     }
@@ -146,8 +154,12 @@ public class FluidPipeBlock extends Block implements EntityBlock {
         super.onRemove(state, level, pos, newState, isMoving);
     }
 
+    public PipeTier getTier() {
+        return this.tier;
+    }
+
     // ==========================================
-    // ИДЕНТИФИКАТОР + ШИФТ (ОПТИМИЗИРОВАННЫЙ РЕБИЛД СЕТИ)
+    // ИДЕНТИФИКАТОР + ШИФТ (ОБЫЧНАЯ НАСТРОЙКА БЕЗ ВЗРЫВОВ)
     // ==========================================
     @Override
     public InteractionResult use(BlockState state, Level level, BlockPos pos, Player player, InteractionHand hand, BlockHitResult hit) {
@@ -157,7 +169,6 @@ public class FluidPipeBlock extends Block implements EntityBlock {
             ServerLevel serverLevel = (ServerLevel) level;
             String selectedFluidId = FluidIdentifierItem.getSelectedFluid(stack);
 
-            // 1. Резолвим жидкость, которую хотим установить
             Fluid fluidToSet = Fluids.EMPTY;
             if (!selectedFluidId.equals("none")) {
                 fluidToSet = ForgeRegistries.FLUIDS.getValue(new net.minecraft.resources.ResourceLocation(selectedFluidId));
@@ -165,7 +176,6 @@ public class FluidPipeBlock extends Block implements EntityBlock {
             }
 
             if (player.isCrouching()) {
-                // === ОБНОВЛЕНИЕ ВСЕЙ СЕТИ (Shift+ПКМ) ===
                 FluidNetwork network = FluidNetworkManager.get(serverLevel).getNetwork(pos);
                 if (network != null && !network.isEmpty()) {
 
@@ -175,8 +185,6 @@ public class FluidPipeBlock extends Block implements EntityBlock {
                     }
 
                     FluidNetworkManager manager = FluidNetworkManager.get(serverLevel);
-
-                    // Выводим все трубы из сети
                     for (BlockPos nodePos : positionsToUpdate) {
                         manager.removeNode(nodePos);
                     }
@@ -186,7 +194,6 @@ public class FluidPipeBlock extends Block implements EntityBlock {
                         if (serverLevel.isLoaded(nodePos)) {
                             BlockEntity nodeBe = serverLevel.getBlockEntity(nodePos);
 
-                            // Обновляем фильтр и у ТРУБ, и у БОЧЕК в сети!
                             if (nodeBe instanceof FluidPipeBlockEntity pipeBE) {
                                 pipeBE.setFilterFluid(fluidToSet);
                                 updateCount++;
@@ -200,21 +207,18 @@ public class FluidPipeBlock extends Block implements EntityBlock {
                         }
                     }
 
-                    // Обратная связь
                     boolean isResetting = selectedFluidId.equals("none");
                     level.playSound(null, pos, isResetting ? SoundEvents.ENDERMAN_TELEPORT : SoundEvents.PLAYER_LEVELUP, SoundSource.BLOCKS, 1.0F, isResetting ? 0.8F : 1.2F);
-
                     String fluidName = isResetting ? "EMPTY" : Component.translatable(fluidToSet.getFluidType().getDescriptionId()).getString();
                     String msg = isResetting ? "Network filter reset." : "Network filter set: " + fluidName;
                     player.displayClientMessage(Component.literal("§a" + msg + " §7(" + updateCount + " nodes)"), true);
                 }
             } else {
-                // === ОБНОВЛЕНИЕ ТОЛЬКО ОДНОЙ ТРУБЫ (Обычный ПКМ) ===
                 if (level.getBlockEntity(pos) instanceof FluidPipeBlockEntity be) {
                     FluidNetworkManager manager = FluidNetworkManager.get(serverLevel);
 
                     manager.removeNode(pos);
-                    be.setFilterFluid(fluidToSet); // Ставит EMPTY, если выбрано "none"
+                    be.setFilterFluid(fluidToSet);
                     manager.addNode(pos);
                     level.setBlock(pos, this.updateConnections(level, pos, state), 3);
 
@@ -252,7 +256,76 @@ public class FluidPipeBlock extends Block implements EntityBlock {
     }
 
     @Override
+    public void tick(BlockState state, ServerLevel level, BlockPos pos, net.minecraft.util.RandomSource random) {
+        if (checkExternalMeltdown(level, pos)) {
+            return; // Если труба расплавилась, прерываем выполнение
+        }
+    }
+
+    private boolean checkExternalMeltdown(ServerLevel level, BlockPos pos) {
+        com.cim.api.fluids.PipeTier tier = this.getTier();
+
+        // Собираем список для проверки: сам блок трубы + 6 соседей
+        java.util.List<BlockPos> positionsToCheck = new java.util.ArrayList<>();
+        positionsToCheck.add(pos);
+        for (Direction dir : Direction.values()) {
+            positionsToCheck.add(pos.relative(dir));
+        }
+
+        for (BlockPos checkPos : positionsToCheck) {
+            net.minecraft.world.level.material.FluidState fluidState = level.getFluidState(checkPos);
+
+            if (!fluidState.isEmpty()) {
+                Fluid fluid = fluidState.getType();
+                int temp = fluid.getFluidType().getTemperature();
+                int acid = 0;
+
+
+                if (fluid.getFluidType() instanceof com.cim.api.fluids.BaseFluidType base) {
+                    acid = base.getAcidity();
+
+                } else if (fluid == Fluids.LAVA || fluid == Fluids.FLOWING_LAVA) {
+                    temp = 1300; // Температура ванильной лавы
+                }
+
+                // Если агрессивная среда превышает лимиты трубы
+                if (temp > tier.getMaxTemperature() || acid > tier.getMaxAcidity()) {
+
+                    // ВЗРЫВ! (Плавление от внешней среды)
+                    level.destroyBlock(pos, false);
+
+                    // Оставляем на месте трубы ту же жидкость, которая её расплавила!
+                    BlockState fluidBlock = fluidState.createLegacyBlock();
+                    if (!fluidBlock.isAir()) {
+                        level.setBlock(pos, fluidBlock, 3);
+                    }
+
+                    level.playSound(null, pos, net.minecraft.sounds.SoundEvents.LAVA_EXTINGUISH, net.minecraft.sounds.SoundSource.BLOCKS, 1.0F, 1.0F);
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    @Override
+    public FluidState getFluidState(BlockState state) {
+        // Если труба затоплена, рендерим внутри нее блок воды
+        return state.getValue(WATERLOGGED) ? Fluids.WATER.getSource(false) : super.getFluidState(state);
+    }
+
+    @Override
     public BlockState updateShape(BlockState state, Direction dir, BlockState neighborState, LevelAccessor level, BlockPos currentPos, BlockPos neighborPos) {
+        // Поддерживаем течение воды, если труба затоплена
+        if (state.getValue(WATERLOGGED)) {
+            level.scheduleTick(currentPos, Fluids.WATER, Fluids.WATER.getTickDelay(level));
+        }
+
+        // Если рядом что-то разлили/поставили - проверяем среду!
+        if (!level.isClientSide()) {
+            level.scheduleTick(currentPos, this, 2);
+        }
+
         return updateConnections(level, currentPos, state);
     }
 
@@ -276,5 +349,43 @@ public class FluidPipeBlock extends Block implements EntityBlock {
             return neighborBE.getCapability(ForgeCapabilities.FLUID_HANDLER, dir.getOpposite()).isPresent();
         }
         return false;
+    }
+
+    @Override
+    public BlockState getStateForPlacement(BlockPlaceContext context) {
+        FluidState fluidstate = context.getLevel().getFluidState(context.getClickedPos());
+        return this.defaultBlockState().setValue(WATERLOGGED, fluidstate.getType() == Fluids.WATER);
+    }
+
+    // ==========================================
+    // ВИЗУАЛЬНЫЕ ЭФФЕКТЫ (КЛИЕНТ-САЙД, 0 ЛАГОВ)
+    // ==========================================
+    @Override
+    public void animateTick(BlockState state, Level level, BlockPos pos, net.minecraft.util.RandomSource random) {
+        // Проверяем, затоплена ли труба
+        if (!state.getValue(WATERLOGGED)) return;
+
+        BlockEntity be = level.getBlockEntity(pos);
+        if (be instanceof FluidPipeBlockEntity pipeBE) {
+            // Проверяем, текла ли по ней жидкость
+            if (pipeBE.hasFlowed()) {
+                Fluid fluid = pipeBE.getFilterFluid();
+
+                // Проверяем, что жидкость реально горячая.
+                // Вода в Forge = 300 Кельвинов. Значит всё, что больше 300 - заставит воду кипеть!
+                if (fluid != Fluids.EMPTY && fluid.getFluidType().getTemperature() > 300) {
+
+                    // Спавним пузырьки с шансом (чтобы не перегружать экран белым шумом)
+                    if (random.nextInt(3) == 0) {
+                        double d0 = pos.getX() + 0.5D + (random.nextDouble() - 0.5D) * 0.5D; // Случайный X внутри трубы
+                        double d1 = pos.getY() + 0.6D + (random.nextDouble() * 0.4D);        // Чуть выше центра
+                        double d2 = pos.getZ() + 0.5D + (random.nextDouble() - 0.5D) * 0.5D; // Случайный Z внутри трубы
+
+                        // Добавляем ванильные пузырьки, которые поднимаются вверх
+                        level.addParticle(net.minecraft.core.particles.ParticleTypes.BUBBLE_COLUMN_UP, d0, d1, d2, 0.0D, 0.05D, 0.0D);
+                    }
+                }
+            }
+        }
     }
 }

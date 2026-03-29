@@ -34,10 +34,12 @@ public class ModFluids {
 
     public static final RegistryObject<FlowingFluid> HYDROGEN_PEROXIDE_SOURCE = FLUIDS.register("hydrogen_peroxide",
             () -> new ForgeFlowingFluid.Source(ModFluids.HYDROGEN_PEROXIDE_PROPS));
+
     public static final RegistryObject<FlowingFluid> HYDROGEN_PEROXIDE_FLOWING = FLUIDS.register("flowing_hydrogen_peroxide",
             () -> new ForgeFlowingFluid.Flowing(ModFluids.HYDROGEN_PEROXIDE_PROPS));
+
     public static final RegistryObject<LiquidBlock> HYDROGEN_PEROXIDE_BLOCK = BLOCKS.register("hydrogen_peroxide_block",
-            () -> new LiquidBlock(HYDROGEN_PEROXIDE_SOURCE, BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_LIGHT_BLUE).replaceable().noCollission().strength(100.0F).noLootTable()));
+            () -> new com.cim.api.fluids.UnbucketableLiquidBlock(HYDROGEN_PEROXIDE_SOURCE, BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_LIGHT_BLUE).replaceable().noCollission().strength(100.0F).noLootTable()));
 
     private static final ForgeFlowingFluid.Properties HYDROGEN_PEROXIDE_PROPS = new ForgeFlowingFluid.Properties(
             HYDROGEN_PEROXIDE_TYPE, HYDROGEN_PEROXIDE_SOURCE, HYDROGEN_PEROXIDE_FLOWING).block(HYDROGEN_PEROXIDE_BLOCK);
@@ -46,17 +48,19 @@ public class ModFluids {
     // 2. СЕРНАЯ КИСЛОТА (Жидкость)
     // ==========================================
     public static final RegistryObject<FluidType> SULFURIC_ACID_TYPE = FLUID_TYPES.register("sulfuric_acid",
-            () -> new BaseFluidType(FluidType.Properties.create().density(1830).viscosity(2000).temperature(350),
+            () -> new BaseFluidType(FluidType.Properties.create().density(1830).viscosity(2000).temperature(300),
                     WATER_STILL, WATER_FLOW, 0xCCAAAA00,
                     25,
                     0));
 
     public static final RegistryObject<FlowingFluid> SULFURIC_ACID_SOURCE = FLUIDS.register("sulfuric_acid",
             () -> new ForgeFlowingFluid.Source(ModFluids.SULFURIC_ACID_PROPS));
+
     public static final RegistryObject<FlowingFluid> SULFURIC_ACID_FLOWING = FLUIDS.register("flowing_sulfuric_acid",
             () -> new ForgeFlowingFluid.Flowing(ModFluids.SULFURIC_ACID_PROPS));
+
     public static final RegistryObject<LiquidBlock> SULFURIC_ACID_BLOCK = BLOCKS.register("sulfuric_acid_block",
-            () -> new LiquidBlock(SULFURIC_ACID_SOURCE, BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_YELLOW).replaceable().noCollission().strength(100.0F).noLootTable()));
+            () -> new com.cim.api.fluids.UnbucketableLiquidBlock(SULFURIC_ACID_SOURCE, BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_YELLOW).replaceable().noCollission().strength(100.0F).noLootTable()));
 
     private static final ForgeFlowingFluid.Properties SULFURIC_ACID_PROPS = new ForgeFlowingFluid.Properties(
             SULFURIC_ACID_TYPE, SULFURIC_ACID_SOURCE, SULFURIC_ACID_FLOWING).block(SULFURIC_ACID_BLOCK);

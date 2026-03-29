@@ -48,15 +48,12 @@ public class FluidNetworkManager extends SavedData {
     }
 
     public void tick() {
-        Set<FluidNetwork> emptyNetworks = new HashSet<>();
-        for (FluidNetwork network : networks) {
-            if (network.isEmpty()) {
-                emptyNetworks.add(network);
-            } else {
-                network.tick(level);
-            }
-        }
-        networks.removeAll(emptyNetworks);
+        // 1. Делаем копию списка сетей (new HashSet) и тикаем каждую из них.
+        // Переменную в лямбде назовем 'net', чтобы точно ничего не конфликтовало.
+        new java.util.HashSet<>(networks).forEach(net -> net.tick(level));
+
+        // 2. Безопасно удаляем все пустые сети в одну строчку (без создания доп. списков)
+        networks.removeIf(com.cim.api.fluids.FluidNetwork::isEmpty);
     }
 
     // ==================== ЛОГИКА ДОБАВЛЕНИЯ УЗЛА ====================
