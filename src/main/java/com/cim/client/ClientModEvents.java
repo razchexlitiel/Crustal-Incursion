@@ -15,6 +15,7 @@ import net.minecraft.client.renderer.item.ItemProperties;
 import net.minecraft.client.resources.model.BakedModel;
 import net.minecraft.client.resources.model.ModelResourceLocation;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.material.Fluid;
@@ -80,6 +81,7 @@ public class ClientModEvents {
         BlockEntityRenderers.register(ModBlockEntities.MACHINE_BATTERY_BE.get(), MachineBatteryRenderer::new);
         BlockEntityRenderers.register(ModBlockEntities.CONNECTOR_BE.get(), ConnectorRenderer::new);
 
+        event.registerBlockEntityRenderer(ModBlockEntities.CASTING_DESCENT.get(), CastingDescentRenderer::new);
         event.registerBlockEntityRenderer(ModBlockEntities.BEAM_COLLISION_BE.get(), BeamCollisionRenderer::new);
         event.registerBlockEntityRenderer(ModBlockEntities.CASTING_POT.get(), com.cim.client.renderer.CastingPotRenderer::new);
 
@@ -147,6 +149,92 @@ public class ClientModEvents {
             }
             return 0xFFFFFFFF;
         }, ModItems.FLUID_IDENTIFIER.get()); // Замени на свой предмет
+
+        // === ГОРЯЧИЕ МЕТАЛЛЫ ===
+        // Сейчас работает для слитков, легко расширить на другие предметы
+        event.register((stack, tintIndex) -> {
+                    // Окрашиваем только tintIndex 0 (основная текстура)
+                    if (tintIndex != 0) return -1;
+
+                    if (stack.hasTag() && stack.getTag().contains("HotTime")) {
+                        int hotTime = stack.getTag().getInt("HotTime");
+                        int maxTime = stack.getTag().getInt("HotTimeMax");
+                        if (maxTime == 0) maxTime = 200;
+
+                        float ratio = (float) hotTime / maxTime; // 1.0 = горячий, 0.0 = остыл
+
+                        // От ОРАНЖЕВОГО (255, 120, 0) к БЕЛОМУ (255, 255, 255) - оригинальная текстура
+                        int r = 255;
+                        int g = (int) (120 + (255 - 120) * (1 - ratio)); // 120 → 255
+                        int b = (int) (0 + 255 * (1 - ratio));           // 0 → 255
+
+                        // Если остыл меньше чем на 5% - показываем оригинальную текстуру
+                        if (ratio < 0.05f) return -1;
+
+                        return (0xFF << 24) | (r << 16) | (g << 8) | b;
+                    }
+                    return -1;
+                },
+                Items.IRON_INGOT,
+                Items.GOLD_INGOT,
+                Items.NETHERITE_INGOT,
+                Items.COPPER_INGOT
+
+        );
+    }
+
+
+
+    @SubscribeEvent
+    public static void onModifyBakingResult(ModelEvent.ModifyBakingResult event) {
+        // Перечисляем все наши трубы
+        Block[] pipes = {
+                ModBlocks.BRONZE_FLUID_PIPE.get(),
+                ModBlocks.STEEL_FLUID_PIPE.get(),
+                ModBlocks.LEAD_FLUID_PIPE.get(),
+                ModBlocks.TUNGSTEN_FLUID_PIPE.get()
+                // добавь остальные
+        };
+
+        for (Block pipe : pipes) {
+            for (BlockState state : pipe.getStateDefinition().getPossibleStates()) {
+                ModelResourceLocation location = BlockModelShaper.stateToModelLocation(state);
+                BakedModel original = event.getModels().get(location);
+                if (original != null) {
+                    // Оборачиваем оригинальную модель в наш хардкорный движок
+                    event.getModels().put(location, new PipeBakedModel(original));
+                }
+            }
+        }
+    }
+
+    // 2. АППАРАТНАЯ РАСКРАСКА
+    @SubscribeEvent
+    public static void registerBlockColors(net.minecraftforge.client.event.RegisterColorHandlersEvent.Block event) {
+        event.register((state, level, pos, tintIndex) -> {
+            // tintIndex == 1 мы прописали в PipeBakedModel
+            if (tintIndex == 1 && level != null && pos != null) {
+                if (level.getBlockEntity(pos) instanceof com.cim.block.entity.fluids.FluidPipeBlockEntity be) {
+                    net.minecraft.world.level.material.Fluid fluid = be.getFilterFluid();
+
+                    if (fluid != net.minecraft.world.level.material.Fluids.EMPTY) {
+
+                        // --- ИСКЛЮЧЕНИЕ ДЛЯ ВАНИЛЬНОЙ ЛАВЫ ---
+                        if (fluid == net.minecraft.world.level.material.Fluids.LAVA || fluid == net.minecraft.world.level.material.Fluids.FLOWING_LAVA) {
+                            return 0xFF5500; // Красивый огненно-оранжевый цвет
+                        }
+                        // --- ИСКЛЮЧЕНИЕ ДЛЯ ВАНИЛЬНОЙ ВОДЫ (на всякий случай) ---
+                        if (fluid == net.minecraft.world.level.material.Fluids.WATER || fluid == net.minecraft.world.level.material.Fluids.FLOWING_WATER) {
+                            return 0x3F76E4; // Стандартный синий цвет воды
+                        }
+
+                        // Для всех твоих кастомных жидкостей берем их родной цвет
+                        return net.minecraftforge.client.extensions.common.IClientFluidTypeExtensions.of(fluid).getTintColor();
+                    }
+                }
+            }
+            return -1; // -1 значит "не перекрашивать"
+        }, ModBlocks.BRONZE_FLUID_PIPE.get(), ModBlocks.STEEL_FLUID_PIPE.get(), ModBlocks.LEAD_FLUID_PIPE.get(), ModBlocks.TUNGSTEN_FLUID_PIPE.get() /* Добавь остальные трубы */);
     }
 
     @SubscribeEvent
