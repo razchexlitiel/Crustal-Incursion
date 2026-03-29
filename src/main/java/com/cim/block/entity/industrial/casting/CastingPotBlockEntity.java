@@ -14,6 +14,7 @@ import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientGamePacketListener;
 import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.Containers;
@@ -50,15 +51,15 @@ public class CastingPotBlockEntity extends BlockEntity {
     }
 
     public static void serverTick(Level level, BlockPos pos, BlockState state, CastingPotBlockEntity be) {
-        // 1. Уменьшаем кулдауны и таймер охлаждения
+        // 1. Уменьшаем кулдауны и таймер охлаждения (ТОЛЬКО ЗДЕСЬ!)
         if (be.transferCooldown > 0) be.transferCooldown--;
 
         if (be.coolingTimer > 0) {
             be.coolingTimer--;
-            // Убраны частицы отсюда - они теперь только при создании слитка
             be.setChanged();
             if (be.coolingTimer == 0) level.sendBlockUpdated(pos, state, state, 3);
-            // Не выходим отсюда, но проверка ниже не даст забрать предмет
+            // Если остываем - дальше не идём (чтобы не передавать/не застывать)
+            return;
         }
 
         // 2. Если в котле уже лежит готовый слиток — выходим
@@ -72,24 +73,23 @@ public class CastingPotBlockEntity extends BlockEntity {
 
         be.updateCapacity();
 
-        // 4. ЛОГИКА ПОСЛЕДОВАТЕЛЬНОЙ ПЕРЕДАЧИ СОСЕДЯМ
-        // Переливаем, только если мы полны или близки к этому, и нет процесса остывания
-        if (be.storedMb > 0 && be.coolingTimer <= 0) {
+        // 4. ЛОГИКА ПЕРЕДАЧИ СОСЕДЯМ
+        if (be.storedMb > 0 && be.transferCooldown <= 0) {
             for (Direction dir : Direction.Plane.HORIZONTAL) {
                 BlockPos neighborPos = pos.relative(dir);
                 if (level.getBlockEntity(neighborPos) instanceof CastingPotBlockEntity neighborPot) {
-                    // Если сосед может принять этот металл и он не полон
+                    // Проверяем canAcceptMetal (там уже есть проверка coolingTimer и outputItem)
                     if (neighborPot.canAcceptMetal(be.currentMetal) && neighborPot.getRemainingCapacity() > 0) {
-                        int toTransfer = Math.min(10, be.storedMb); // Скорость перетекания
+                        int toTransfer = Math.min(10, be.storedMb);
                         int accepted = neighborPot.addMetal(be.currentMetal, toTransfer);
 
                         if (accepted > 0) {
                             be.storedMb -= accepted;
-                            be.transferCooldown = 5; // Блокируем застывание на 5 тиков
+                            be.transferCooldown = 5;
                             if (be.storedMb <= 0) be.currentMetal = null;
                             be.setChanged();
                             level.sendBlockUpdated(pos, state, state, 3);
-                            break; // За тик передаем только одному соседу
+                            break;
                         }
                     }
                 }
@@ -97,7 +97,6 @@ public class CastingPotBlockEntity extends BlockEntity {
         }
 
         // 5. ЛОГИКА ЗАСТЫВАНИЯ
-        // Застывает только если: полон, есть форма, и НЕ передает металл соседям (cooldown == 0)
         if (be.storedMb >= be.capacity && be.capacity > 0 && be.transferCooldown <= 0) {
             if (be.solidifyTimer < SOLIDIFY_TIME) {
                 be.solidifyTimer++;
@@ -106,30 +105,23 @@ public class CastingPotBlockEntity extends BlockEntity {
                 if (be.solidifyTimer % 10 == 0) {
                     level.sendBlockUpdated(pos, state, state, 3);
                 }
+            } else {
+                // МОМЕНТ ЗАВЕРШЕНИЯ ЗАСТЫВАНИЯ
+                be.createOutputItem();
+                be.storedMb = 0;
+                be.solidifyTimer = 0;
+                be.coolingTimer = COOLING_TIME;
 
-                // МОМЕНТ ЗАВЕРШЕНИЯ
-                if (be.solidifyTimer >= SOLIDIFY_TIME) {
-                    be.createOutputItem();
-                    be.storedMb = 0;
-                    be.solidifyTimer = 0;
-                    be.coolingTimer = COOLING_TIME;
-
-                    // ЧАСТИЦЫ POOF при создании слитка (один раз!)
-                    for(int i = 0; i < 8; i++) {
-                        level.addParticle(ParticleTypes.POOF,
-                                pos.getX() + 0.2 + level.random.nextDouble() * 0.6,
-                                pos.getY() + 0.3,
-                                pos.getZ() + 0.2 + level.random.nextDouble() * 0.6,
-                                (level.random.nextDouble() - 0.5) * 0.1,
-                                0.05,
-                                (level.random.nextDouble() - 0.5) * 0.1);
-                    }
-
-                    level.playSound(null, pos, SoundEvents.LAVA_EXTINGUISH, SoundSource.BLOCKS, 0.5f, 2.6f);
-                    be.setChanged();
-                    level.sendBlockUpdated(pos, state, state, 3);
-                    return; // Важно: выходим чтобы не продолжать тикать с пустым металлом
+                // ЧАСТИЦЫ POOF
+                if (!level.isClientSide) {
+                    ((ServerLevel)level).sendParticles(ParticleTypes.POOF,
+                            pos.getX() + 0.5, pos.getY() + 0.4, pos.getZ() + 0.5,
+                            8, 0.25, 0.1, 0.25, 0.03);
                 }
+
+                level.playSound(null, pos, SoundEvents.LAVA_EXTINGUISH, SoundSource.BLOCKS, 0.5f, 2.6f);
+                be.setChanged();
+                level.sendBlockUpdated(pos, state, state, 3);
             }
         } else {
             // Если металл начал убывать (перетекать к соседу), сбрасываем прогресс застывания
@@ -238,27 +230,33 @@ public class CastingPotBlockEntity extends BlockEntity {
         return network;
     }
 
-    // ЗАПОЛНЕНИЕ СЕТИ (Вместо addMetal в Descent вызывай этот метод)
     public int fillNetwork(Metal metal, int amount) {
-        List<CastingPotBlockEntity> network = findNetwork(); // Твой метод поиска из PDF
+        List<CastingPotBlockEntity> network = findNetwork();
 
-        // Считаем общее свободное место во всей сети
-        int totalSpace = network.stream().mapToInt(CastingPotBlockEntity::getRemainingCapacity).sum();
+        // Фильтруем только котлы, которые могут принять металл
+        List<CastingPotBlockEntity> availablePools = network.stream()
+                .filter(p -> p.canAcceptMetal(metal))
+                .toList();
+
+        if (availablePools.isEmpty()) return 0;
+
+        int totalSpace = availablePools.stream().mapToInt(CastingPotBlockEntity::getRemainingCapacity).sum();
         if (totalSpace <= 0) return 0;
 
         int toFillTotal = Math.min(amount, totalSpace);
-        int count = network.size();
+        int actuallyFilled = 0;
+        int count = availablePools.size();
         int perPool = toFillTotal / count;
         int remainder = toFillTotal % count;
 
-        // Раздаем металл поровну
-        for (CastingPotBlockEntity pool : network) {
+        for (CastingPotBlockEntity pool : availablePools) {
             int fillAmount = perPool + (remainder-- > 0 ? 1 : 0);
             if (fillAmount > 0) {
-                pool.addMetal(metal, fillAmount); // Используем твой addMetal из PDF
+                int accepted = pool.addMetal(metal, fillAmount);
+                actuallyFilled += accepted;
             }
         }
-        return toFillTotal;
+        return actuallyFilled;
     }
 
 
@@ -375,6 +373,7 @@ public class CastingPotBlockEntity extends BlockEntity {
         tag.put("Output", outputItem.save(new CompoundTag()));
         tag.putInt("StoredMb", storedMb);
         tag.putInt("SolidifyTimer", solidifyTimer);
+        tag.putInt("CoolingTimer", coolingTimer);
         if (currentMetal != null) {
             tag.putString("MetalId", currentMetal.getId().toString());
         }
@@ -395,6 +394,7 @@ public class CastingPotBlockEntity extends BlockEntity {
             this.outputItem = ItemStack.of(tag.getCompound("Output"));
             this.storedMb = tag.getInt("StoredMb");
             this.solidifyTimer = tag.getInt("SolidifyTimer");
+            this.coolingTimer = tag.getInt("CoolingTimer");
             if (tag.contains("MetalId")) {
                 ResourceLocation id = new ResourceLocation(tag.getString("MetalId"));
                 MetallurgyRegistry.get(id).ifPresent(m -> this.currentMetal = m);
@@ -412,23 +412,28 @@ public class CastingPotBlockEntity extends BlockEntity {
     public boolean canAcceptMetal(Metal metal) {
         if (mold.isEmpty()) return false;
         if (!outputItem.isEmpty()) return false;
+        if (coolingTimer > 0) return false; // ДОБАВЬ ЭТУ СТРОКУ
         updateCapacity();
         if (storedMb >= capacity) return false;
-
-        // Критически важно: проверяем совместимость если уже есть металл
         if (storedMb > 0 && currentMetal != null && !currentMetal.equals(metal)) {
             return false;
         }
         return true;
     }
 
-    // Новый метод для проверки сколько ещё можно налить
     public int getRemainingCapacity() {
         updateCapacity();
+        // Если котел остывает или содержит готовый предмет - свободного места нет!
+        if (coolingTimer > 0 || !outputItem.isEmpty()) return 0;
         return capacity - storedMb;
     }
 
     public int addMetal(Metal metal, int amount) {
+        // КРИТИЧНО: Не принимаем металл если остываем или есть готовый предмет
+        if (this.coolingTimer > 0 || !this.outputItem.isEmpty()) {
+            return 0;
+        }
+
         if (this.storedMb == 0) {
             this.currentMetal = metal;
         } else if (!this.currentMetal.equals(metal)) {
@@ -438,10 +443,8 @@ public class CastingPotBlockEntity extends BlockEntity {
         int toAdd = Math.min(amount, this.capacity - this.storedMb);
         if (toAdd > 0) {
             this.storedMb += toAdd;
-            this.setChanged(); // Помечаем для сохранения на диск
-
+            this.setChanged();
             if (this.level != null && !this.level.isClientSide) {
-                // Пакет для обновления рендера у игроков рядом
                 this.level.sendBlockUpdated(this.worldPosition, getBlockState(), getBlockState(), 3);
             }
         }

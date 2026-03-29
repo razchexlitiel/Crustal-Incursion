@@ -47,9 +47,8 @@ public class CastingDescentRenderer implements BlockEntityRenderer<CastingDescen
         poseStack.mulPose(Axis.YP.rotationDegrees(180f - facing.toYRot()));
         poseStack.translate(-0.5, -0.5, -0.5);
 
-        // СЕГМЕНТ 3
-        renderBox(poseStack, builder, glowLight, r, g, b, 1.0f, 6.1f/16f, 1.2f/16f, 12.15f/16f, 9.8f/16f, 2.4f/16f, 16.0f/16f, time, 0.3f);
-
+        // СЕГМЕНТ 3: z1 = 12.05 (ещё на 0.05 ближе к сегменту 2)
+        renderBox(poseStack, builder, glowLight, r, g, b, 1.0f, 6.1f/16f, 1.2f/16f, 12.05f/16f, 9.8f/16f, 2.4f/16f, 16.0f/16f, time, 0.3f);
         // СЕГМЕНТ 2: Уменьшен на 0.001px и сдвинут на 0.1px назад
         poseStack.pushPose();
         poseStack.translate(8f/16f, 1.8f/16f, 12.15f/16f);

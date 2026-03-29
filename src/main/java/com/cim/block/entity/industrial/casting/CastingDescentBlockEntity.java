@@ -2,6 +2,7 @@ package com.cim.block.entity.industrial.casting;
 
 import com.cim.api.metal.Metal;
 import com.cim.api.metal.MetallurgyRegistry;
+import com.cim.block.basic.industrial.casting.CastingDescentBlock;
 import com.cim.block.entity.ModBlockEntities;
 import com.cim.multiblock.industrial.SmelterBlockEntity;
 import com.cim.multiblock.system.MultiblockPartEntity;
@@ -37,6 +38,26 @@ public class CastingDescentBlockEntity extends BlockEntity {
     }
 
     public static void serverTick(Level level, BlockPos pos, BlockState state, CastingDescentBlockEntity be) {
+        // ПРОВЕРКА ОРИЕНТАЦИИ: задняя часть должна смотреть на ядро плавильни
+        Direction facing = state.getValue(CastingDescentBlock.FACING);
+        Direction back = facing.getOpposite();
+        BlockPos smelterPos = pos.relative(back);
+
+        BlockEntity behind = level.getBlockEntity(smelterPos);
+        if (!(behind instanceof SmelterBlockEntity) && !(behind instanceof MultiblockPartEntity)) {
+            // Не нашли плавильню строго позади - гасим струю и не работаем
+            be.setPouring(false, null);
+            return;
+        }
+
+        // Если это часть мультиблока, проверяем что контроллер существует
+        if (behind instanceof MultiblockPartEntity part) {
+            BlockPos controllerPos = part.getControllerPos();
+            if (controllerPos == null || !(level.getBlockEntity(controllerPos) instanceof SmelterBlockEntity)) {
+                be.setPouring(false, null);
+                return;
+            }
+        }
         // 1. Уменьшаем кулдауны
         if (be.transferCooldown > 0) be.transferCooldown--;
 
