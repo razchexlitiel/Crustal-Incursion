@@ -1,6 +1,5 @@
 package com.cim.api.metallurgy.system;
 
-
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.level.block.Block;
@@ -14,11 +13,13 @@ public class Metal {
     private final int baseUnits;
     private final int smallUnits;
     private final int blockUnits;
+    private final int baseSmeltTime;
     @Nullable private Item ingot;
     @Nullable private Item nugget;
     @Nullable private Block block;
 
-    public Metal(ResourceLocation id, int color, int meltingPoint, int baseUnits, int smallUnits, int blockUnits) {
+    public Metal(ResourceLocation id, int color, int meltingPoint,
+                 int baseUnits, int smallUnits, int blockUnits, int baseSmeltTime) {
         this.id = id;
         this.translationKey = "metal." + id.getNamespace() + "." + id.getPath();
         this.color = color;
@@ -26,6 +27,7 @@ public class Metal {
         this.baseUnits = baseUnits;
         this.smallUnits = smallUnits;
         this.blockUnits = blockUnits;
+        this.baseSmeltTime = baseSmeltTime;
     }
 
     // Геттеры
@@ -36,6 +38,7 @@ public class Metal {
     public int getBaseUnits() { return baseUnits; }
     public int getSmallUnits() { return smallUnits; }
     public int getBlockUnits() { return blockUnits; }
+    public int getBaseSmeltTime() { return baseSmeltTime; }
     @Nullable public Item getIngot() { return ingot; }
     @Nullable public Item getNugget() { return nugget; }
     @Nullable public Block getBlock() { return block; }

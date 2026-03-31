@@ -1,6 +1,6 @@
 package com.cim.datagen;
 
-import com.cim.api.resource.ResourceRegistry;
+import com.cim.main.ResourceRegistry;
 import net.minecraft.data.PackOutput;
 import net.minecraftforge.common.data.LanguageProvider;
 import com.cim.main.CrustalIncursionMod;

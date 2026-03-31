@@ -1,8 +1,7 @@
 package com.cim.client;
 
-import com.cim.api.resource.ResourceRegistry;
+import com.cim.main.ResourceRegistry;
 import com.cim.block.basic.ModBlocks;
-import com.cim.block.entity.fluids.FluidPipeBlockEntity;
 import com.cim.client.gecko.block.energy.MachineBatteryRenderer;
 import com.cim.client.overlay.gui.*;
 import com.cim.client.renderer.*;

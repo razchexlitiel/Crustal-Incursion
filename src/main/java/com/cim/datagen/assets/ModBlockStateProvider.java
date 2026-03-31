@@ -1,11 +1,10 @@
 package com.cim.datagen.assets;
 
-import com.cim.api.resource.ResourceRegistry;
+import com.cim.main.ResourceRegistry;
 import com.cim.block.basic.necrosis.hive.HiveRootsBlock;
 import net.minecraft.data.PackOutput;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.block.*;
-import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
 import net.minecraftforge.client.model.generators.BlockStateProvider;
 import net.minecraftforge.client.model.generators.ConfiguredModel;
 import net.minecraftforge.client.model.generators.ModelFile;

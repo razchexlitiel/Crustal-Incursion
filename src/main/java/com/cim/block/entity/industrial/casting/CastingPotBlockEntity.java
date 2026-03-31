@@ -106,9 +106,8 @@ public class CastingPotBlockEntity extends BlockEntity {
             result.getOrCreateTag().putInt("HotTimeMax", coolTime);
             this.outputItem = result;
         }
-
-        this.storedUnits = 0;
-        this.currentMetal = null;
+        this.storedUnits -= capacity; // вычитаем, а не обнуляем
+        if (this.storedUnits == 0) this.currentMetal = null;
         this.solidifyTimer = 0;
         setChanged();
         level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), 3);

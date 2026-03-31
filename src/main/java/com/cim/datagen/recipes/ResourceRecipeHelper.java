@@ -1,11 +1,9 @@
 package com.cim.datagen.recipes;
 
-import com.cim.api.resource.ResourceRegistry;
-import com.cim.api.resource.ResourceRegistry.ResourceEntry;
-import com.cim.api.resource.ResourceRegistry.ResourceType;
+import com.cim.main.ResourceRegistry;
+import com.cim.main.ResourceRegistry.ResourceEntry;
 import net.minecraft.data.recipes.*;
 import net.minecraft.world.item.Item;
-import net.minecraft.world.item.Items;
 import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.level.ItemLike;
 import net.minecraftforge.registries.RegistryObject;

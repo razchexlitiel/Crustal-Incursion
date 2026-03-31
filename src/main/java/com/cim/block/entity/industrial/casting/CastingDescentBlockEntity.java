@@ -23,10 +23,9 @@ import net.minecraft.world.phys.AABB;
 import java.util.List;
 
 public class CastingDescentBlockEntity extends BlockEntity {
-    private static final int TRANSFER_RATE = 10; // единиц за передачу
-    private static final int POURING_TICKS = 10;
+    private static final int TRANSFER_RATE = 9; // 1 слиток = 9 единиц
+    private static final int TRANSFER_COOLDOWN = 0; // 40 тиков = 2 секунды
     private int transferCooldown = 0;
-
     private boolean isPouring = false;
     private Metal pouringMetal = null;
     private int pouringTicks = 0;
@@ -91,8 +90,7 @@ public class CastingDescentBlockEntity extends BlockEntity {
                 mainPot.fillNetwork(metalToTransfer, extracted);
                 be.lastKnownFillLevel = mainPot.getFillLevel();
                 be.setPouring(true, metalToTransfer);
-                be.pouringTicks = POURING_TICKS;
-                be.transferCooldown = 2;
+                be.transferCooldown = TRANSFER_COOLDOWN;
             } else {
                 be.setPouring(false, null);
             }

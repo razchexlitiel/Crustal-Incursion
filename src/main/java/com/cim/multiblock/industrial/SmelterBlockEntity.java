@@ -76,15 +76,28 @@ public class SmelterBlockEntity extends BlockEntity implements MenuProvider {
     private Map<SmeltRecipe, Integer> currentBottomRecipes = new HashMap<>();
     private int requiredTempBottom = 0;
 
-    private final ContainerData data = new SimpleContainerData(11) {
+    private final ContainerData data = new SimpleContainerData(13) {
         @Override
         public void set(int index, int value) {
             super.set(index, value);
         }
     };
 
+    private static class BottomSlotData {
+        SmeltRecipe recipe;
+        int progress;
+        int maxProgress;
+        int heatPerTick;
+        boolean active;
+    }
+    private final BottomSlotData[] bottomSlots = new BottomSlotData[4];
+    private final ItemStack[] previousBottomStacks = new ItemStack[4];
+
     public SmelterBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.SMELTER_BE.get(), pos, state);
+        for (int i = 0; i < 4; i++) {
+            previousBottomStacks[i] = ItemStack.EMPTY;
+        }
     }
 
     public static void serverTick(Level level, BlockPos pos, BlockState state, SmelterBlockEntity be) {
@@ -123,6 +136,8 @@ public class SmelterBlockEntity extends BlockEntity implements MenuProvider {
         be.data.set(8, be.requiredTempBottom);
         be.data.set(9, be.currentAlloyRecipe != null ? 1 : 0);
         be.data.set(10, !be.currentBottomRecipes.isEmpty() ? 1 : 0);
+        be.data.set(11, be.topHeatPerTick);
+        be.data.set(12, be.bottomHeatPerTick);
 
         if (be.topSmelting || be.bottomSmelting || be.temperature > 0) {
             be.setChanged();
@@ -207,6 +222,7 @@ public class SmelterBlockEntity extends BlockEntity implements MenuProvider {
         if (topMaxProgress > 0) {
             int heatPerTick = Math.min(topHeatPerTick, temperature / 20 + 1);
             heatPerTick = Math.min(heatPerTick, temperature);
+            topHeatPerTick = heatPerTick;
             topProgress += heatPerTick;
             temperature = Math.max(0, temperature - (heatPerTick / 2));
 
@@ -247,110 +263,114 @@ public class SmelterBlockEntity extends BlockEntity implements MenuProvider {
     // ==================== Нижний ряд (обычная плавка) ====================
 
     private void tickBottomRow() {
-        if (totalMetalAmount >= TANK_CAPACITY) {
-            if (requiredTempBottom != 0) requiredTempBottom = 0;
-            return;
+        // Сбрасываем суммарные значения
+        bottomProgress = 0;
+        bottomMaxProgress = 0;
+        requiredTempBottom = 0;
+        bottomHeatPerTick = 0;
+        bottomSmelting = false;
+
+        // Проверяем изменения в слотах
+        for (int i = 0; i < 4; i++) {
+            ItemStack current = inventory.getStackInSlot(4 + i);
+            ItemStack prev = previousBottomStacks[i];
+            if (!ItemStack.matches(current, prev)) {
+                // Содержимое слота изменилось – сбрасываем данные
+                bottomSlots[i] = null;
+                previousBottomStacks[i] = current.copy();
+            }
         }
 
-        Map<SmeltRecipe, Integer> recipeCounts = new HashMap<>();
-        int totalOutput = 0;
-        boolean hasAnyItem = false;
+        // Обрабатываем каждый слот
+        for (int i = 0; i < 4; i++) {
+            ItemStack stack = inventory.getStackInSlot(4 + i);
+            if (stack.isEmpty()) {
+                bottomSlots[i] = null;
+                continue;
+            }
 
-        for (int i = 4; i < 8; i++) {
-            ItemStack stack = inventory.getStackInSlot(i);
-            if (!stack.isEmpty()) {
-                hasAnyItem = true;
-                SmeltRecipe recipe = MetallurgyRegistry.getSmeltRecipe(stack.getItem());
-                if (recipe != null) {
-                    int count = stack.getCount();
-                    recipeCounts.merge(recipe, count, Integer::sum);
-                    totalOutput += recipe.outputUnits() * count;
+            SmeltRecipe recipe = MetallurgyRegistry.getSmeltRecipe(stack.getItem());
+            if (recipe == null) {
+                bottomSlots[i] = null;
+                continue;
+            }
+
+            // Проверка места в баке
+            if (totalMetalAmount + recipe.outputUnits() > TANK_CAPACITY) {
+                // Нет места – не запускаем новый процесс, но уже идущий не трогаем
+                if (bottomSlots[i] == null) continue;
+            }
+
+            // Проверка температуры
+            if (temperature < recipe.minTemp()) {
+                // Недостаточно тепла – активный процесс не прогревается
+                if (bottomSlots[i] != null) {
+                    bottomSlots[i].active = false;
+                }
+                continue;
+            }
+
+            // Если данных для слота нет – инициализируем
+            if (bottomSlots[i] == null) {
+                bottomSlots[i] = new BottomSlotData();
+                bottomSlots[i].recipe = recipe;
+                bottomSlots[i].maxProgress = recipe.totalHeat();
+                bottomSlots[i].heatPerTick = recipe.heatPerTick();
+                bottomSlots[i].progress = 0;
+                bottomSlots[i].active = true;
+            }
+
+            BottomSlotData slot = bottomSlots[i];
+            if (!slot.active) {
+                // Если процесс был приостановлен, пробуем возобновить
+                if (temperature >= slot.recipe.minTemp()) {
+                    slot.active = true;
+                } else {
+                    continue;
                 }
             }
-        }
 
-        if (!hasAnyItem || recipeCounts.isEmpty()) {
-            if (bottomSmelting || !currentBottomRecipes.isEmpty()) {
-                bottomSmelting = false;
-                currentBottomRecipes.clear();
-                bottomProgress = 0;
-                bottomMaxProgress = 0;
-                requiredTempBottom = 0;
-            }
-            return;
-        }
+            // Рассчитываем количество тепла за тик с учётом температуры
+            int heat = Math.min(slot.heatPerTick, temperature / 20 + 1);
+            heat = Math.min(heat, temperature);
+            slot.progress += heat;
+            temperature = Math.max(0, temperature - (heat / 2));
 
-        int maxMinTemp = recipeCounts.keySet().stream()
-                .mapToInt(SmeltRecipe::minTemp)
-                .max()
-                .orElse(0);
-        requiredTempBottom = maxMinTemp;
-
-        if (temperature < maxMinTemp) {
-            bottomSmelting = false;
-            bottomProgress = 0;
-            int totalHeat = recipeCounts.entrySet().stream()
-                    .mapToInt(e -> e.getKey().totalHeat() * e.getValue())
-                    .sum();
-            bottomMaxProgress = totalHeat;
-            return;
-        }
-
-        if (totalMetalAmount + totalOutput > TANK_CAPACITY) {
-            return;
-        }
-
-        int totalHeatRequired = 0;
-        int totalHeatPerTick = 0;
-        for (var entry : recipeCounts.entrySet()) {
-            SmeltRecipe recipe = entry.getKey();
-            int count = entry.getValue();
-            totalHeatRequired += recipe.totalHeat() * count;
-            totalHeatPerTick += recipe.heatPerTick() * count;
-        }
-
-        if (!bottomSmelting) {
-            bottomSmelting = true;
-            bottomProgress = 0;
-            bottomMaxProgress = totalHeatRequired;
-            bottomHeatPerTick = totalHeatPerTick;
-            currentBottomRecipes.clear();
-            currentBottomRecipes.putAll(recipeCounts);
-        }
-
-        if (bottomMaxProgress > 0) {
-            int heatPerTick = Math.min(bottomHeatPerTick, temperature / 20 + 1);
-            heatPerTick = Math.min(heatPerTick, temperature);
-            bottomProgress += heatPerTick;
-            temperature = Math.max(0, temperature - (heatPerTick / 2));
-
-            if (bottomProgress >= bottomMaxProgress) {
-                completeBottomRecipes(currentBottomRecipes);
-                bottomSmelting = false;
-                currentBottomRecipes.clear();
-                bottomProgress = 0;
-                bottomMaxProgress = 0;
-                requiredTempBottom = 0;
-            }
-        }
-    }
-
-    private void completeBottomRecipes(Map<SmeltRecipe, Integer> recipeCounts) {
-        for (var entry : recipeCounts.entrySet()) {
-            SmeltRecipe recipe = entry.getKey();
-            int needed = entry.getValue();
-            for (int i = 4; i < 8 && needed > 0; i++) {
-                ItemStack stack = inventory.getStackInSlot(i);
-                if (stack.getItem() == recipe.input() && !stack.isEmpty()) {
-                    int toRemove = Math.min(needed, stack.getCount());
-                    stack.shrink(toRemove);
-                    needed -= toRemove;
-                    addMetal(recipe.output(), recipe.outputUnits() * toRemove);
+            // Если процесс завершён
+            if (slot.progress >= slot.maxProgress) {
+                // Забираем один предмет из слота
+                ItemStack currentStack = inventory.getStackInSlot(4 + i);
+                if (!currentStack.isEmpty()) {
+                    currentStack.shrink(1);
+                    addMetal(slot.recipe.output(), slot.recipe.outputUnits());
+                }
+                // Если в слоте остались предметы, переинициализируем процесс
+                if (!inventory.getStackInSlot(4 + i).isEmpty()) {
+                    bottomSlots[i] = new BottomSlotData();
+                    bottomSlots[i].recipe = recipe;
+                    bottomSlots[i].maxProgress = recipe.totalHeat();
+                    bottomSlots[i].heatPerTick = recipe.heatPerTick();
+                    bottomSlots[i].progress = 0;
+                    bottomSlots[i].active = true;
+                } else {
+                    bottomSlots[i] = null;
                 }
             }
+
+            // Накопление суммарных данных для GUI
+            if (bottomSlots[i] != null && bottomSlots[i].active) {
+                bottomProgress += bottomSlots[i].progress;
+                bottomMaxProgress += bottomSlots[i].maxProgress;
+                bottomHeatPerTick += bottomSlots[i].heatPerTick;
+                bottomSmelting = true;
+                requiredTempBottom = Math.max(requiredTempBottom, bottomSlots[i].recipe.minTemp());
+            }
         }
-        setChanged();
+
+        // Если нет активных процессов, сбрасываем requiredTempBottom
+        if (!bottomSmelting) requiredTempBottom = 0;
     }
+
 
     // ==================== Работа с металлами ====================
 

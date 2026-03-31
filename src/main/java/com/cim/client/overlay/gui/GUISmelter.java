@@ -151,7 +151,9 @@ public class GUISmelter extends AbstractContainerScreen<SmelterMenu> {
 
         if (maxProgress > 0) {
             int remaining = maxProgress - progress;
-            float seconds = remaining / 400.0f;
+            int heatPerTick = isTop ? menu.getTopHeatPerTick() : menu.getBottomHeatPerTick();
+            if (heatPerTick <= 0) heatPerTick = 10; // запасное значение
+            float seconds = remaining / (heatPerTick * 20.0f);
             lines.add(Component.literal(String.format("Осталось: %.1fс", Math.max(0, seconds)))
                     .withStyle(Style.EMPTY.withColor(TextColor.fromRgb(0xAAAAAA))));
         }

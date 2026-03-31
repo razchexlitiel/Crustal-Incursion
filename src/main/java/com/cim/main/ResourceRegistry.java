@@ -1,14 +1,11 @@
-package com.cim.api.resource;
+package com.cim.main;
 
 import com.cim.block.basic.ModBlocks;
 import com.cim.item.ModItems;
-import com.cim.main.CrustalIncursionMod;
-import com.cim.main.ModCreativeTabs;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraftforge.event.BuildCreativeModeTabContentsEvent;
 import net.minecraftforge.registries.RegistryObject;
@@ -16,8 +13,6 @@ import net.minecraftforge.registries.RegistryObject;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.function.Consumer;
-import java.util.function.Supplier;
 
 /**
  * Универсальный регистр ресурсов (металлы, полимеры, кристаллы и т.д.).
@@ -26,6 +21,50 @@ import java.util.function.Supplier;
  * Автоматически добавляет в CIM_RECOURSES_TAB и генерирует рецепты крафта.
  */
 public class ResourceRegistry {
+
+    /**
+     * Инициализация - вызывать ДО регистрации блоков/предметов в конструкторе мода!
+     */
+    public static void init() {
+        if (initialized) {
+            return;
+        }
+
+        RESOURCES.clear();
+
+        // ============ МЕТАЛЛЫ ============
+
+        registerFull("steel", ResourceType.METAL,
+                BlockBehaviour.Properties.copy(Blocks.IRON_BLOCK)
+                        .strength(6.0f, 7.0f)
+                        .requiresCorrectToolForDrops());
+
+        registerFull("aluminum", ResourceType.METAL,
+                BlockBehaviour.Properties.copy(Blocks.IRON_BLOCK)
+                        .strength(3.0f, 5.0f)
+                        .requiresCorrectToolForDrops());
+
+//        // ============ ПОЛИМЕРЫ ============
+//
+//        registerFull("epoxy", ResourceType.POLYMER,
+//                BlockBehaviour.Properties.copy(Blocks.STONE)
+//                        .strength(2.0f, 3.0f)
+//                        .sound(SoundType.STONE));
+//
+//        registerWithBlock("polyethylene", ResourceType.POLYMER);
+//
+//        // ============ КРИСТАЛЛЫ ============
+//
+//        registerFull("quartzite", ResourceType.CRYSTAL,
+//                BlockBehaviour.Properties.copy(Blocks.AMETHYST_BLOCK)
+//                        .strength(4.0f, 6.0f)
+//                        .requiresCorrectToolForDrops());
+
+        initialized = true;
+        CrustalIncursionMod.LOGGER.info("ResourceRegistry initialized with {} resources", RESOURCES.size());
+    }
+
+
 
     // Все зарегистрированные ресурсы
     private static final List<ResourceEntry> RESOURCES = new ArrayList<>();
@@ -261,45 +300,4 @@ public class ResourceRegistry {
         return new ArrayList<>(RESOURCES);
     }
 
-    /**
-     * Инициализация - вызывать ДО регистрации блоков/предметов в конструкторе мода!
-     */
-    public static void init() {
-        if (initialized) {
-            return;
-        }
-
-        RESOURCES.clear();
-
-        // ============ МЕТАЛЛЫ ============
-
-        registerFull("steel", ResourceType.METAL,
-                BlockBehaviour.Properties.copy(Blocks.IRON_BLOCK)
-                        .strength(6.0f, 7.0f)
-                        .requiresCorrectToolForDrops());
-
-        registerFull("aluminum", ResourceType.METAL,
-                BlockBehaviour.Properties.copy(Blocks.IRON_BLOCK)
-                        .strength(3.0f, 5.0f)
-                        .requiresCorrectToolForDrops());
-
-//        // ============ ПОЛИМЕРЫ ============
-//
-//        registerFull("epoxy", ResourceType.POLYMER,
-//                BlockBehaviour.Properties.copy(Blocks.STONE)
-//                        .strength(2.0f, 3.0f)
-//                        .sound(SoundType.STONE));
-//
-//        registerWithBlock("polyethylene", ResourceType.POLYMER);
-//
-//        // ============ КРИСТАЛЛЫ ============
-//
-//        registerFull("quartzite", ResourceType.CRYSTAL,
-//                BlockBehaviour.Properties.copy(Blocks.AMETHYST_BLOCK)
-//                        .strength(4.0f, 6.0f)
-//                        .requiresCorrectToolForDrops());
-
-        initialized = true;
-        CrustalIncursionMod.LOGGER.info("ResourceRegistry initialized with {} resources", RESOURCES.size());
-    }
 }

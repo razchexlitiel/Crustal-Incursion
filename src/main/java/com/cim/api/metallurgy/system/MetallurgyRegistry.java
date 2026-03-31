@@ -1,7 +1,5 @@
 package com.cim.api.metallurgy.system;
 
-
-
 import com.cim.api.metallurgy.system.recipe.AlloyRecipe;
 import com.cim.api.metallurgy.system.recipe.SmeltRecipe;
 import com.cim.main.CrustalIncursionMod;
@@ -21,12 +19,25 @@ public class MetallurgyRegistry {
                                       int baseUnits, int smallUnits, int blockUnits,
                                       int baseSmeltTimeTicks) {
         ResourceLocation id = new ResourceLocation(CrustalIncursionMod.MOD_ID, name);
-        Metal metal = new Metal(id, color, meltingPoint, baseUnits, smallUnits, blockUnits);
+        Metal metal = new Metal(id, color, meltingPoint, baseUnits, smallUnits, blockUnits, baseSmeltTimeTicks);
         METALS.put(id, metal);
-
-        // Автоматически генерируем рецепты, если позже будут привязаны предметы
-        // Но сами рецепты будут добавлены позже, когда будут известны ingot/nugget/block
         return metal;
+    }
+
+    public static void generateStandardRecipes() {
+        for (Metal metal : METALS.values()) {
+            if (metal.getIngot() != null) {
+                addSmeltRecipe(metal.getIngot(), metal, metal.getBaseUnits(), metal.getBaseSmeltTime());
+            }
+            if (metal.getNugget() != null && metal.getSmallUnits() > 0) {
+                int time = Math.max(1, metal.getBaseSmeltTime() / 3);
+                addSmeltRecipe(metal.getNugget(), metal, metal.getSmallUnits(), time);
+            }
+            if (metal.getBlock() != null) {
+                int time = metal.getBaseSmeltTime() * 3;
+                addSmeltRecipe(metal.getBlock().asItem(), metal, metal.getBlockUnits(), time);
+            }
+        }
     }
 
     public static void addSmeltRecipe(Item input, Metal output, int outputUnits, int timeTicks) {

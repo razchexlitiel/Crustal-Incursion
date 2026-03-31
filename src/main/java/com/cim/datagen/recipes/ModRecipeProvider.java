@@ -1,6 +1,6 @@
 package com.cim.datagen.recipes;
 
-import com.cim.api.resource.ResourceRegistry;
+import com.cim.main.ResourceRegistry;
 import net.minecraft.data.PackOutput;
 import net.minecraft.data.recipes.*;
 import net.minecraft.world.item.Items;
@@ -37,7 +37,7 @@ public class ModRecipeProvider extends RecipeProvider implements IConditionBuild
                 .unlockedBy("has_tnt", has(Items.TNT))
                 .save(writer);
 
-        
+
         // --- 2. КРАФТ БЕЗ ФОРМЫ (Shapeless) ---
         // Пример: Разбор блока обратно в ресурсы
         /*

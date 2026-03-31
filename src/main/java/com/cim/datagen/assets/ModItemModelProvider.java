@@ -15,7 +15,7 @@ import net.minecraftforge.common.data.ExistingFileHelper;
 import net.minecraftforge.registries.RegistryObject;
 import com.cim.main.CrustalIncursionMod;
 import com.cim.item.ModItems;
-import com.cim.api.resource.ResourceRegistry;
+import com.cim.main.ResourceRegistry;
 
 import java.util.LinkedHashMap;
 

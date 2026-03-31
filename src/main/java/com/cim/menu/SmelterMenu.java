@@ -62,7 +62,7 @@ public class SmelterMenu extends AbstractContainerMenu {
     public static SmelterMenu create(int id, Inventory inv, FriendlyByteBuf buf) {
         BlockPos pos = buf.readBlockPos();
         BlockEntity entity = inv.player.level().getBlockEntity(pos);
-        SimpleContainerData data = new SimpleContainerData(11);
+        SimpleContainerData data = new SimpleContainerData(13);
         return new SmelterMenu(id, inv, (SmelterBlockEntity) entity, data);
     }
 
@@ -77,7 +77,8 @@ public class SmelterMenu extends AbstractContainerMenu {
     public int getRequiredTempBottom() { return data.get(8); }
     public boolean hasTopRecipe() { return data.get(9) > 0; }
     public boolean hasBottomRecipe() { return data.get(10) > 0; }
-
+    public int getTopHeatPerTick() { return data.get(11); }
+    public int getBottomHeatPerTick() { return data.get(12); }
     public SmelterBlockEntity getBlockEntity() { return blockEntity; }
 
     @Override

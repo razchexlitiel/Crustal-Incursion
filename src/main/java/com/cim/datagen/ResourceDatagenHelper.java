@@ -1,9 +1,8 @@
 package com.cim.datagen;
 
-import com.cim.api.resource.ResourceRegistry;
-import com.cim.api.resource.ResourceRegistry.ResourceEntry;
-import com.cim.api.resource.ResourceRegistry.ResourceType;
-import net.minecraft.data.PackOutput;
+import com.cim.main.ResourceRegistry;
+import com.cim.main.ResourceRegistry.ResourceEntry;
+import com.cim.main.ResourceRegistry.ResourceType;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.client.model.generators.ItemModelProvider;
 import net.minecraftforge.common.data.LanguageProvider;
