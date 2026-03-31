@@ -3,8 +3,11 @@ package com.cim.main;
 
 import com.cim.api.fluids.ModFluids;
 import com.cim.api.hive.HiveNetworkManager;
-import com.cim.api.metal.MetalRegistry;
-import com.cim.api.metal.MetallurgyRegistry;
+import com.cim.api.metallurgy.ModMetallurgy;
+import com.cim.api.metallurgy.system.Metal;
+import com.cim.api.metallurgy.system.MetalUnits2;
+import com.cim.api.metallurgy.system.MetallurgyRegistry;
+import com.cim.event.SlagItem;
 import com.mojang.logging.LogUtils;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
@@ -60,6 +63,7 @@ public class CrustalIncursionMod {
         ModCreativeTabs.register(modEventBus);
         GeckoLib.initialize();
         this.registerCapabilities(modEventBus);
+        ResourceRegistry.init();
         ModBlocks.register(modEventBus); // 1. Сначала блоки
         ModItems.ITEMS.register(modEventBus);
         ModBlockEntities.BLOCK_ENTITIES.register(modEventBus);
@@ -83,18 +87,17 @@ public class CrustalIncursionMod {
 
     private void commonSetup(final FMLCommonSetupEvent event) {
         event.enqueueWork(() -> {
-            MetallurgyRegistry.init();
+            ModMetallurgy.init();          // <-- регистрация металлов и рецептов
             ModPacketHandler.register();
             Regions.register(new ModOverworldRegion(new ResourceLocation(MOD_ID, "overworld"), 5));
             SurfaceRuleManager.addSurfaceRules(SurfaceRuleManager.RuleCategory.OVERWORLD, "cim", ModSurfaceRules.makeRules());
-
         });
     }
 
     private void addCreative(BuildCreativeModeTabContentsEvent event) {
         // Логгирование для отладки
         LOGGER.info("Building creative tab contents for: " + event.getTabKey());
-
+        ResourceRegistry.addCreative(event);
         if (event.getTab() == ModCreativeTabs.CIM_BUILD_TAB.get()) {
 
             event.accept(ModBlocks.CONCRETE.get());
@@ -248,6 +251,18 @@ public class CrustalIncursionMod {
             event.accept(ModItems.FIREBRICK.get());
             event.accept(ModItems.REINFORCEDBRICK.get());
             event.accept(ModItems.FUEL_ASH.get());
+
+            if (event.getTab() == ModCreativeTabs.CIM_RECOURSES_TAB.get()) {
+                event.accept(ModItems.FIREBRICK.get());
+                event.accept(ModItems.REINFORCEDBRICK.get());
+                event.accept(ModItems.FUEL_ASH.get());
+
+                // Добавляем демонстрационный шлак для каждого металла (1 слиток = 9 единиц)
+                for (Metal metal : MetallurgyRegistry.getAllMetals()) {
+                    ItemStack slagStack = SlagItem.createSlag(metal, MetalUnits2.UNITS_PER_INGOT);
+                    event.accept(slagStack);
+                }
+            }
         }
 
         if (event.getTab() == ModCreativeTabs.CIM_NATURE_TAB.get()) {

@@ -3,6 +3,7 @@ package com.cim.block.basic.industrial.casting;
 import com.cim.block.entity.ModBlockEntities;
 import com.cim.block.entity.industrial.casting.CastingPotBlockEntity;
 import com.cim.item.ModItems;
+import com.cim.event.SlagItem;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
@@ -38,6 +39,17 @@ public class CastingPotBlock extends BaseEntityBlock {
         this.registerDefaultState(this.stateDefinition.any().setValue(FACING, Direction.NORTH));
     }
     @Override
+    protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
+        builder.add(FACING);
+    }
+
+    @Override
+    public BlockState getStateForPlacement(BlockPlaceContext context) {
+        // Устанавливается противоположно направлению взгляда игрока
+        return this.defaultBlockState().setValue(FACING, context.getHorizontalDirection().getOpposite());
+    }
+
+    @Override
     public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
         return Shapes.box(0, 0, 0, 1, 0.5, 1);
     }
@@ -52,11 +64,7 @@ public class CastingPotBlock extends BaseEntityBlock {
         return getShape(state, level, pos, CollisionContext.empty());
     }
 
-    @Nullable
-    @Override
-    public BlockState getStateForPlacement(BlockPlaceContext context) {
-        return this.defaultBlockState().setValue(FACING, context.getHorizontalDirection().getOpposite());
-    }
+
 
     @Override
     public BlockState rotate(BlockState state, Rotation rotation) {
@@ -68,10 +76,7 @@ public class CastingPotBlock extends BaseEntityBlock {
         return state.rotate(mirror.getRotation(state.getValue(FACING)));
     }
 
-    @Override
-    protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
-        builder.add(FACING);
-    }
+
 
     @Override
     public RenderShape getRenderShape(BlockState state) {
@@ -104,26 +109,80 @@ public class CastingPotBlock extends BaseEntityBlock {
         ItemStack heldItem = player.getItemInHand(hand);
         boolean isPickaxe = heldItem.getItem() instanceof PickaxeItem;
 
-        // 1. ВОЗВРАТ ГОРЯЧЕГО ПРЕДМЕТА обратно в котел
+        // === 1. SHIFT + ПКМ КИРКОЙ - СБРОС ВСЕГО ИНВЕНТАРЯ В ВИДЕ ШЛАКА ===
+        if (isPickaxe && player.isShiftKeyDown()) {
+            boolean droppedSomething = false;
+
+            // Выбрасываем шлак если есть
+            if (pot.hasSlag()) {
+                ItemStack slag = pot.extractSlag();
+                if (!slag.isEmpty()) {
+                    popResource(level, pos, slag);
+                    droppedSomething = true;
+                }
+            }
+
+            // Выбрасываем жидкий металл как шлак
+            if (pot.getStoredUnits() > 0 && pot.getCurrentMetal() != null) {
+                ItemStack slag = SlagItem.createSlag(pot.getCurrentMetal(), pot.getStoredUnits());
+                popResource(level, pos, slag);
+                pot.clearMetal();
+                droppedSomething = true;
+            }
+
+            // Выбрасываем готовый предмет если есть
+            if (!pot.getOutputItem().isEmpty()) {
+                ItemStack drop = pot.takeOutput();
+                popResource(level, pos, drop);
+                droppedSomething = true;
+            }
+
+            // Выбрасываем форму если есть
+            if (!pot.getMold().isEmpty()) {
+                popResource(level, pos, pot.getMold());
+                pot.setMold(ItemStack.EMPTY);
+                droppedSomething = true;
+            }
+
+            if (droppedSomething) {
+                level.playSound(null, pos, SoundEvents.ITEM_PICKUP, SoundSource.BLOCKS, 1.0f, 0.8f);
+                return InteractionResult.CONSUME;
+            }
+            return InteractionResult.PASS;
+        }
+
+        // === 2. ЕСТЬ ШЛАК - МОЖНО ДОСТАТЬ ПУСТОЙ РУКОЙ ИЛИ КИРКОЙ ===
+        if (pot.hasSlag()) {
+            ItemStack slag = pot.extractSlag();
+            if (!slag.isEmpty()) {
+                if (heldItem.isEmpty()) {
+                    player.setItemInHand(hand, slag);
+                } else {
+                    if (!player.getInventory().add(slag)) {
+                        player.drop(slag, false);
+                    }
+                }
+                level.playSound(null, pos, SoundEvents.STONE_BREAK, SoundSource.BLOCKS, 1.0F, 0.8F);
+                return InteractionResult.CONSUME;
+            }
+        }
+
+        // === 3. ВОЗВРАТ ГОРЯЧЕГО ПРЕДМЕТА ОБРАТНО В КОТЕЛ ===
         if (!heldItem.isEmpty() && heldItem.hasTag() && heldItem.getTag().contains("HotTime")) {
             if (pot.tryInsertHotItem(heldItem)) {
                 heldItem.shrink(1);
                 level.playSound(null, pos, SoundEvents.LAVA_EXTINGUISH, SoundSource.BLOCKS, 0.5f, 2.0f);
                 return InteractionResult.CONSUME;
             }
+            player.displayClientMessage(Component.literal("§cНельзя поместить: котёл занят или нет формы"), true);
+            return InteractionResult.PASS;
         }
 
-        // 2. ДОСТАВАНИЕ ПРЕДМЕТА (киркой или рукой)
+        // === 4. ДОСТАВАНИЕ ГОТОВОГО ПРЕДМЕТА ===
         if (!pot.getOutputItem().isEmpty()) {
             // Киркой - достаём даже если горячий
             if (isPickaxe) {
                 ItemStack drop = pot.takeOutput();
-                // Сохраняем оставшееся время остывания
-                if (pot.getCoolingTimer() > 0) {
-                    drop.getOrCreateTag().putInt("HotTime", pot.getCoolingTimer());
-                    drop.getOrCreateTag().putInt("HotTimeMax", CastingPotBlockEntity.BASE_COOLING_TIME);
-                }
-
                 if (!player.getInventory().add(drop)) {
                     player.drop(drop, false);
                 }
@@ -133,7 +192,8 @@ public class CastingPotBlock extends BaseEntityBlock {
 
             // Рукой - только если остыл
             if (pot.getCoolingTimer() > 0) {
-                player.displayClientMessage(Component.literal("§cСлишком горячо! Используйте кирку."), true);
+                int percent = (int)((pot.getCoolingTimer() / (float)CastingPotBlockEntity.BASE_COOLING_TIME) * 100);
+                player.displayClientMessage(Component.literal("§cСлишком горячо! (" + percent + "%) Используйте кирку."), true);
                 return InteractionResult.PASS;
             }
 
@@ -142,7 +202,9 @@ public class CastingPotBlock extends BaseEntityBlock {
             if (heldItem.isEmpty()) {
                 player.setItemInHand(hand, drop);
             } else {
-                player.getInventory().add(drop);
+                if (!player.getInventory().add(drop)) {
+                    player.drop(drop, false);
+                }
             }
             level.playSound(null, pos, SoundEvents.ITEM_PICKUP, SoundSource.BLOCKS, 1.0F, 1.0F);
             return InteractionResult.CONSUME;
@@ -150,7 +212,7 @@ public class CastingPotBlock extends BaseEntityBlock {
 
         ItemStack moldStack = pot.getMold();
 
-        // Отвёртка извлекает форму
+        // === 5. ОТВЁРТКА - ИЗВЛЕЧЕНИЕ ФОРМЫ ===
         if (heldItem.is(ModItems.SCREWDRIVER.get())) {
             if (!moldStack.isEmpty() && pot.canRemoveMold()) {
                 if (!player.getInventory().add(moldStack.copy())) {
@@ -160,10 +222,13 @@ public class CastingPotBlock extends BaseEntityBlock {
                 level.playSound(null, pos, SoundEvents.ITEM_FRAME_REMOVE_ITEM, SoundSource.BLOCKS, 1.0F, 1.0F);
                 return InteractionResult.CONSUME;
             }
+            if (!moldStack.isEmpty() && !pot.canRemoveMold()) {
+                player.displayClientMessage(Component.literal("§cНельзя извлечь форму: есть металл или предмет"), true);
+            }
             return InteractionResult.PASS;
         }
 
-        // Вставка формы
+        // === 6. ВСТАВКА ФОРМЫ ===
         if (moldStack.isEmpty()) {
             if (heldItem.is(ModItems.MOLD_INGOT.get())) {
                 ItemStack toInsert = heldItem.copy();
@@ -174,12 +239,16 @@ public class CastingPotBlock extends BaseEntityBlock {
                 return InteractionResult.CONSUME;
             }
         } else {
-            // Забор пустой рукой только если нет металла
+            // Забор пустой рукой только если нет металла и предмета
             if (heldItem.isEmpty() && pot.canRemoveMold()) {
                 player.setItemInHand(hand, moldStack.copy());
                 pot.setMold(ItemStack.EMPTY);
                 level.playSound(null, pos, SoundEvents.ITEM_FRAME_REMOVE_ITEM, SoundSource.BLOCKS, 1.0F, 1.0F);
                 return InteractionResult.CONSUME;
+            }
+            if (heldItem.isEmpty() && !pot.canRemoveMold()) {
+                player.displayClientMessage(Component.literal("§cНельзя извлечь форму: есть металл или предмет"), true);
+                return InteractionResult.PASS;
             }
         }
 
@@ -191,19 +260,22 @@ public class CastingPotBlock extends BaseEntityBlock {
         if (!state.is(newState.getBlock())) {
             BlockEntity blockEntity = level.getBlockEntity(pos);
             if (blockEntity instanceof CastingPotBlockEntity pot) {
+                // Выбрасываем форму
                 if (!pot.getMold().isEmpty()) {
                     popResource(level, pos, pot.getMold());
                 }
+
+                // Выбрасываем предмет с сохранением "горячести"
                 if (!pot.getOutputItem().isEmpty()) {
                     ItemStack drop = pot.getOutputItem().copy();
-                    // Сохраняем "горячесть" если котёл сломали во время остывания
+                    // Сохраняем оставшееся время остывания если котёл сломали во время остывания
                     if (pot.getCoolingTimer() > 0) {
                         drop.getOrCreateTag().putInt("HotTime", pot.getCoolingTimer());
                         drop.getOrCreateTag().putInt("HotTimeMax", CastingPotBlockEntity.BASE_COOLING_TIME);
                     }
                     popResource(level, pos, drop);
                 }
-                // Металл теряется при разрушении
+                // Металл теряется при разрушении (логика остаётся)
             }
             super.onRemove(state, level, pos, newState, isMoving);
         }
