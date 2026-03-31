@@ -112,19 +112,19 @@ public class ModLangProvider extends LanguageProvider {
         add(ModBlocks.SEQUOIA_TRAPDOOR.get(), "Sequoia trapdoor");
 
         // Валы
-        add(ModBlocks.DRILL_HEAD.get(), "Drill head");
-        add(ModBlocks.MOTOR_ELECTRO.get(), "Electric motor");
-        add(ModBlocks.WIND_GEN_FLUGER.get(), "Wind generator vane");
-        add(ModBlocks.SHAFT_IRON.get(), "Iron shaft");
-        add(ModBlocks.SHAFT_WOODEN.get(), "Wooden shaft");
-        add(ModBlocks.GEAR_PORT.get(), "Gear port");
-        add(ModBlocks.STOPPER.get(), "Stopper");
-        add(ModBlocks.ADDER.get(), "Adder");
-        add(ModBlocks.TACHOMETER.get(), "Tachometer");
-        add(ModBlocks.ROTATION_METER.get(), "Rotation meter");
-        add(ModBlocks.RCONVERTER.get(), "RtoE converter");
-        add(ModBlocks.SHAFT_PLACER.get(), "Shaft placer");
-        add(ModBlocks.MINING_PORT.get(), "Mining port");
+//        add(ModBlocks.DRILL_HEAD.get(), "Drill head");
+//        add(ModBlocks.MOTOR_ELECTRO.get(), "Electric motor");
+//        add(ModBlocks.WIND_GEN_FLUGER.get(), "Wind generator vane");
+//        add(ModBlocks.SHAFT_IRON.get(), "Iron shaft");
+//        add(ModBlocks.SHAFT_WOODEN.get(), "Wooden shaft");
+//        add(ModBlocks.GEAR_PORT.get(), "Gear port");
+//        add(ModBlocks.STOPPER.get(), "Stopper");
+//        add(ModBlocks.ADDER.get(), "Adder");
+//        add(ModBlocks.TACHOMETER.get(), "Tachometer");
+//        add(ModBlocks.ROTATION_METER.get(), "Rotation meter");
+//        add(ModBlocks.RCONVERTER.get(), "RtoE converter");
+//        add(ModBlocks.SHAFT_PLACER.get(), "Shaft placer");
+//        add(ModBlocks.MINING_PORT.get(), "Mining port");
 
         //Другие предметы
         add(ModBlocks.DET_MINER.get(), "Mining charge");
@@ -239,18 +239,18 @@ public class ModLangProvider extends LanguageProvider {
 
 
         // Валы
-        add(ModBlocks.DRILL_HEAD.get(), "Головка бура");
-        add(ModBlocks.MOTOR_ELECTRO.get(), "Электромотор");
-        add(ModBlocks.SHAFT_IRON.get(), "Железный вал");
-        add(ModBlocks.SHAFT_WOODEN.get(), "Деревянный вал");
-        add(ModBlocks.GEAR_PORT.get(), "Трансмиттер вращения");
-        add(ModBlocks.STOPPER.get(), "Стопор");
-        add(ModBlocks.ADDER.get(), "Сумматор");
-        add(ModBlocks.TACHOMETER.get(), "Тахометр");
-        add(ModBlocks.ROTATION_METER.get(), "Измеритель вращения");
-        add(ModBlocks.RCONVERTER.get(), "Преобразователь вращения в энергию");
-        add(ModBlocks.SHAFT_PLACER.get(), "Установщик валов");
-        add(ModBlocks.MINING_PORT.get(), "Сборочный порт");
+//        add(ModBlocks.DRILL_HEAD.get(), "Головка бура");
+//        add(ModBlocks.MOTOR_ELECTRO.get(), "Электромотор");
+//        add(ModBlocks.SHAFT_IRON.get(), "Железный вал");
+//        add(ModBlocks.SHAFT_WOODEN.get(), "Деревянный вал");
+//        add(ModBlocks.GEAR_PORT.get(), "Трансмиттер вращения");
+//        add(ModBlocks.STOPPER.get(), "Стопор");
+//        add(ModBlocks.ADDER.get(), "Сумматор");
+//        add(ModBlocks.TACHOMETER.get(), "Тахометр");
+//        add(ModBlocks.ROTATION_METER.get(), "Измеритель вращения");
+//        add(ModBlocks.RCONVERTER.get(), "Преобразователь вращения в энергию");
+//        add(ModBlocks.SHAFT_PLACER.get(), "Установщик валов");
+//        add(ModBlocks.MINING_PORT.get(), "Сборочный порт");
 
         //Другие предметы
         add(ModBlocks.DET_MINER.get(), "Шахтёрский заряд");
@@ -263,7 +263,7 @@ public class ModLangProvider extends LanguageProvider {
         add(ModItems.MACHINEGUN.get(), "'А.П. 17'");
         add(ModItems.TURRET_CHIP.get(), "Чип турели");
         add(ModItems.TURRET_LIGHT_PORTATIVE_PLACER.get(), "Портативная лёгкая десантная турель 'Нагваль'");
-        add(ModItems.WIND_GEN_FLUGER.get(), "Ветряной генератор вращения");
+//        add(ModItems.WIND_GEN_FLUGER.get(), "Ветряной генератор вращения");
         add(ModItems.AMMO_TURRET_PIERCING.get(), "20мм турельный боеприпас");
         add(ModItems.AMMO_TURRET_HOLLOW.get(), "20мм экспансивный турельный боеприпас");
         add(ModItems.AMMO_TURRET_FIRE.get(), "20мм зажигательный турельный боеприпас");
@@ -400,9 +400,9 @@ public class ModLangProvider extends LanguageProvider {
         add(ModBlocks.CONCRETE_HAZARD_OLD_SLAB.get(), "Плита зі старого небезпечного бетону");
 
         // Вали
-        add(ModBlocks.DRILL_HEAD.get(), "Бурова головка");
-        add(ModBlocks.MOTOR_ELECTRO.get(), "Електромотор");
-        add(ModItems.WIND_GEN_FLUGER.get(), "Флюгер вітрогенератора");
+//        add(ModBlocks.DRILL_HEAD.get(), "Бурова головка");
+//        add(ModBlocks.MOTOR_ELECTRO.get(), "Електромотор");
+//        add(ModItems.WIND_GEN_FLUGER.get(), "Флюгер вітрогенератора");
         add(ModItems.AMMO_TURRET_PIERCING.get(), "Бронебійні набої для турелі");
         add(ModItems.AMMO_TURRET_HOLLOW.get(), "Експансивні набої для турелі");
         add(ModItems.AMMO_TURRET_FIRE.get(), "Запальні набої для турелі");
@@ -417,16 +417,16 @@ public class ModLangProvider extends LanguageProvider {
         add(ModItems.GRENADE_IF_SLIME.get(), "Слизова ударна граната");
         add(ModItems.GRENADE_IF_FIRE.get(), "Запальна ударна граната");
         add(ModItems.GRENADE_NUC.get(), "Ядерна граната");
-        add(ModBlocks.SHAFT_IRON.get(), "Залізний вал");
-        add(ModBlocks.SHAFT_WOODEN.get(), "Дерев'яний вал");
-        add(ModBlocks.GEAR_PORT.get(), "Редукторний порт");
-        add(ModBlocks.STOPPER.get(), "Стопор");
-        add(ModBlocks.ADDER.get(), "Суматор");
-        add(ModBlocks.TACHOMETER.get(), "Тахометр");
-        add(ModBlocks.ROTATION_METER.get(), "Датчик обертання");
-        add(ModBlocks.RCONVERTER.get(), "Обертальний перетворювач");
-        add(ModBlocks.SHAFT_PLACER.get(), "Розміщувач валів");
-        add(ModBlocks.MINING_PORT.get(), "Шахтарський порт");
+//        add(ModBlocks.SHAFT_IRON.get(), "Залізний вал");
+//        add(ModBlocks.SHAFT_WOODEN.get(), "Дерев'яний вал");
+//        add(ModBlocks.GEAR_PORT.get(), "Редукторний порт");
+//        add(ModBlocks.STOPPER.get(), "Стопор");
+//        add(ModBlocks.ADDER.get(), "Суматор");
+//        add(ModBlocks.TACHOMETER.get(), "Тахометр");
+//        add(ModBlocks.ROTATION_METER.get(), "Датчик обертання");
+//        add(ModBlocks.RCONVERTER.get(), "Обертальний перетворювач");
+//        add(ModBlocks.SHAFT_PLACER.get(), "Розміщувач валів");
+//        add(ModBlocks.MINING_PORT.get(), "Шахтарський порт");
         // Сутності
         add("entity.cim.turret_light", "Легка турель");
         add("entity.cim.turret_light_linked", "Зв'язана легка турель");

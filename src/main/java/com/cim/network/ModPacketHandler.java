@@ -2,7 +2,7 @@ package com.cim.network;
 
 
 import com.cim.network.packet.fluids.*;
-import com.cim.network.packet.rotation.PacketToggleRetractMode;
+//import com.cim.network.packet.rotation.PacketToggleRetractMode;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.network.NetworkRegistry;
 import net.minecraftforge.network.simple.SimpleChannel;
@@ -16,9 +16,9 @@ import com.cim.network.packet.energy.UpdateBatteryC2SPacket;
 import com.cim.network.packet.guns.PacketReloadGun;
 import com.cim.network.packet.guns.PacketShoot;
 import com.cim.network.packet.guns.PacketUnloadGun;
-import com.cim.network.packet.rotation.PacketToggleMotor;
-import com.cim.network.packet.rotation.PacketToggleMotorMode;
-import com.cim.network.packet.rotation.PacketToggleShaftPlacer;
+//import com.cim.network.packet.rotation.PacketToggleMotor;
+//import com.cim.network.packet.rotation.PacketToggleMotorMode;
+//import com.cim.network.packet.rotation.PacketToggleShaftPlacer;
 import com.cim.network.packet.turrets.PacketChipFeedback;
 import com.cim.network.packet.turrets.PacketModifyTurretChip;
 import com.cim.network.packet.turrets.PacketToggleTurret;
@@ -73,19 +73,19 @@ public class ModPacketHandler {
                 PacketUnloadGun::handle
         );
 
-        INSTANCE.registerMessage(id++,
-                PacketToggleMotor.class,
-                PacketToggleMotor::encode,
-                PacketToggleMotor::new,
-                PacketToggleMotor::handle
-        );
-
-        INSTANCE.registerMessage(id++,
-                PacketToggleMotorMode.class,
-                PacketToggleMotorMode::encode,
-                PacketToggleMotorMode::new,
-                PacketToggleMotorMode::handle
-        );
+//        INSTANCE.registerMessage(id++,
+//                PacketToggleMotor.class,
+//                PacketToggleMotor::encode,
+//                PacketToggleMotor::new,
+//                PacketToggleMotor::handle
+//        );
+//
+//        INSTANCE.registerMessage(id++,
+//                PacketToggleMotorMode.class,
+//                PacketToggleMotorMode::encode,
+//                PacketToggleMotorMode::new,
+//                PacketToggleMotorMode::handle
+//        );
 
         INSTANCE.registerMessage(id++,
                 PacketModifyTurretChip.class,
@@ -143,17 +143,17 @@ public class ModPacketHandler {
                 SyncPointPacket::handle
         );
 
-        INSTANCE.registerMessage(id++,
-                PacketToggleShaftPlacer.class,
-                PacketToggleShaftPlacer::encode,
-                PacketToggleShaftPlacer::decode,
-                PacketToggleShaftPlacer::handle
-        );
-        INSTANCE.registerMessage(id++,
-                PacketToggleRetractMode.class,
-                PacketToggleRetractMode::encode,
-                PacketToggleRetractMode::decode,
-                PacketToggleRetractMode::handle);
+//        INSTANCE.registerMessage(id++,
+//                PacketToggleShaftPlacer.class,
+//                PacketToggleShaftPlacer::encode,
+//                PacketToggleShaftPlacer::decode,
+//                PacketToggleShaftPlacer::handle
+//        );
+//        INSTANCE.registerMessage(id++,
+//                PacketToggleRetractMode.class,
+//                PacketToggleRetractMode::encode,
+//                PacketToggleRetractMode::decode,
+//                PacketToggleRetractMode::handle);
 
         INSTANCE.registerMessage(id++,
                 ClearFluidHistoryPacket.class,

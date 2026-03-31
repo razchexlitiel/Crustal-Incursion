@@ -29,10 +29,10 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import com.cim.block.entity.ModBlockEntities;
 import com.cim.client.config.ModConfigKeybindHandler;
-import com.cim.client.gecko.block.rotation.DrillHeadRenderer;
-import com.cim.client.gecko.block.rotation.MotorElectroRenderer;
-import com.cim.client.gecko.block.rotation.ShaftRenderer;
-import com.cim.client.gecko.block.rotation.WindGenFlugerRenderer;
+//import com.cim.client.gecko.block.rotation.DrillHeadRenderer;
+//import com.cim.client.gecko.block.rotation.MotorElectroRenderer;
+//import com.cim.client.gecko.block.rotation.ShaftRenderer;
+//import com.cim.client.gecko.block.rotation.WindGenFlugerRenderer;
 import com.cim.client.gecko.block.turrets.TurretLightPlacerRenderer;
 import com.cim.client.gecko.entity.bullets.TurretBulletRenderer;
 import com.cim.client.gecko.entity.mobs.DepthWormRenderer;
@@ -64,19 +64,19 @@ public class ClientModEvents {
         });
 
         MenuScreens.register(ModMenuTypes.MACHINE_BATTERY_MENU.get(), GUIMachineBattery::new);
-        MenuScreens.register(ModMenuTypes.MOTOR_ELECTRO_MENU.get(), GUIMotorElectro::new);
+//        MenuScreens.register(ModMenuTypes.MOTOR_ELECTRO_MENU.get(), GUIMotorElectro::new);
         MenuScreens.register(ModMenuTypes.TURRET_AMMO_MENU.get(), GUITurretAmmo::new);
-        MenuScreens.register(ModMenuTypes.SHAFT_PLACER_MENU.get(), GUIShaftPlacer::new);
-        MenuScreens.register(ModMenuTypes.MINING_PORT_MENU.get(), GUIMiningPort::new);
+//        MenuScreens.register(ModMenuTypes.SHAFT_PLACER_MENU.get(), GUIShaftPlacer::new);
+//        MenuScreens.register(ModMenuTypes.MINING_PORT_MENU.get(), GUIMiningPort::new);
         MenuScreens.register(ModMenuTypes.FLUID_BARREL_MENU.get(), GUIFluidBarrel::new);
         MenuScreens.register(ModMenuTypes.HEATER_MENU.get(), GUIHeater::new);
         MenuScreens.register(ModMenuTypes.SMELTER_MENU.get(), GUISmelter::new);
 
-        BlockEntityRenderers.register(ModBlockEntities.MOTOR_ELECTRO_BE.get(), MotorElectroRenderer::new);
-        BlockEntityRenderers.register(ModBlockEntities.SHAFT_BLOCK_BE.get(), ShaftRenderer::new);
-        BlockEntityRenderers.register(ModBlockEntities.WIND_GEN_FLUGER_BE.get(), WindGenFlugerRenderer::new);
+//        BlockEntityRenderers.register(ModBlockEntities.MOTOR_ELECTRO_BE.get(), MotorElectroRenderer::new);
+//        BlockEntityRenderers.register(ModBlockEntities.SHAFT_BLOCK_BE.get(), ShaftRenderer::new);
+//        BlockEntityRenderers.register(ModBlockEntities.WIND_GEN_FLUGER_BE.get(), WindGenFlugerRenderer::new);
         BlockEntityRenderers.register(ModBlockEntities.TURRET_LIGHT_PLACER_BE.get(), TurretLightPlacerRenderer::new);
-        BlockEntityRenderers.register(ModBlockEntities.DRILL_HEAD_BE.get(), DrillHeadRenderer::new);
+//        BlockEntityRenderers.register(ModBlockEntities.DRILL_HEAD_BE.get(), DrillHeadRenderer::new);
         BlockEntityRenderers.register(ModBlockEntities.MACHINE_BATTERY_BE.get(), MachineBatteryRenderer::new);
         BlockEntityRenderers.register(ModBlockEntities.CONNECTOR_BE.get(), ConnectorRenderer::new);
 
