@@ -3,8 +3,7 @@ package com.cim.main;
 
 import com.cim.api.fluids.ModFluids;
 import com.cim.api.hive.HiveNetworkManager;
-import com.cim.api.metal.MetalRegistry;
-import com.cim.api.metal.MetallurgyRegistry;
+import com.cim.api.metallurgy.ModMetallurgy;
 import com.cim.api.resource.ResourceRegistry;
 import com.mojang.logging.LogUtils;
 import net.minecraft.resources.ResourceLocation;
@@ -85,11 +84,10 @@ public class CrustalIncursionMod {
 
     private void commonSetup(final FMLCommonSetupEvent event) {
         event.enqueueWork(() -> {
-            MetallurgyRegistry.init();
+            ModMetallurgy.init();          // <-- регистрация металлов и рецептов
             ModPacketHandler.register();
             Regions.register(new ModOverworldRegion(new ResourceLocation(MOD_ID, "overworld"), 5));
             SurfaceRuleManager.addSurfaceRules(SurfaceRuleManager.RuleCategory.OVERWORLD, "cim", ModSurfaceRules.makeRules());
-
         });
     }
 

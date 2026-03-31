@@ -1,5 +1,6 @@
 package com.cim.client;
 
+import com.cim.api.resource.ResourceRegistry;
 import com.cim.block.basic.ModBlocks;
 import com.cim.block.entity.fluids.FluidPipeBlockEntity;
 import com.cim.client.gecko.block.energy.MachineBatteryRenderer;
@@ -172,7 +173,12 @@ public class ClientModEvents {
                 Items.IRON_INGOT,
                 Items.GOLD_INGOT,
                 Items.NETHERITE_INGOT,
-                Items.COPPER_INGOT
+                Items.COPPER_INGOT,
+                // Вместо Items.IRON_INGOT пишешь:
+                ResourceRegistry.getMainUnit("steel"),     // стальной слиток
+                ResourceRegistry.getSmallUnit("steel"),
+                ResourceRegistry.getBlock("steel")
+
 
         );
     }

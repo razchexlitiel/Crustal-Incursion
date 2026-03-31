@@ -15,6 +15,7 @@ import net.minecraftforge.registries.RegistryObject;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
@@ -51,6 +52,37 @@ public class ResourceRegistry {
             this.smallUnit = smallUnit;
             this.blockName = blockName;
         }
+    }
+
+    // Добавь эти методы в ResourceRegistry:
+    public static Optional<ResourceEntry> get(String name) {
+        for (ResourceEntry resource : RESOURCES) {
+            if (resource.name.equals(name)) {
+                return Optional.of(resource);
+            }
+        }
+        return Optional.empty();
+    }
+
+    // Получить слиток/гранулу/кристалл
+    public static Item getMainUnit(String name) {
+        return get(name).map(r -> r.mainUnit.get()).orElse(null);
+    }
+
+    // Получить самородок/кусочек (может вернуть null!)
+    public static Item getSmallUnit(String name) {
+        return get(name)
+                .filter(r -> r.smallUnit != null)
+                .map(r -> r.smallUnit.get())
+                .orElse(null);
+    }
+
+    // Получить блок (может вернуть null!)
+    public static Block getBlock(String name) {
+        return get(name)
+                .filter(r -> r.block != null)
+                .map(r -> r.block.get())
+                .orElse(null);
     }
 
     /**

@@ -58,7 +58,7 @@ public class CastingPotRenderer implements BlockEntityRenderer<CastingPotBlockEn
         }
 
         // 2. Жидкий металл (рендерим только если нет готового предмета)
-        if (blockEntity.getStoredMb() > 0 && output.isEmpty()) {
+        if (blockEntity.getStoredUnits() > 0 && output.isEmpty()) {
             float fillLevel = blockEntity.getFillLevel();
             float heightPixels = 0.1f + 1.9f * fillLevel;
             float yCenter = (4.35f + heightPixels / 2.0f) / 16.0f;
