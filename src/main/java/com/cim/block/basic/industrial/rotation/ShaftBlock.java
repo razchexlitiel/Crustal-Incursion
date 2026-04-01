@@ -1,9 +1,12 @@
 package com.cim.block.basic.industrial.rotation;
 
+import com.cim.api.rotation.KineticNetworkManager;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.BlockGetter;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.BaseEntityBlock;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.RenderShape;
@@ -77,5 +80,27 @@ public class ShaftBlock extends BaseEntityBlock {
     public RenderShape getRenderShape(BlockState state) {
         // Обязательно оставляем этот параметр, чтобы избежать "крестов" и рендерить только Flywheel
         return RenderShape.ENTITYBLOCK_ANIMATED;
+    }
+
+    // Внутри класса ShaftBlock.java
+
+    @Override
+    public void onPlace(BlockState state, Level level, BlockPos pos, BlockState oldState, boolean isMoving) {
+        super.onPlace(state, level, pos, oldState, isMoving);
+
+        if (!level.isClientSide) {
+            // Получаем менеджер для этого мира и обновляем сеть
+            // Примечание: тебе нужно будет создать способ получения менеджера,
+            // например через статический метод в главном классе или Capability.
+            KineticNetworkManager.get((ServerLevel)level).updateNetworkAfterPlace(pos);
+        }
+    }
+
+    @Override
+    public void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean isMoving) {
+        if (!level.isClientSide && state.getBlock() != newState.getBlock()) {
+            KineticNetworkManager.get((ServerLevel) level).updateNetworkAfterRemove(pos);
+        }
+        super.onRemove(state, level, pos, newState, isMoving);
     }
 }
