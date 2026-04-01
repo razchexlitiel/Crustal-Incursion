@@ -2,10 +2,16 @@ package com.cim.client;
 
 import com.cim.block.basic.ModBlocks;
 import com.cim.block.entity.fluids.FluidPipeBlockEntity;
+import com.cim.block.entity.industrial.rotation.ShaftBlockEntity;
 import com.cim.client.gecko.block.energy.MachineBatteryRenderer;
 import com.cim.client.overlay.gui.*;
+import com.cim.client.render.flywheel.ModModels;
+import com.cim.client.render.flywheel.ShaftVisual;
 import com.cim.client.renderer.*;
 import com.cim.item.tools.FluidIdentifierItem;
+import dev.engine_room.flywheel.api.visual.BlockEntityVisual;
+import dev.engine_room.flywheel.api.visualization.VisualizationContext;
+import dev.engine_room.flywheel.api.visualization.VisualizerRegistry;
 import net.minecraft.client.gui.screens.MenuScreens;
 import net.minecraft.client.renderer.block.BlockModelShaper;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderers;
@@ -43,7 +49,9 @@ import com.cim.entity.ModEntities;
 import com.cim.item.ModItems;
 import com.cim.main.CrustalIncursionMod;
 import com.cim.menu.ModMenuTypes;
+import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent;
 import net.minecraftforge.registries.ForgeRegistries;
+import dev.engine_room.flywheel.api.visualization.VisualizerRegistry;
 
 @Mod.EventBusSubscriber(modid = CrustalIncursionMod.MOD_ID, bus = Mod.EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
 public class ClientModEvents {
@@ -104,6 +112,31 @@ public class ClientModEvents {
                 EntityRenderers.register(entityType, ThrownItemRenderer::new));
         ModEntities.GRENADE_IF_PROJECTILE.ifPresent(entityType ->
                 EntityRenderers.register(entityType, ThrownItemRenderer::new));
+    }
+
+    @SubscribeEvent
+    public static void onClientSetup(final FMLClientSetupEvent event) {
+        // 1. Инициализируем загрузку кастомной 3D модели для Flywheel
+        event.enqueueWork(() -> {
+            ModModels.init();
+        });
+
+        // 2. Привязываем наш ShaftVisual к энтити вала
+        // ВНИМАНИЕ: Если ты назвал его SHAFT_BLOCK_BE, используй это имя вместо SHAFT_BE
+        VisualizerRegistry.setVisualizer(ModBlockEntities.SHAFT_BE.get(), new dev.engine_room.flywheel.api.visualization.BlockEntityVisualizer<com.cim.block.entity.industrial.rotation.ShaftBlockEntity>() {
+
+            @Override
+            public BlockEntityVisual<? super ShaftBlockEntity> createVisual(VisualizationContext ctx, ShaftBlockEntity be, float partialTick) {
+                // Возвращаем наш визуал, передавая все нужные параметры
+                return new ShaftVisual(ctx, be, partialTick);
+            }
+
+            @Override
+            public boolean skipVanillaRender(ShaftBlockEntity be) {
+                // Обязательно true! Отключаем ванильный рендер для максимального FPS
+                return true;
+            }
+        });
     }
 
     @SubscribeEvent

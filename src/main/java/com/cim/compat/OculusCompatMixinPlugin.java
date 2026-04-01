@@ -3,7 +3,6 @@ package com.cim.compat;
 import org.objectweb.asm.tree.ClassNode;
 import org.spongepowered.asm.mixin.extensibility.IMixinConfigPlugin;
 import org.spongepowered.asm.mixin.extensibility.IMixinInfo;
-
 import java.util.List;
 import java.util.Set;
 
@@ -11,21 +10,20 @@ public class OculusCompatMixinPlugin implements IMixinConfigPlugin {
     @Override
     public boolean shouldApplyMixin(String targetClassName, String mixinClassName) {
         if (mixinClassName.contains("compat.irisflw.mixin")) {
-            // Проверяем наличие конкурентов ПРЯМО ТУТ (до начала загрузки миксинов)
+            // Проверка на конфликты ПРЯМО ТУТ
             boolean hasConflict = Thread.currentThread().getContextClassLoader().getResource("irisflw.mixins.json") != null;
 
             if (hasConflict) {
-                // Если нашли файл миксинов Леона - ПОЛНОСТЬЮ отключаем свои, чтобы не было 'overwrite conflict'
+                // Леон или кто-то другой уже здесь — выключаем наши патчи
                 return false;
             }
 
-            // Если конкурентов нет, проверяем наличие Окулуса
+            // Проверка на наличие самого Окулуса (чтобы не упасть без него)
             return Thread.currentThread().getContextClassLoader().getResource("net/irisshaders/iris/Iris.class") != null;
         }
         return true;
     }
 
-    // Остальные методы оставляем пустыми...
     @Override public void onLoad(String mixinPackage) {}
     @Override public String getRefMapperConfig() { return null; }
     @Override public void acceptTargets(Set<String> myTargets, Set<String> otherTargets) {}

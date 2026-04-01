@@ -77,19 +77,26 @@ public class CrustalIncursionMod {
         ModFluids.register(modEventBus);
         MinecraftForge.EVENT_BUS.register(new HiveEventHandler());
         // Проверяем, есть ли Окулус
-        if (net.minecraftforge.fml.loading.FMLLoader.getLoadingModList().getModFileById("oculus") != null) {
+        // Проверяем наличие Окулуса
+        if (net.minecraftforge.fml.loading.FMLEnvironment.dist == net.minecraftforge.api.distmarker.Dist.CLIENT) {
+            // 1. Проверяем наличие Окулуса
+            if (net.minecraftforge.fml.loading.FMLLoader.getLoadingModList().getModFileById("oculus") != null) {
 
-            // ЗАЩИТА ОТ ДУРАКА: Проверяем, есть ли мод Леона
-            boolean hasLeonFix = net.minecraftforge.fml.loading.FMLLoader.getLoadingModList().getModFileById("oculusflywheelcompat") != null ||
-                    net.minecraftforge.fml.loading.FMLLoader.getLoadingModList().getModFileById("irisflw") != null;
+                // 2. УНИВЕРСАЛЬНЫЙ ЩИТ: Ищем признаки любого стороннего фикса Iris-Flywheel
+                // Мы ищем по файлу миксинов, так как ID мода у всех может быть разным
+                boolean hasThirdPartyFix =
+                        Thread.currentThread().getContextClassLoader().getResource("irisflw.mixins.json") != null ||
+                                net.minecraftforge.fml.loading.FMLLoader.getLoadingModList().getModFileById("oculusflywheelcompat") != null ||
+                                net.minecraftforge.fml.loading.FMLLoader.getLoadingModList().getModFileById("irisflw") != null;
 
-            if (!hasLeonFix) {
-                // Леона нет, запускаем наши турбины!
-                com.cim.compat.irisflw.IrisFlw.init();
-                System.out.println("🔥 [CIM] КЛЮЧ ЗАЖИГАНИЯ ПОВЕРНУТ! Движок Flywheel-Oculus запущен!");
-            } else {
-                // Леон есть, мы отходим в сторону, чтобы не было краша
-                System.out.println("🛡️ [CIM] Замечен сторонний фикс! Встроенный движок CIM деактивирован.");
+                if (!hasThirdPartyFix) {
+                    // Если чисто — зажигаем!
+                    com.cim.compat.irisflw.IrisFlw.init();
+                    LOGGER.info("🔥 [CIM] Движок Flywheel-Oculus успешно запущен!");
+                } else {
+                    // Если кто-то уже чинит — вежливо отходим
+                    LOGGER.warn("🛡️ [CIM] Обнаружен сторонний графический фикс. Встроенная оптимизация CIM отключена для стабильности.");
+                }
             }
         }
 
@@ -191,6 +198,7 @@ public class CrustalIncursionMod {
 //            event.accept(ModBlocks.ROTATION_METER);
 //            event.accept(ModBlocks.SHAFT_PLACER);
 //            event.accept(ModBlocks.MINING_PORT);
+            event.accept(ModBlocks.SHAFT);
 
             event.accept(ModItems.WIRE_COIL);
             event.accept(ModBlocks.CONNECTOR);

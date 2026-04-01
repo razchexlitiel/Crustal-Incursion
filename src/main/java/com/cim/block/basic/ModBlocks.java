@@ -13,6 +13,7 @@ import com.cim.block.basic.industrial.casting.CastingDescentBlock;
 import com.cim.block.basic.industrial.casting.CastingPotBlock;
 import com.cim.block.basic.industrial.energy.*;
 
+import com.cim.block.basic.industrial.rotation.ShaftBlock;
 import com.cim.block.basic.necrosis.hive.HiveRootsBlock;
 
 import com.cim.multiblock.industrial.HeaterBlock;
@@ -338,52 +339,12 @@ public class ModBlocks {
 
 
 //    //БЛОКИ-ВРАЩЕНИЯ
-//    public static final RegistryObject<Block> DRILL_HEAD = BLOCKS.register("drill_head",
-//            () -> new DrillHeadBlock(BlockBehaviour.Properties.copy(Blocks.IRON_BLOCK)
-//                    .strength(3.0f, 4.0f).noOcclusion().requiresCorrectToolForDrops()));
-//
-//    public static final RegistryObject<Block> MOTOR_ELECTRO = BLOCKS.register("motor_electro",
-//            () -> new MotorElectroBlock(BlockBehaviour.Properties.copy(Blocks.IRON_BLOCK)
-//                    .strength(3.0f, 4.0f).noOcclusion().requiresCorrectToolForDrops()));
-//    public static final RegistryObject<Block> WIND_GEN_FLUGER = BLOCKS.register("wind_gen_fluger",
-//            () -> new WindGenFlugerBlock(BlockBehaviour.Properties.copy(Blocks.IRON_BLOCK)
-//                    .strength(3.0f, 4.0f).noOcclusion().requiresCorrectToolForDrops()));
-//    public static final RegistryObject<Block> SHAFT_IRON = BLOCKS.register("shaft_iron",
-//            () -> new ShaftBlock(BlockBehaviour.Properties.copy(Blocks.IRON_BLOCK)
-//                    .strength(3.0f, 4.0f).noOcclusion().requiresCorrectToolForDrops(),
-//                    new ShaftType(300, 150, "shaft_iron",
-//                            "geo/shaft_iron.geo.json",
-//                            "animations/shaft_iron.animation.json")));
-//    public static final RegistryObject<Block> SHAFT_WOODEN = BLOCKS.register("shaft_wooden",
-//            () -> new ShaftBlock(BlockBehaviour.Properties.copy(Blocks.OAK_PLANKS)
-//                    .strength(2.0f, 3.0f).noOcclusion(),
-//                    new ShaftType(150, 75, "shaft_wooden",
-//                            "geo/shaft_wooden.geo.json",
-//                            "animations/shaft_wooden.animation.json")));
-//    public static final RegistryObject<Block> GEAR_PORT = registerBlock("gear_port",
-//            () -> new GearPortBlock(BlockBehaviour.Properties.copy(Blocks.STONE)
-//                    .strength(5.0f, 4.0f).requiresCorrectToolForDrops()));
-//    public static final RegistryObject<Block> STOPPER = registerBlock("stopper",
-//            () -> new StopperBlock(BlockBehaviour.Properties.copy(Blocks.STONE)
-//                    .strength(5.0f, 4.0f).requiresCorrectToolForDrops()));
-//    public static final RegistryObject<Block> ADDER = registerBlock("adder",
-//            () -> new AdderBlock(BlockBehaviour.Properties.copy(Blocks.STONE)
-//                    .strength(5.0f, 4.0f).requiresCorrectToolForDrops()));
-//    public static final RegistryObject<Block> TACHOMETER = registerBlock("tachometer",
-//            () -> new TachometerBlock(BlockBehaviour.Properties.copy(Blocks.STONE)
-//                    .strength(5.0f, 4.0f).requiresCorrectToolForDrops()));
-//    public static final RegistryObject<Block> ROTATION_METER = registerBlock("rotation_meter",
-//            () -> new RotationMeterBlock(BlockBehaviour.Properties.copy(Blocks.STONE)
-//                    .strength(5.0f, 4.0f).requiresCorrectToolForDrops()));
-//    public static final RegistryObject<Block> RCONVERTER = registerBlock("rconverter",
-//            () -> new RConverterBlock(BlockBehaviour.Properties.copy(Blocks.STONE)
-//                    .strength(5.0f, 4.0f).requiresCorrectToolForDrops()));
-//    public static final RegistryObject<Block> SHAFT_PLACER = registerBlock("shaft_placer",
-//            () -> new ShaftPlacerBlock(BlockBehaviour.Properties.copy(Blocks.STONE)
-//                    .strength(5.0f, 4.0f).requiresCorrectToolForDrops()));
-//    public static final RegistryObject<Block> MINING_PORT = registerBlock("mining_port",
-//            () -> new MiningPortBlock(BlockBehaviour.Properties.copy(Blocks.STONE)
-//                    .strength(5.0f, 4.0f).requiresCorrectToolForDrops()));
+
+
+    // Максимально чистая регистрация базового вала
+    // Меняем BLOCKS.register на твой метод registerBlock
+    public static final RegistryObject<Block> SHAFT = registerBlock("shaft",
+            () -> new ShaftBlock(BlockBehaviour.Properties.copy(Blocks.IRON_BLOCK).noOcclusion()));
 
     //декоративные блоки
     public static final RegistryObject<Block> BEAM_BLOCK = registerBlock("beam_block",

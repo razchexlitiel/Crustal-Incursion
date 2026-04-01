@@ -5,6 +5,7 @@ import com.cim.block.entity.fluids.FluidBarrelBlockEntity;
 
 import com.cim.block.entity.fluids.FluidPipeBlockEntity;
 
+import com.cim.block.entity.industrial.rotation.ShaftBlockEntity;
 import com.cim.multiblock.industrial.HeaterBlockEntity;
 
 import com.cim.block.entity.industrial.casting.CastingDescentBlockEntity;
@@ -101,51 +102,8 @@ public class ModBlockEntities {
                     () -> BlockEntityType.Builder.of(CastingPotBlockEntity::new,
                             com.cim.block.basic.ModBlocks.CASTING_POT.get()).build(null));
 
-//    public static final RegistryObject<BlockEntityType<WindGenFlugerBlockEntity>> WIND_GEN_FLUGER_BE =
-//            BLOCK_ENTITIES.register("wind_gen_fluger",
-//                    () -> BlockEntityType.Builder.of(WindGenFlugerBlockEntity::new, ModBlocks.WIND_GEN_FLUGER.get()).build(null));
-//
-//
-//
-//    public static final RegistryObject<BlockEntityType<RConverterBlockEntity>> R_CONVERTER_BE =
-//            BLOCK_ENTITIES.register("rconverter",
-//                    () -> BlockEntityType.Builder.of(RConverterBlockEntity::new, ModBlocks.RCONVERTER.get()).build(null));
-//
-//    public static final RegistryObject<BlockEntityType<TachometerBlockEntity>> TACHOMETER_BE =
-//            BLOCK_ENTITIES.register("tachometer",
-//                    () -> BlockEntityType.Builder.of(TachometerBlockEntity::new, ModBlocks.TACHOMETER.get()).build(null));
-//
-//    public static final RegistryObject<BlockEntityType<RotationMeterBlockEntity>> ROTATION_METER_BE =
-//            BLOCK_ENTITIES.register("rotation_meter_be",
-//                    () -> BlockEntityType.Builder.of(RotationMeterBlockEntity::new, ModBlocks.ROTATION_METER.get()).build(null));
-//
-//    public static final RegistryObject<BlockEntityType<AdderBlockEntity>> ADDER_BE =
-//            BLOCK_ENTITIES.register("adder",
-//                    () -> BlockEntityType.Builder.of(AdderBlockEntity::new, ModBlocks.ADDER.get()).build(null));
-//
-//    public static final RegistryObject<BlockEntityType<StopperBlockEntity>> STOPPER_BE =
-//            BLOCK_ENTITIES.register("stopper",
-//                    () -> BlockEntityType.Builder.of(StopperBlockEntity::new, ModBlocks.STOPPER.get()).build(null));
-//
-//    public static final RegistryObject<BlockEntityType<GearPortBlockEntity>> GEAR_PORT_BE =
-//            BLOCK_ENTITIES.register("gear_port_be",
-//                    () -> BlockEntityType.Builder.of(GearPortBlockEntity::new, ModBlocks.GEAR_PORT.get()).build(null));
-//
-//    public static final RegistryObject<BlockEntityType<ShaftPlacerBlockEntity>> SHAFT_PLACER_BE =
-//            BLOCK_ENTITIES.register("shaft_placer_be",
-//                    () -> BlockEntityType.Builder.of(ShaftPlacerBlockEntity::new, ModBlocks.SHAFT_PLACER.get()).build(null));
-//
-//    public static final RegistryObject<BlockEntityType<DrillHeadBlockEntity>> DRILL_HEAD_BE =
-//            BLOCK_ENTITIES.register("drill_head_be",
-//                    () -> BlockEntityType.Builder.of(DrillHeadBlockEntity::new, ModBlocks.DRILL_HEAD.get()).build(null));
-//
-//    public static final RegistryObject<BlockEntityType<MiningPortBlockEntity>> MINING_PORT_BE =
-//            BLOCK_ENTITIES.register("mining_port_be",
-//                    () -> BlockEntityType.Builder.of(MiningPortBlockEntity::new, ModBlocks.MINING_PORT.get()).build(null));
-//
-//    public static final RegistryObject<BlockEntityType<MotorElectroBlockEntity>> MOTOR_ELECTRO_BE =
-//            BLOCK_ENTITIES.register("motor_electro_be",
-//                    () -> BlockEntityType.Builder.of(MotorElectroBlockEntity::new, ModBlocks.MOTOR_ELECTRO.get()).build(null));
+    public static final RegistryObject<BlockEntityType<ShaftBlockEntity>> SHAFT_BE = BLOCK_ENTITIES.register("shaft",
+            () -> BlockEntityType.Builder.of(ShaftBlockEntity::new, ModBlocks.SHAFT.get()).build(null));
 
     public static final RegistryObject<BlockEntityType<FluidPipeBlockEntity>> FLUID_PIPE_BE =
             BLOCK_ENTITIES.register("fluid_pipe_be",
