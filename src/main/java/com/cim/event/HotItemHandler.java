@@ -18,16 +18,25 @@ public class HotItemHandler {
 
     // === КОНФИГУРАЦИЯ ВРЕМЕНИ ОХЛАЖДЕНИЯ ===
 
-    // В руках: 15 секунд (300 тиков) - комфортное время для игрока
-    public static final int BASE_COOLING_TIME_HANDS = 300;
+    // В руках: базовое время 300 тиков (15 сек)
+    public static final int BASE_COOLING_TIME_HANDS = 150;
+    // В котле: базовое время 160 тиков (8 сек)
+    public static final int BASE_COOLING_TIME_POT = 80;
 
-    // В котле: 8 секунд (160 тиков) - быстрее чем в руках, но не мгновенно
-    public static final int BASE_COOLING_TIME_POT = 160;
+    // Коэффициент квадратичного охлаждения
+    public static final float QUADRATIC_FACTOR = 4.0f;
 
     // Минимальное время между повреждениями от горячих предметов
-    private static final int DAMAGE_COOLDOWN_TICKS = 15;
+    private static final int DAMAGE_COOLDOWN_TICKS = 10;
 
     public static final int ROOM_TEMP = 20;
+
+    // === ПОРОГИ ТЕМПЕРАТУР ДЛЯ СТАТУСОВ (°C) ===
+    // Теперь привязаны к АБСОЛЮТНЫМ градусам, не к процентам!
+    public static final int TEMP_EXTREME = 800;    // Выше 800°C
+    public static final int TEMP_HOT = 400;       // 400-800°C
+    public static final int TEMP_WARM = 100;      // 100-400°C
+    // Ниже 100°C - ОСТЫВАЕТ
 
     private static final Map<UUID, Integer> damageCooldown = new HashMap<>();
 
@@ -39,7 +48,7 @@ public class HotItemHandler {
     public static void setHot(ItemStack stack, int meltingPoint, boolean isInPot) {
         int baseTime = isInPot ? BASE_COOLING_TIME_POT : BASE_COOLING_TIME_HANDS;
 
-        stack.getOrCreateTag().putInt("HotTime", baseTime);
+        stack.getOrCreateTag().putFloat("HotTime", baseTime);
         stack.getOrCreateTag().putInt("HotTimeMax", baseTime);
         stack.getOrCreateTag().putInt("MeltingPoint", meltingPoint);
         stack.getOrCreateTag().putBoolean("CooledInPot", isInPot);
@@ -51,15 +60,13 @@ public class HotItemHandler {
     public static int getTemperature(ItemStack stack) {
         if (!isHot(stack)) return ROOM_TEMP;
 
-        float hotTime = getHotTime(stack);
-        int maxTime = getHotTimeMax(stack);
+        float heatRatio = getHeatRatio(stack);
         int meltingPoint = getMeltingPoint(stack);
 
-        if (maxTime <= 0) maxTime = BASE_COOLING_TIME_HANDS;
         if (meltingPoint <= 0) meltingPoint = 1000;
 
-        float ratio = hotTime / (float) maxTime;
-        return ROOM_TEMP + (int) (ratio * (meltingPoint - ROOM_TEMP));
+        // Температура = комнатная + (процент нагрева * разница)
+        return ROOM_TEMP + (int) (heatRatio * (meltingPoint - ROOM_TEMP));
     }
 
     /**
@@ -108,6 +115,33 @@ public class HotItemHandler {
         return stack.getTag().getBoolean("CooledInPot");
     }
 
+    /**
+     * Определяет статус нагрева по АБСОЛЮТНОЙ температуре (°C)
+     */
+    public static HeatStatus getHeatStatus(int temperature) {
+        if (temperature >= TEMP_EXTREME) return HeatStatus.EXTREME;
+        if (temperature >= TEMP_HOT) return HeatStatus.HOT;
+        if (temperature >= TEMP_WARM) return HeatStatus.WARM;
+        return HeatStatus.COOLING;
+    }
+
+    public enum HeatStatus {
+        EXTREME(ChatFormatting.DARK_RED, "РАСКАЛЁННЫЙ", " §c§o Бросай и беги!"),
+        HOT(ChatFormatting.RED, "ПЕРЕГРЕТЫЙ", ""),
+        WARM(ChatFormatting.GOLD, "ГОРЯЧИЙ", ""),
+        COOLING(ChatFormatting.YELLOW, "НАГРЕТЫЙ", "");
+
+        public final ChatFormatting color;
+        public final String label;
+        public final String warning;
+
+        HeatStatus(ChatFormatting color, String label, String warning) {
+            this.color = color;
+            this.label = label;
+            this.warning = warning;
+        }
+    }
+
     // === ОБРАБОТКА ТИКОВ ===
 
     @SubscribeEvent
@@ -132,20 +166,21 @@ public class HotItemHandler {
             int maxTime = getHotTimeMax(stack);
             int meltingPoint = getMeltingPoint(stack);
 
-            // Для шлака берем температуру из его NBT если есть
-            if (stack.getItem() instanceof SlagItem) {
-                int slagMeltingPoint = SlagItem.getMetalMeltingPointTemp(stack);
-                if (slagMeltingPoint > 0) meltingPoint = slagMeltingPoint;
-            }
-
+            if (maxTime <= 0) maxTime = BASE_COOLING_TIME_HANDS;
             if (meltingPoint <= 0) meltingPoint = 1000;
 
             if (hotTime > 0) {
-                // === ЛИНЕЙНОЕ ОХЛАЖДЕНИЕ ===
-                // Постоянная скорость: базовое время / 100 = ~0.05% за тик
-                // Это даёт предсказуемое линейное охлаждение
-                float coolingRate = (float) maxTime / 10000f; // Подобрано для плавности
-                if (coolingRate < 0.05f) coolingRate = 0.05f; // Минимум 0.05 за тик
+                // === КВАДРАТИЧНОЕ ОХЛАЖДЕНИЕ ===
+                float heatRatio = hotTime / (float) maxTime;
+
+                float baseRate = (float) maxTime / 10000f;
+                if (baseRate < 0.05f) baseRate = 0.05f;
+
+                float quadraticMultiplier = 1.0f + (QUADRATIC_FACTOR * heatRatio * heatRatio);
+
+                float coolingRate = baseRate * quadraticMultiplier;
+
+                if (coolingRate < 0.02f) coolingRate = 0.02f;
 
                 float newHotTime = Math.max(0, hotTime - coolingRate);
 
@@ -158,9 +193,8 @@ public class HotItemHandler {
                 }
 
                 hasHotItem = true;
-                float ratio = newHotTime / maxTime;
-                maxHeatRatio = Math.max(maxHeatRatio, ratio);
-                int currentTemp = ROOM_TEMP + (int) (ratio * (meltingPoint - ROOM_TEMP));
+                maxHeatRatio = Math.max(maxHeatRatio, heatRatio);
+                int currentTemp = getTemperature(stack);
                 maxTemp = Math.max(maxTemp, currentTemp);
 
                 inventoryChanged = true;
@@ -238,50 +272,29 @@ public class HotItemHandler {
         int meltingPoint = getMeltingPoint(stack);
         if (meltingPoint <= 0) meltingPoint = 1000;
 
-        float hotTime = getHotTime(stack);
-        int maxTime = getHotTimeMax(stack);
-        if (maxTime <= 0) maxTime = BASE_COOLING_TIME_HANDS;
-
-        float ratio = hotTime / (float) maxTime;
-        int temperature = ROOM_TEMP + (int) (ratio * (meltingPoint - ROOM_TEMP));
-        int percent = (int) (ratio * 100);
+        int temperature = getTemperature(stack);
+        float heatRatio = getHeatRatio(stack);
+        int percent = (int) (heatRatio * 100);
         boolean cooledInPot = wasCooledInPot(stack);
 
-        // Определяем цвет и интенсивность
-        ChatFormatting color;
-        String intensity;
-        String warning = "";
-
-        if (ratio > 0.75f) {
-            color = ChatFormatting.RED;
-            intensity = "РАСКАЛЁННЫЙ";
-            warning = " §c§o(Обожжёт!)";
-        } else if (ratio > 0.45f) {
-            color = ChatFormatting.GOLD;
-            intensity = "ГОРЯЧИЙ";
-        } else if (ratio > 0.20f) {
-            color = ChatFormatting.YELLOW;
-            intensity = "ТЁПЛЫЙ";
-        } else {
-            color = ChatFormatting.GRAY;
-            intensity = "ОСТЫВАЕТ";
-        }
-
-        String source = cooledInPot ? " §8[быстрое охл.]" : "";
+        // === ПРИВЯЗКА СТАТУСА К ГРАДУСАМ, НЕ К ПРОЦЕНТАМ! ===
+        HeatStatus status = getHeatStatus(temperature);
+        String source = cooledInPot ? " §8[Охл.]" : "";
 
         // Главная строка с интенсивностью
         event.getToolTip().add(Component.literal("")
-                .append(Component.literal("▓▓▓ ").withStyle(color))
-                .append(Component.literal(intensity).withStyle(color, ChatFormatting.BOLD))
-                .append(Component.literal(" ▓▓▓").withStyle(color))
+                .append(Component.literal("||").withStyle(status.color))
+                .append(Component.literal(status.label).withStyle(status.color, ChatFormatting.BOLD))
+                .append(Component.literal("||").withStyle(status.color))
                 .append(Component.literal(source)));
 
         // Температура и процент
-        event.getToolTip().add(Component.literal(String.format("  §c%d°C §7(%d%% нагрева)", temperature, percent)));
+        event.getToolTip().add(Component.literal(String.format("  §c%d°C §7/ §c%d°C §7(%d%%)",
+                temperature, meltingPoint, percent)));
 
         // Предупреждение если очень горячо
-        if (!warning.isEmpty()) {
-            event.getToolTip().add(Component.literal(warning));
+        if (!status.warning.isEmpty()) {
+            event.getToolTip().add(Component.literal(status.warning));
         }
     }
 }

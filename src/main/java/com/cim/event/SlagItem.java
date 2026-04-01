@@ -25,7 +25,7 @@ public class SlagItem extends Item {
     public static final String TAG_HEAT_CONSUMPTION = "HeatConsumption";
     public static final String TAG_MELTING_POINT_TEMP = "MeltingPointTemp"; // Температура плавления металла
 
-    public static final int BASE_COOLING_TIME = 200;
+    public static final int BASE_COOLING_TIME = 100;
 
     public SlagItem(Properties properties) {
         super(properties);
@@ -47,7 +47,9 @@ public class SlagItem extends Item {
             Optional<Metal> metalOpt = MetallurgyRegistry.get(metalId);
             String metalName = metalOpt.map(m -> Component.translatable(m.getTranslationKey()).getString())
                     .orElse(metalId.getPath());
-            tooltip.add(Component.literal("§8Можно переплавить в плавильне").withStyle(ChatFormatting.GRAY));
+
+            // === ИНФО О ПЕРЕПЛАВКЕ ===
+            tooltip.add(Component.literal("§8Можно переплавить в плавильне").withStyle(ChatFormatting.WHITE));
             tooltip.add(Component.literal("§7Металл: §f" + metalName));
 
             StringBuilder content = new StringBuilder("§7Содержит: §f");
@@ -60,8 +62,47 @@ public class SlagItem extends Item {
             int smeltTimeTicks = calculateSmeltTime(stack);
             float smeltTimeSeconds = smeltTimeTicks / 20f;
             tooltip.add(Component.literal(String.format("§7Время переплавки: §f%.1fс §8(макс 30с)", smeltTimeSeconds)));
+
+            // === ИНФО О ТЕМПЕРАТУРЕ И НАГРЕВЕ ===
+            if (HotItemHandler.isHot(stack)) {
+                addHeatTooltip(stack, tooltip, meltingPoint);
+            }
         } else {
             tooltip.add(Component.literal("§8Пустой шлак").withStyle(ChatFormatting.GRAY));
+        }
+    }
+
+    /**
+     * Добавляет тултип с информацией о нагреве шлака
+     * ПРИВЯЗКА К ГРАДУСАМ, не к процентам!
+     */
+    private void addHeatTooltip(ItemStack stack, List<Component> tooltip, int metalMeltingPoint) {
+        int temperature = HotItemHandler.getTemperature(stack);
+        float heatRatio = HotItemHandler.getHeatRatio(stack);
+        int percent = (int) (heatRatio * 100);
+        boolean cooledInPot = HotItemHandler.wasCooledInPot(stack);
+
+        // === ПРИВЯЗКА СТАТУСА К АБСОЛЮТНЫМ ГРАДУСАМ ===
+        HotItemHandler.HeatStatus status = HotItemHandler.getHeatStatus(temperature);
+        String source = cooledInPot ? " §8[быстрое охл.]" : "";
+
+        // Разделитель
+        tooltip.add(Component.literal(""));
+
+        // Главная строка с интенсивностью
+        tooltip.add(Component.literal("")
+                .append(Component.literal("||").withStyle(status.color))
+                .append(Component.literal(status.label).withStyle(status.color, ChatFormatting.BOLD))
+                .append(Component.literal("||").withStyle(status.color))
+                .append(Component.literal(source)));
+
+        // Температура: текущая / максимальная (температура плавления металла)
+        tooltip.add(Component.literal(String.format("  §c%d°C §7/ §c%d°C §7(%d%%)",
+                temperature, metalMeltingPoint, percent)));
+
+        // Предупреждение если очень горячо
+        if (!status.warning.isEmpty()) {
+            tooltip.add(Component.literal(status.warning));
         }
     }
 
@@ -117,6 +158,24 @@ public class SlagItem extends Item {
         ItemStack stack = new ItemStack(ModItems.SLAG.get());
         stack.setTag(tag.copy());
         return stack;
+    }
+
+    @Override
+    public boolean shouldCauseReequipAnimation(ItemStack oldStack, ItemStack newStack, boolean slotChanged) {
+        // === ФИКС ДРОЖАНИЯ: проверяем через HotItemHandler ===
+        // Если слот не менялся и оба предмета - шлак, проверяем изменение горячести
+        if (!slotChanged && oldStack.getItem() == newStack.getItem() && oldStack.getItem() instanceof SlagItem) {
+            // Если изменился только HotTime - не проигрывать анимацию
+            boolean oldHot = HotItemHandler.isHot(oldStack);
+            boolean newHot = HotItemHandler.isHot(newStack);
+
+            // Если состояние горячести не изменилось кардинально (оба горячие или оба остывшие)
+            // и предмет тот же - не трясти
+            if (oldHot == newHot) {
+                return false;
+            }
+        }
+        return super.shouldCauseReequipAnimation(oldStack, newStack, slotChanged);
     }
 
     @Nullable

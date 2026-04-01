@@ -218,13 +218,38 @@ public class CastingPotBlockEntity extends BlockEntity {
     public static void serverTick(Level level, BlockPos pos, BlockState state, CastingPotBlockEntity be) {
         if (be.transferCooldown > 0) be.transferCooldown--;
 
-        // === ОХЛАЖДЕНИЕ ГОТОВОГО ПРЕДМЕТА ===
+        // === ОХЛАЖДЕНИЕ ГОТОВОГО ПРЕДМЕТА В КОТЛЕ ===
         if (!be.outputItem.isEmpty()) {
             if (HotItemHandler.isHot(be.outputItem)) {
-                // Обновляем наш таймер для синхронизации с HotItemHandler
-                be.coolingTimer = HotItemHandler.getHotTime(be.outputItem);
+                // === КВАДРАТИЧНОЕ ОХЛАЖДЕНИЕ В КОТЛЕ ===
+                float hotTime = HotItemHandler.getHotTime(be.outputItem);
+                int maxTime = HotItemHandler.getHotTimeMax(be.outputItem);
 
-                // Синхронизация с клиентом раз в секунду или при значительных изменениях
+                if (maxTime > 0 && hotTime > 0) {
+                    float heatRatio = hotTime / (float) maxTime;
+
+                    // Базовая скорость для котла - быстрее чем в руках
+                    float baseRate = (float) maxTime / 8000f; // Быстрее чем в руках (10000)
+                    if (baseRate < 0.08f) baseRate = 0.08f;
+
+                    // Квадратичный множитель: чем горячее, тем быстрее
+                    float quadraticMultiplier = 1.0f + (HotItemHandler.QUADRATIC_FACTOR * heatRatio * heatRatio);
+
+                    float coolingRate = baseRate * quadraticMultiplier;
+                    if (coolingRate < 0.03f) coolingRate = 0.03f;
+
+                    float newHotTime = Math.max(0, hotTime - coolingRate);
+
+                    if (newHotTime <= 0.5f) {
+                        HotItemHandler.clearHotTags(be.outputItem);
+                        be.coolingTimer = 0;
+                    } else {
+                        be.outputItem.getOrCreateTag().putFloat("HotTime", newHotTime);
+                        be.coolingTimer = newHotTime; // Синхронизируем для рендера
+                    }
+                }
+
+                // Синхронизация с клиентом раз в секунду или при остывании
                 if ((int)be.coolingTimer % 20 == 0 || be.coolingTimer < 1.0f) {
                     be.setChanged();
                     level.sendBlockUpdated(pos, state, state, 3);
@@ -249,8 +274,11 @@ public class CastingPotBlockEntity extends BlockEntity {
         // Если есть готовый предмет - другие операции не выполняем
         if (!be.outputItem.isEmpty()) return;
 
+
         // === ЛОГИКА ШЛАКА ===
         if (be.isSlagged) {
+            // Охлаждение шлака в котле
+            be.updateSlagCooling();
             // Шлак просто лежит, можно забирать
             return;
         }
@@ -334,6 +362,44 @@ public class CastingPotBlockEntity extends BlockEntity {
             }
         }
         return false;
+    }
+
+    /**
+     * Проверяет и обновляет горячесть шлака (вызывать в serverTick)
+     */
+    private void updateSlagCooling() {
+        if (!isSlagged || slagData == null) return;
+
+        // Проверяем есть ли данные о горячести в шлаке
+        if (slagData.contains("HotTime")) {
+            float hotTime = slagData.getFloat("HotTime");
+            int maxTime = slagData.getInt("HotTimeMax");
+
+            if (maxTime > 0 && hotTime > 0.5f) {
+                float heatRatio = hotTime / (float) maxTime;
+
+                // Охлаждение шлака в котле (быстрое)
+                float baseRate = (float) maxTime / 8000f;
+                if (baseRate < 0.08f) baseRate = 0.08f;
+
+                float quadraticMultiplier = 1.0f + (HotItemHandler.QUADRATIC_FACTOR * heatRatio * heatRatio);
+                float coolingRate = baseRate * quadraticMultiplier;
+
+                float newHotTime = Math.max(0, hotTime - coolingRate);
+
+                if (newHotTime <= 0.5f) {
+                    slagData.remove("HotTime");
+                    slagData.remove("HotTimeMax");
+                } else {
+                    slagData.putFloat("HotTime", newHotTime);
+                }
+
+                setChanged();
+                if (level != null && !level.isClientSide && (int)newHotTime % 20 == 0) {
+                    level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), 3);
+                }
+            }
+        }
     }
 
     public ItemStack extractSlag() {

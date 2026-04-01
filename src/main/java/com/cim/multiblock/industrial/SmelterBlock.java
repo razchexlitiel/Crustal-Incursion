@@ -18,7 +18,6 @@ import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.PickaxeItem;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.BaseEntityBlock;
@@ -76,13 +75,10 @@ public class SmelterBlock extends BaseEntityBlock implements IMultiblockControll
                     'O', PartRole.CONTROLLER
             );
 
-            // СТРУКТУРА 3×2×3
-            // Layer 0 (y=0): контроллер в центре
-            // Layer 1 (y=1): полностью из частей
             helper = MultiblockStructureHelper.createFromLayersWithRoles(
                     new String[][]{
-                            {"###", "#O#", "###"},  // Нижний слой
-                            {"###", "###", "###"}   // Верхний слой
+                            {"###", "#O#", "###"},
+                            {"###", "###", "###"}
                     },
                     symbols,
                     () -> ModBlocks.MULTIBLOCK_PART.get().defaultBlockState(),
@@ -103,10 +99,8 @@ public class SmelterBlock extends BaseEntityBlock implements IMultiblockControll
         if (!level.isClientSide) {
             Direction facing = state.getValue(FACING);
 
-            // Проверка перед установкой
             Player player = placer instanceof Player ? (Player) placer : null;
             if (!getStructureHelper().checkPlacement(level, pos, facing, player)) {
-                // Отмена установки
                 level.removeBlock(pos, false);
                 if (player != null && !player.getAbilities().instabuild) {
                     popResource(level, pos, new ItemStack(this));
@@ -131,7 +125,7 @@ public class SmelterBlock extends BaseEntityBlock implements IMultiblockControll
                     }
                 }
 
-                // === ВЫБРАСЫВАЕМ МЕТАЛЛ КАК ШЛАК ===
+                // Выбрасываем металл как шлак
                 if (smelter.hasMetal()) {
                     List<ItemStack> slagItems = smelter.dumpMetalAsSlag();
                     for (ItemStack slag : slagItems) {
@@ -159,15 +153,16 @@ public class SmelterBlock extends BaseEntityBlock implements IMultiblockControll
         ItemStack heldItem = player.getItemInHand(hand);
 
         // === КОЧЕРГА - обрабатывается в PokerItem.useOn() ===
-        // Но если игрок держит кочергу, мы должны вернуть PASS чтобы сработал useOn
+        // Важно: возвращаем PASS чтобы сработал useOn у кочерги
         if (heldItem.is(ModItems.POKER.get())) {
-            return InteractionResult.PASS; // Позволяем PokerItem обработать
+            return InteractionResult.PASS;
         }
 
-        // === SHIFT + ПКМ без кочерги - сообщение о необходимости кочерги ===
+        // === Shift + ПКМ без кочерги - сообщение о необходимости кочерги ===
+        // Но только если это НЕ кочерга (выше уже проверили)
         if (player.isShiftKeyDown()) {
             player.displayClientMessage(Component.literal("§cДля сброса металла нужна кочерга!"), true);
-            return InteractionResult.PASS;
+            return InteractionResult.CONSUME; // CONSUME чтобы не открылся GUI
         }
 
         // Обычное открытие GUI
