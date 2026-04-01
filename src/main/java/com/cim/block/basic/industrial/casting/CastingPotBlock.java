@@ -121,6 +121,25 @@ public class CastingPotBlock extends BaseEntityBlock {
             return InteractionResult.PASS;
         }
 
+        // === ИЗВЛЕЧЕНИЕ ШЛАКА ===
+        if (pot.hasSlag()) {
+            // Проверяем, остыл ли шлак
+            ItemStack slagStack = pot.getSlagStack();
+            boolean isHot = slagStack.hasTag() &&
+                    slagStack.getTag().contains("HotTime") &&
+                    slagStack.getTag().getFloat("HotTime") > 0.5f;
+
+            // Если остыл - можно рукой, если горячий - только кочергой
+            if (!isHot && heldItem.isEmpty()) {
+                return extractSlag(level, pos, player, hand, pot);
+            }
+            // Если горячий и не кочерга - сообщение
+            if (isHot && !heldItem.is(ModItems.POKER.get())) {
+                player.displayClientMessage(Component.literal("§cШлак горячий! Используйте кочергу."), true);
+                return InteractionResult.PASS;
+            }
+        }
+
         // === ДОСТАВАНИЕ ГОТОВОГО ПРЕДМЕТА (рукой - только остывшего) ===
         if (!pot.getOutputItem().isEmpty()) {
             return extractOutputItemByHand(level, pos, player, hand, pot);

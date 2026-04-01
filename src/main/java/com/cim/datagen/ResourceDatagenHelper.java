@@ -82,6 +82,21 @@ public class ResourceDatagenHelper {
                 if (resource.smallUnit != null) provider.add(resource.smallUnit.get(), "Алюминиевый " + getRussianUnitName(type.smallUnit, false));
                 if (resource.block != null) provider.add(resource.block.get(), "Алюминиевый блок");
             }
+            case "bronze" -> {
+                provider.add(resource.mainUnit.get(), "Бронзовый " + getRussianUnitName(type.mainUnit, false));
+                if (resource.smallUnit != null) provider.add(resource.smallUnit.get(), "Бронзовый " + getRussianUnitName(type.smallUnit, false));
+                if (resource.block != null) provider.add(resource.block.get(), "Бронзовый блок");
+            }
+            case "zinc" -> {
+                provider.add(resource.mainUnit.get(), "Цинковый " + getRussianUnitName(type.mainUnit, false));
+                if (resource.smallUnit != null) provider.add(resource.smallUnit.get(), "Цинковый " + getRussianUnitName(type.smallUnit, false));
+                if (resource.block != null) provider.add(resource.block.get(), "Цинковый блок");
+            }
+            case "tin" -> {
+                provider.add(resource.mainUnit.get(), "Оловянный " + getRussianUnitName(type.mainUnit, false));
+                if (resource.smallUnit != null) provider.add(resource.smallUnit.get(), "Оловянный " + getRussianUnitName(type.smallUnit, false));
+                if (resource.block != null) provider.add(resource.block.get(), "Оловянный блок");
+            }
             default -> {
                 String adj = capitalize(name);
                 provider.add(resource.mainUnit.get(), adj + " " + getRussianUnitName(type.mainUnit, false));
