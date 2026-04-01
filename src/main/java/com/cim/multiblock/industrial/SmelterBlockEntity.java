@@ -466,32 +466,47 @@ public class SmelterBlockEntity extends BlockEntity implements MenuProvider {
             ItemStack stack = inventory.getStackInSlot(4 + i);
             int slotIndex = 4 + i;
 
-            if (stack.isEmpty()) {
-                continue;
-            }
-
-            // === ШЛАК ===
-            if (stack.getItem() instanceof SlagItem) {
-                processSlagSlot(i, stack);
-                hasAnyRecipe = true;
-                continue;
-            }
-
-            // === ОБЫЧНАЯ ПЛАВКА ===
-            SmeltRecipe recipe = MetallurgyRegistry.getSmeltRecipe(stack.getItem());
-            if (recipe == null) continue;
+            if (stack.isEmpty()) continue;
 
             hasAnyRecipe = true;
 
             // Инициализация слота если нужно
             if (bottomSlots[i] == null) {
                 bottomSlots[i] = new BottomSlotData();
-                bottomSlots[i].recipe = recipe;
-                bottomSlots[i].maxProgress = recipe.getTotalHeatConsumption();
-                bottomSlots[i].heatConsumption = recipe.heatConsumption();
                 bottomSlots[i].progress = 0;
                 bottomSlots[i].active = false;
-                bottomSlots[i].targetTemperature = recipe.minTemp();
+
+                if (stack.getItem() instanceof SlagItem) {
+                    Metal slagMetal = SlagItem.getMetal(stack);
+                    int slagAmount = SlagItem.getAmount(stack);
+
+                    if (slagMetal != null && slagAmount > 0) {
+                        bottomSlots[i].slagData = new SlagSlotData();
+                        bottomSlots[i].slagData.metal = slagMetal;
+                        bottomSlots[i].slagData.amount = slagAmount;
+                        bottomSlots[i].slagData.requiredTemp = slagMetal.getMeltingPoint();
+                        bottomSlots[i].slagData.heatConsumption = slagMetal.getHeatConsumptionPerTick();
+
+                        int smeltTime = slagMetal.calculateSmeltTimeForUnits(slagAmount);
+                        bottomSlots[i].maxProgress = slagMetal.getHeatConsumptionPerTick() * smeltTime;
+                        bottomSlots[i].heatConsumption = slagMetal.getHeatConsumptionPerTick();
+                        bottomSlots[i].targetTemperature = slagMetal.getMeltingPoint();
+                    } else {
+                        bottomSlots[i] = null; // Невалидный шлак
+                        continue;
+                    }
+                } else {
+                    SmeltRecipe recipe = MetallurgyRegistry.getSmeltRecipe(stack.getItem());
+                    if (recipe != null) {
+                        bottomSlots[i].recipe = recipe;
+                        bottomSlots[i].maxProgress = recipe.getTotalHeatConsumption();
+                        bottomSlots[i].heatConsumption = recipe.heatConsumption();
+                        bottomSlots[i].targetTemperature = recipe.minTemp();
+                    } else {
+                        bottomSlots[i] = null; // Нет рецепта
+                        continue;
+                    }
+                }
                 // Сбрасываем готовность при новом предмете
                 allBottomSlotsReady = false;
             }
@@ -516,7 +531,13 @@ public class SmelterBlockEntity extends BlockEntity implements MenuProvider {
                     temperature -= heatTransfer * 0.5f;
                 }
             } else {
-                slot.active = true;
+                // Проверка места в резервуаре перед плавкой
+                int outputAmount = (slot.recipe != null) ? slot.recipe.outputUnits() : slot.slagData.amount;
+                if (!hasSpaceFor(outputAmount)) {
+                    slot.active = false; // Нет места — ждем
+                } else {
+                    slot.active = true;
+                }
             }
 
             slot.itemTemperature = getItemTemperature(stack);
@@ -649,10 +670,18 @@ public class SmelterBlockEntity extends BlockEntity implements MenuProvider {
     private void completeBottomSlot(int slotIndex) {
         ItemStack stack = inventory.getStackInSlot(4 + slotIndex);
         BottomSlotData slot = bottomSlots[slotIndex];
-        if (slot == null || slot.recipe == null) return;
+        if (slot == null) return;
 
-        stack.shrink(1);
-        addMetal(slot.recipe.output(), slot.recipe.outputUnits());
+        // Выдаем металл в зависимости от типа переплавки
+        if (slot.recipe != null) {
+            stack.shrink(1);
+            addMetal(slot.recipe.output(), slot.recipe.outputUnits());
+        } else if (slot.slagData != null) {
+            stack.shrink(1);
+            addMetal(slot.slagData.metal, slot.slagData.amount);
+        } else {
+            return;
+        }
 
         slotTemperatures[4 + slotIndex] = 20;
         bottomSlots[slotIndex] = null;
@@ -676,83 +705,7 @@ public class SmelterBlockEntity extends BlockEntity implements MenuProvider {
         }
     }
 
-    /**
-     * Обработка шлака с нагревом
-     */
-    private void processSlagSlot(int slotIndex, ItemStack stack) {
-        int globalSlot = 4 + slotIndex;
 
-        if (bottomSlots[slotIndex] == null) {
-            Metal slagMetal = SlagItem.getMetal(stack);
-            int slagAmount = SlagItem.getAmount(stack);
-
-            if (slagMetal != null && slagAmount > 0) {
-                bottomSlots[slotIndex] = new BottomSlotData();
-                bottomSlots[slotIndex].slagData = new SlagSlotData();
-                bottomSlots[slotIndex].slagData.metal = slagMetal;
-                bottomSlots[slotIndex].slagData.amount = slagAmount;
-                bottomSlots[slotIndex].slagData.requiredTemp = slagMetal.getMeltingPoint();
-                bottomSlots[slotIndex].slagData.heatConsumption = slagMetal.getHeatConsumptionPerTick();
-
-                int smeltTime = slagMetal.calculateSmeltTimeForUnits(slagAmount);
-                bottomSlots[slotIndex].maxProgress = slagMetal.getHeatConsumptionPerTick() * smeltTime;
-                bottomSlots[slotIndex].heatConsumption = slagMetal.getHeatConsumptionPerTick();
-                bottomSlots[slotIndex].progress = 0;
-                bottomSlots[slotIndex].active = false;
-                bottomSlots[slotIndex].itemTemperature = slotTemperatures[globalSlot];
-                bottomSlots[slotIndex].targetTemperature = slagMetal.getMeltingPoint();
-            }
-        }
-
-        BottomSlotData slot = bottomSlots[slotIndex];
-        if (slot == null || slot.slagData == null) return;
-
-        // === НАГРЕВ ШЛАКА ===
-        float currentItemTemp = getItemTemperature(stack);
-
-        if (currentItemTemp < slot.targetTemperature * 0.95f) {
-            if (temperature > currentItemTemp) {
-                float heatNeeded = (slot.targetTemperature * 0.95f) - currentItemTemp;
-                float heatTransfer = Math.min(HEAT_RATE * 2, heatNeeded);
-                heatTransfer = Math.min(heatTransfer, temperature * 0.1f);
-
-                float newTemp = currentItemTemp + heatTransfer;
-                setItemTemperature(stack, newTemp);
-                slotTemperatures[globalSlot] = newTemp;
-                temperature -= heatTransfer * 0.5f;
-            }
-            slot.active = false;
-            return;
-        } else {
-            slot.active = true;
-        }
-
-        slot.itemTemperature = currentItemTemp;
-        slotTemperatures[globalSlot] = currentItemTemp;
-
-        // ПЛАВКА ШЛАКА
-        float availableHeat = Math.min(slot.heatConsumption, temperature);
-        float heatToApply = Math.min(availableHeat, slot.maxProgress - slot.progress);
-
-        slot.progress += heatToApply;
-        temperature = Math.max(0, temperature - heatToApply);
-
-        if (slot.progress >= slot.maxProgress) {
-            addMetal(slot.slagData.metal, slot.slagData.amount);
-            stack.shrink(1);
-            slotTemperatures[globalSlot] = 20;
-            bottomSlots[slotIndex] = null;
-            setChanged();
-            level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), 3);
-        }
-
-        if (slot.active) {
-            bottomProgress += slot.progress;
-            bottomMaxProgress += slot.maxProgress;
-            bottomHeatConsumption += slot.heatConsumption;
-            bottomSmelting = true;
-        }
-    }
 
 
     /**

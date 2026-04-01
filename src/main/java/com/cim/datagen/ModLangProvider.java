@@ -67,7 +67,7 @@ public class ModLangProvider extends LanguageProvider {
         add("metal.cim.bronze", "Bronze");
         add("metal.cim.tin", "Tin");
         add("metal.cim.zinc", "Zinc");
-        
+
         //Секвойя
         add(ModBlocks.SEQUOIA_BARK.get(), "Sequoia bark");
         add(ModBlocks.SEQUOIA_HEARTWOOD.get(), "Sequoia heartwood");
