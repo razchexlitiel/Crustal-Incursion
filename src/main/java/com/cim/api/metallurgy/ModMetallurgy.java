@@ -63,7 +63,6 @@ public class ModMetallurgy {
 
 
         // === СТАЛЬ ===
-        // Потребление: 1.2 градуса/тик, плавится при 1440°C
         Metal steel = registerMetalWithItems("steel", 0x202321, 1440, 1.2f,
                 ResourceRegistry.getMainUnit("steel"),
                 ResourceRegistry.getSmallUnit("steel"),
@@ -87,19 +86,22 @@ public class ModMetallurgy {
 
 
         // === АЛЮМИНИЙ ===
-        // Потребление: 0.4 градуса/тик (лёгкий!), плавится при 660°C (низкая!)
         Metal aluminum = registerMetalWithItems("aluminum", 0x8ebcd4, 660, 0.4f,
                 ResourceRegistry.getMainUnit("aluminum"),
                 ResourceRegistry.getSmallUnit("aluminum"),
                 ResourceRegistry.getBlock("aluminum"));
 
         // === БРОНЗА ===
-        // Потребление: 0.4 градуса/тик (лёгкий!), плавится при 660°C (низкая!)
         Metal bronze = registerMetalWithItems("bronze", 0xcb9a3e, 930, 0.6f,
                 ResourceRegistry.getMainUnit("bronze"),
                 ResourceRegistry.getSmallUnit("bronze"),
                 ResourceRegistry.getBlock("bronze"));
 
+        // === ЦИНК ===
+        Metal zinc = registerMetalWithItems("zinc", 0x968e8f, 419, 0.6f,
+                ResourceRegistry.getMainUnit("zinc"),
+                ResourceRegistry.getSmallUnit("zinc"),
+                ResourceRegistry.getBlock("zinc"));
 
         // ГЕНЕРАЦИЯ СТАНДАРТНЫХ РЕЦЕПТОВ
         // Автоматически создаёт рецепты для слитков (3с), самородков (1с), блоков (9с)

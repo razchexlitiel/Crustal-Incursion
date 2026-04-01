@@ -213,7 +213,10 @@ public class ClientModEvents {
                 ResourceRegistry.getBlock("aluminum"),
                 ResourceRegistry.getMainUnit("bronze"),
                 ResourceRegistry.getSmallUnit("bronze"),
-                ResourceRegistry.getBlock("bronze")
+                ResourceRegistry.getBlock("bronze"),
+                ResourceRegistry.getMainUnit("zinc"),
+                ResourceRegistry.getSmallUnit("zinc"),
+                ResourceRegistry.getBlock("zinc")
         );
 
         // === РЕГИСТРАЦИЯ ОБРАБОТЧИКОВ ЦВЕТА ===
@@ -230,6 +233,9 @@ public class ClientModEvents {
                 ResourceRegistry.getMainUnit("aluminum"),
                 ResourceRegistry.getSmallUnit("aluminum"),
                 ResourceRegistry.getBlock("aluminum"),
+                ResourceRegistry.getMainUnit("zinc"),
+                ResourceRegistry.getSmallUnit("zinc"),
+                ResourceRegistry.getBlock("zinc"),
                 ResourceRegistry.getMainUnit("bronze"),
                 ResourceRegistry.getSmallUnit("bronze"),
                 ResourceRegistry.getBlock("bronze")
