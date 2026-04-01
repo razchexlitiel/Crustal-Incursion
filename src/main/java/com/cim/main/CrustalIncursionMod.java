@@ -22,6 +22,7 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
+import net.minecraftforge.fml.loading.FMLLoader;
 import net.minecraftforge.registries.RegistryObject;
 import org.slf4j.Logger;
 import com.cim.api.hive.HiveNetworkManagerProvider;
@@ -75,6 +76,10 @@ public class CrustalIncursionMod {
         ModFoliagePlacerTypes.register(modEventBus);
         ModFluids.register(modEventBus);
         MinecraftForge.EVENT_BUS.register(new HiveEventHandler());
+        if (FMLLoader.getLoadingModList().getModFileById("oculus") != null) {
+            com.cim.compat.irisflw.IrisFlw.init();
+            System.out.println("🔥 [CIM] КЛЮЧ ЗАЖИГАНИЯ ПОВЕРНУТ! Движок Flywheel-Oculus запущен!");
+        }
 
     }
     private void registerCapabilities(IEventBus modEventBus) {
@@ -192,7 +197,8 @@ public class CrustalIncursionMod {
                     ModItems.BATTERY_ADVANCED,
                     ModItems.BATTERY_LITHIUM,
                     ModItems.BATTERY_TRIXITE
-            ); for (RegistryObject<Item> batteryRegObj : batteriesToAdd) {Item item = batteryRegObj.get();if (item instanceof ModBatteryItem batteryItem) {ItemStack emptyStack = new ItemStack(batteryItem);event.accept(emptyStack);ItemStack chargedStack = new ItemStack(batteryItem);ModBatteryItem.setEnergy(chargedStack, batteryItem.getCapacity());event.accept(chargedStack);}}
+            ); for (RegistryObject<Item> batteryRegObj : batteriesToAdd) {Item item = batteryRegObj.get();
+                if (item instanceof ModBatteryItem batteryItem) {ItemStack emptyStack = new ItemStack(batteryItem);event.accept(emptyStack);ItemStack chargedStack = new ItemStack(batteryItem);ModBatteryItem.setEnergy(chargedStack, batteryItem.getCapacity());event.accept(chargedStack);}}
 
             event.accept(ModItems.FLUID_IDENTIFIER.get());
             event.accept(ModItems.INFINITE_FLUID_BARREL);
