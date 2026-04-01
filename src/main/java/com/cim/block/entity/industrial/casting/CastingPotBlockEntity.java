@@ -65,6 +65,10 @@ public class CastingPotBlockEntity extends BlockEntity {
     private final ItemStackHandler itemHandler = new ItemStackHandler(1) {
         @Override
         public ItemStack getStackInSlot(int slot) {
+            // Если есть шлак - возвращаем его (воронка сама проверит горячесть в extractItem)
+            if (isSlagged && slagData != null) {
+                return SlagItem.createSlagFromNBT(slagData);
+            }
             return outputItem;
         }
 
@@ -76,7 +80,23 @@ public class CastingPotBlockEntity extends BlockEntity {
 
         @Override
         public ItemStack extractItem(int slot, int amount, boolean simulate) {
-            // Нельзя забрать пока горячий (coolingTimer > 0)
+            // Сначала проверяем шлак (он не использует coolingTimer)
+            if (isSlagged && slagData != null) {
+                // Проверяем, остыл ли шлак
+                if (slagData.contains("HotTime") && slagData.getFloat("HotTime") > 0.5f) {
+                    return ItemStack.EMPTY; // Ещё горячий
+                }
+
+                ItemStack slag = SlagItem.createSlagFromNBT(slagData);
+                if (!simulate) {
+                    clearSlag();
+                    setChanged();
+                    level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), 3);
+                }
+                return slag;
+            }
+
+            // Проверяем outputItem (готовый слиток)
             if (coolingTimer > 0.5f) return ItemStack.EMPTY;
             if (storedUnits > 0 || solidifyTimer > 0) return ItemStack.EMPTY;
 
@@ -337,7 +357,25 @@ public class CastingPotBlockEntity extends BlockEntity {
             }
         }
     }
+    public boolean canExtractSlag() {
+        return isSlagged && slagData != null;
+    }
 
+    // Изменить extractSlag() чтобы он не требовал coolingTimer
+    public ItemStack extractSlagForHopper() {
+        if (!isSlagged || slagData == null) return ItemStack.EMPTY;
+
+        ItemStack slag = SlagItem.createSlagFromNBT(slagData);
+        // Проверяем, остыл ли шлак полностью
+        if (slagData.contains("HotTime") && slagData.getFloat("HotTime") > 0.5f) {
+            return ItemStack.EMPTY; // Ещё горячий - воронка не берёт
+        }
+
+        clearSlag();
+        setChanged();
+        level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), 3);
+        return slag;
+    }
     /**
      * Попытка перелить металл соседним котлам
      */
@@ -407,7 +445,6 @@ public class CastingPotBlockEntity extends BlockEntity {
 
         ItemStack slag = SlagItem.createSlagFromNBT(slagData);
         clearSlag();
-
         setChanged();
         level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), 3);
 

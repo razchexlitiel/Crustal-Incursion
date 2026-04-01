@@ -398,11 +398,6 @@ public class SmelterBlockEntity extends BlockEntity implements MenuProvider {
                 continue;
             }
 
-            if (!hasSpaceFor(recipe.outputUnits())) {
-                if (bottomSlots[i] == null) continue;
-            }
-
-            // Инициализация слота (если новый предмет)
             if (bottomSlots[i] == null) {
                 bottomSlots[i] = new BottomSlotData();
                 bottomSlots[i].recipe = recipe;
@@ -415,20 +410,35 @@ public class SmelterBlockEntity extends BlockEntity implements MenuProvider {
 
             BottomSlotData slot = bottomSlots[i];
 
-            // Температура предмета берётся из HotItemHandler (уже обновлена в processItemHeatExchange)
-            float itemTemp = getItemTemperature(stack);
-            slot.itemTemperature = itemTemp;
+            // === ПРИНУДИТЕЛЬНЫЙ НАГРЕВ ДЛЯ НИЖНЕГО РЯДА ===
 
-            // Проверяем нагретость - НЕТ ЗАДЕРЖКИ, сразу когда достигли температуры!
-            if (itemTemp >= slot.targetTemperature * 0.95f) { // 95% достаточно
+            // Если предмет холодный - быстро нагреваем его через печь
+            float itemTemp = getItemTemperature(stack);
+            if (itemTemp < slot.targetTemperature * 0.95f) {
+                // Быстрый нагрев: передаём тепло от печи к предмету
+                if (temperature > itemTemp) {
+                    float heatNeeded = (slot.targetTemperature * 0.95f) - itemTemp;
+                    float heatTransfer = Math.min(HEAT_RATE * 3, heatNeeded); // Быстрее обычного
+                    heatTransfer = Math.min(heatTransfer, temperature * 0.1f); // Не больше 10% от температуры печи за тик
+
+                    float newTemp = itemTemp + heatTransfer;
+                    setItemTemperature(stack, newTemp);
+                    slotTemperatures[slotIndex] = newTemp;
+
+                    // Печь отдаёт тепло
+                    temperature -= heatTransfer * 0.5f; // 50% потерь при передаче
+                }
+            }
+
+            slot.itemTemperature = getItemTemperature(stack);
+
+            // Проверяем нагретость и активируем
+            if (slot.itemTemperature >= slot.targetTemperature * 0.95f) {
                 slot.active = true;
             } else {
                 slot.active = false;
-                // Если остыл сильно - сбрасываем прогресс
-                if (itemTemp < slot.targetTemperature * 0.5f) {
-                    slot.progress = Math.max(0, slot.progress - slot.heatConsumption);
-                }
             }
+
 
             // ПЛАВКА - начинается СРАЗУ когда нагрето и есть температура печи
             if (slot.active && temperature >= slot.targetTemperature * 0.9f) {
