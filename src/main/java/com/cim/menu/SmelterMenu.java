@@ -3,6 +3,7 @@ package com.cim.menu;
 
 import com.cim.api.metallurgy.system.MetallurgyRegistry;
 import com.cim.block.basic.ModBlocks;
+import com.cim.event.HotItemHandler;
 import com.cim.multiblock.industrial.SmelterBlockEntity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.FriendlyByteBuf;
@@ -96,6 +97,9 @@ public class SmelterMenu extends AbstractContainerMenu {
         if (slot != null && slot.hasItem()) {
             ItemStack stack = slot.getItem();
             returnStack = stack.copy();
+
+            // Если предмет горячий - данные уже в NBT, просто логируем если нужно
+            // НЕТ else здесь! Логика перемещения должна работать всегда.
 
             if (index < 8) {
                 // Из печи в инвентарь

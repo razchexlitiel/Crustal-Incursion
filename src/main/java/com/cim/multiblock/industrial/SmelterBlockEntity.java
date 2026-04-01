@@ -7,6 +7,7 @@ import com.cim.api.metallurgy.system.recipe.AlloyRecipe;
 import com.cim.api.metallurgy.system.recipe.AlloySlot;
 import com.cim.api.metallurgy.system.recipe.SmeltRecipe;
 import com.cim.block.entity.ModBlockEntities;
+import com.cim.event.HotItemHandler;
 import com.cim.event.SlagItem;
 import com.cim.item.ModItems;
 import com.cim.menu.SmelterMenu;
@@ -40,7 +41,7 @@ import java.util.*;
 public class SmelterBlockEntity extends BlockEntity implements MenuProvider {
     public static final int MAX_TEMP = 1600;
     public static final int BLOCK_CAPACITY = 4;
-    public static final int TANK_CAPACITY = BLOCK_CAPACITY * MetalUnits2.UNITS_PER_BLOCK; // 324
+    public static final int TANK_CAPACITY = BLOCK_CAPACITY * MetalUnits2.UNITS_PER_BLOCK;
 
     private final ItemStackHandler inventory = new ItemStackHandler(8) {
         @Override
@@ -54,41 +55,44 @@ public class SmelterBlockEntity extends BlockEntity implements MenuProvider {
         @Override
         public boolean isItemValid(int slot, ItemStack stack) {
             if (slot < 4) return true;
-            // Нижний ряд - шлак ИЛИ рецепт плавки
             if (stack.getItem() instanceof SlagItem) return true;
             return MetallurgyRegistry.getSmeltRecipe(stack.getItem()) != null;
         }
     };
 
+    // === НАГРЕВ ПРЕДМЕТОВ ===
+    // Температура каждого слота (только для визуализации и логики)
+    private final float[] slotTemperatures = new float[8];
+    private static final float HEAT_RATE = 5.0f; // Градусов за тик при нагреве
+
     private static class SlagSlotData {
         Metal metal;
         int amount;
         int requiredTemp;
-        float heatConsumption; // Потребление шлака (берётся из металла)
+        float heatConsumption;
     }
 
     private final Map<Metal, Integer> metalTank = new LinkedHashMap<>();
     private int totalMetalAmount = 0;
-    private float temperature = 0; // Теперь float для точности!
+    private float temperature = 0;
 
-    // Разделенное отслеживание изменений по рядам
     private int lastTopHash = 0;
     private int lastBottomHash = 0;
 
     // Верхний ряд (сплавы)
-    private float topProgress = 0; // Теперь float - накопленное тепло!
-    private float topMaxProgress = 0; // Требуемое тепло
+    private float topProgress = 0;
+    private float topMaxProgress = 0;
     private boolean topSmelting = false;
-    private float topHeatConsumption = 0; // Потребление за тик
+    private float topHeatConsumption = 0;
     private AlloyRecipe currentAlloyRecipe = null;
     private int requiredTempTop = 0;
 
     // Нижний ряд (обычная плавка)
-    private float bottomProgress = 0; // Накопленное тепло
-    private float bottomMaxProgress = 0; // Требуемое тепло
+    private float bottomProgress = 0;
+    private float bottomMaxProgress = 0;
     private boolean bottomSmelting = false;
-    private float bottomHeatConsumption = 0; // Среднее потребление активных слотов
-    private Map<SmeltRecipe, Float> currentBottomRecipes = new HashMap<>(); // recipe -> progress
+    private float bottomHeatConsumption = 0;
+    private Map<SmeltRecipe, Float> currentBottomRecipes = new HashMap<>();
     private int requiredTempBottom = 0;
 
     private final ContainerData data = new SimpleContainerData(14) {
@@ -101,10 +105,13 @@ public class SmelterBlockEntity extends BlockEntity implements MenuProvider {
     private static class BottomSlotData {
         SmeltRecipe recipe;
         SlagSlotData slagData;
-        float progress; // Накопленное тепло
-        float maxProgress; // Требуемое тепло
-        float heatConsumption; // Потребление за тик
+        float progress;
+        float maxProgress;
+        float heatConsumption;
         boolean active;
+        // Температура предмета в этом слоте
+        float itemTemperature;
+        int targetTemperature;
     }
 
     private final BottomSlotData[] bottomSlots = new BottomSlotData[4];
@@ -115,6 +122,7 @@ public class SmelterBlockEntity extends BlockEntity implements MenuProvider {
         for (int i = 0; i < 4; i++) {
             previousBottomStacks[i] = ItemStack.EMPTY;
         }
+        Arrays.fill(slotTemperatures, 20); // Комнатная температура
     }
 
     public static void serverTick(Level level, BlockPos pos, BlockState state, SmelterBlockEntity be) {
@@ -133,13 +141,11 @@ public class SmelterBlockEntity extends BlockEntity implements MenuProvider {
         }
 
         // === ТЕПЛООБМЕН ===
-        // Охлаждение: квадратичная зависимость от температуры
         float baseCooling = (be.temperature * be.temperature) / 512000f;
         if (baseCooling < 0.1f && be.temperature > 0) baseCooling = 0.1f;
         int thermalNoise = (be.temperature > 200 && baseCooling > 1) ? level.random.nextInt(5) - 2 : 0;
         float cooling = Math.max(0.1f, baseCooling + thermalNoise);
 
-        // Нагрев от HeaterBlockEntity снизу
         BlockEntity below = level.getBlockEntity(pos.below());
         if (below instanceof HeaterBlockEntity heater && heater.getTemperature() > be.temperature) {
             float transfer = (heater.getTemperature() - be.temperature) / 10f + 0.5f;
@@ -148,11 +154,14 @@ public class SmelterBlockEntity extends BlockEntity implements MenuProvider {
             be.temperature = Math.max(0, be.temperature - cooling);
         }
 
-        // Обработка рядов
+        // === ДВУСТОРОННИЙ ТЕПЛООБМЕН: ПЕЧЬ ↔ ПРЕДМЕТЫ ===
+        be.processItemHeatExchange();
+
+        // Обработка рядов с нагревом предметов
         be.tickTopRow();
         be.tickBottomRow();
 
-        // Синхронизация данных для GUI (округляем для отображения)
+        // Синхронизация данных для GUI
         be.data.set(0, (int) be.temperature);
         be.data.set(1, (int) be.topProgress);
         be.data.set(2, (int) be.topMaxProgress);
@@ -182,12 +191,12 @@ public class SmelterBlockEntity extends BlockEntity implements MenuProvider {
             return;
         }
 
-        ItemStack[] topSlots = new ItemStack[4];
+        ItemStack[] topSlotsStacks = new ItemStack[4];
         for (int i = 0; i < 4; i++) {
-            topSlots[i] = inventory.getStackInSlot(i);
+            topSlotsStacks[i] = inventory.getStackInSlot(i);
         }
 
-        AlloyRecipe recipe = findMatchingAlloyRecipe(topSlots);
+        AlloyRecipe recipe = findMatchingAlloyRecipe(topSlotsStacks);
         if (recipe == null) {
             if (topSmelting || currentAlloyRecipe != null) {
                 resetTopSmelting();
@@ -197,33 +206,51 @@ public class SmelterBlockEntity extends BlockEntity implements MenuProvider {
 
         requiredTempTop = recipe.getOutputMetal().getMeltingPoint();
 
-        if (temperature < requiredTempTop) {
-            topSmelting = false;
-            topProgress = 0;
-            // Рассчитываем требуемое тепло: потребление * время
-            topMaxProgress = recipe.getTotalHeatConsumption();
+        // Проверяем что все предметы нагреты до температуры плавления
+        boolean allHeated = true;
+        AlloySlot[] slots = recipe.getSlots();
+
+        for (int i = 0; i < 4; i++) {
+            ItemStack stack = topSlotsStacks[i];
+            if (slots[i].item() == null) continue; // Пустой слот в рецепте
+
+            if (stack.isEmpty() || stack.getItem() != slots[i].item()) {
+                allHeated = false;
+                continue;
+            }
+
+            int targetTemp = getMeltingPointForItem(stack);
+            float currentTemp = getItemTemperature(stack);
+
+            // Нагрев идёт через processItemHeatExchange!
+            // Проверяем только готовность
+            if (currentTemp < targetTemp * 0.95f) {
+                allHeated = false;
+            }
+        }
+
+        if (!allHeated || temperature < requiredTempTop * 0.9f) {
+            // Ждём нагрева - сбрасываем активную плавку но НЕ прогресс
+            if (topSmelting) {
+                topSmelting = false;
+            }
             return;
         }
 
-        // Проверка места
-        if (!hasSpaceFor(recipe.getOutputUnits())) {
-            topSmelting = false;
-            return;
-        }
-
+        // Все нагреты и температура печи достаточна - НАЧИНАЕМ ПЛАВКУ СРАЗУ
         if (!topSmelting) {
             topSmelting = true;
-            topProgress = 0;
-            topMaxProgress = recipe.getTotalHeatConsumption();
-            topHeatConsumption = recipe.getHeatConsumptionPerTick();
-            currentAlloyRecipe = recipe;
+            // Не сбрасываем прогресс если он был!
+            if (topProgress <= 0) {
+                topMaxProgress = recipe.getTotalHeatConsumption();
+                topHeatConsumption = recipe.getHeatConsumptionPerTick();
+                currentAlloyRecipe = recipe;
+            }
         }
 
-        // ПЛАВКА: тратим температуру и накапливаем прогресс
+        // ПЛАВКА
         if (topMaxProgress > 0) {
-            // Сколько тепла можем потратить этот тик
             float availableHeat = Math.min(topHeatConsumption, temperature);
-            // Но не больше чем осталось до завершения
             float heatToApply = Math.min(availableHeat, topMaxProgress - topProgress);
 
             topProgress += heatToApply;
@@ -235,6 +262,47 @@ public class SmelterBlockEntity extends BlockEntity implements MenuProvider {
             }
         }
     }
+
+    /**
+     * Нагревает предметы в верхнем ряду для рецепта сплава
+     * @return true если все необходимые предметы нагреты до температуры плавления
+     */
+    private boolean heatUpSlotsForRecipe(AlloyRecipe recipe, boolean canMelt) {
+        boolean allHeated = true;
+        AlloySlot[] slots = recipe.getSlots();
+
+        for (int i = 0; i < 4; i++) {
+            ItemStack stack = inventory.getStackInSlot(i);
+            if (stack.isEmpty() || slots[i].item() == null) {
+                slotTemperatures[i] = Math.max(20, slotTemperatures[i] - 2); // Остывание
+                continue;
+            }
+
+            // Проверяем что предмет подходит для рецепта
+            if (stack.getItem() != slots[i].item()) {
+                slotTemperatures[i] = Math.max(20, slotTemperatures[i] - 2);
+                continue;
+            }
+
+            // Целевая температура - температура плавления металла или 300°C для неметаллов
+            int targetTemp = getMeltingPointForItem(stack);
+            slotTemperatures[i] = Math.min(targetTemp, slotTemperatures[i] + HEAT_RATE);
+
+            if (slotTemperatures[i] < targetTemp * 0.9f) {
+                allHeated = false;
+            }
+        }
+
+        return allHeated;
+    }
+
+    private void coolDownSlot(int slot) {
+        if (slotTemperatures[slot] > 20) {
+            slotTemperatures[slot] = Math.max(20, slotTemperatures[slot] - 5);
+        }
+    }
+
+
 
     private AlloyRecipe findMatchingAlloyRecipe(ItemStack[] slots) {
         for (AlloyRecipe recipe : MetallurgyRegistry.getAllAlloyRecipes()) {
@@ -252,6 +320,7 @@ public class SmelterBlockEntity extends BlockEntity implements MenuProvider {
                 ItemStack stack = inventory.getStackInSlot(i);
                 if (!stack.isEmpty() && stack.getItem() == slotReq.item() && stack.getCount() >= slotReq.count()) {
                     stack.shrink(slotReq.count());
+                    slotTemperatures[i] = 20; // Сброс температуры
                 }
             }
         }
@@ -272,12 +341,17 @@ public class SmelterBlockEntity extends BlockEntity implements MenuProvider {
             ItemStack current = inventory.getStackInSlot(4 + i);
             ItemStack prev = previousBottomStacks[i];
             if (!ItemStack.matches(current, prev)) {
-                bottomSlots[i] = null;
+                // Слот изменился - сбрасываем данные, но НЕ прогресс плавки если предмет такой же
+                if (bottomSlots[i] == null || current.isEmpty() ||
+                        bottomSlots[i].recipe == null ||
+                        bottomSlots[i].recipe.input() != current.getItem()) {
+                    bottomSlots[i] = null;
+                }
                 previousBottomStacks[i] = current.copy();
+                // Температура берётся из HotItemHandler через processItemHeatExchange
             }
         }
 
-        // Вычисляем максимальную требуемую температуру для всех валидных слотов
         int maxTempRequired = 0;
         boolean hasAnyValidRecipe = false;
 
@@ -304,6 +378,8 @@ public class SmelterBlockEntity extends BlockEntity implements MenuProvider {
         // Обрабатываем каждый слот
         for (int i = 0; i < 4; i++) {
             ItemStack stack = inventory.getStackInSlot(4 + i);
+            int slotIndex = 4 + i;
+
             if (stack.isEmpty()) {
                 bottomSlots[i] = null;
                 continue;
@@ -322,62 +398,61 @@ public class SmelterBlockEntity extends BlockEntity implements MenuProvider {
                 continue;
             }
 
-            // Проверка места
             if (!hasSpaceFor(recipe.outputUnits())) {
                 if (bottomSlots[i] == null) continue;
             }
 
-            if (temperature < recipe.minTemp()) {
-                if (bottomSlots[i] != null) bottomSlots[i].active = false;
-                continue;
-            }
-
-            // Инициализация слота
+            // Инициализация слота (если новый предмет)
             if (bottomSlots[i] == null) {
                 bottomSlots[i] = new BottomSlotData();
                 bottomSlots[i].recipe = recipe;
-                // Требуемое тепло = потребление * время
                 bottomSlots[i].maxProgress = recipe.getTotalHeatConsumption();
                 bottomSlots[i].heatConsumption = recipe.heatConsumption();
                 bottomSlots[i].progress = 0;
-                bottomSlots[i].active = true;
+                bottomSlots[i].active = false;
+                bottomSlots[i].targetTemperature = recipe.minTemp();
             }
 
             BottomSlotData slot = bottomSlots[i];
-            if (!slot.active) {
-                if (temperature >= slot.recipe.minTemp()) slot.active = true;
-                else continue;
-            }
 
-            // Проверяем, хватит ли места для завершения
-            if (slot.progress >= slot.maxProgress && !hasSpaceFor(slot.recipe.outputUnits())) {
+            // Температура предмета берётся из HotItemHandler (уже обновлена в processItemHeatExchange)
+            float itemTemp = getItemTemperature(stack);
+            slot.itemTemperature = itemTemp;
+
+            // Проверяем нагретость - НЕТ ЗАДЕРЖКИ, сразу когда достигли температуры!
+            if (itemTemp >= slot.targetTemperature * 0.95f) { // 95% достаточно
+                slot.active = true;
+            } else {
                 slot.active = false;
-                continue;
-            }
-
-            // ПЛАВКА
-            float availableHeat = Math.min(slot.heatConsumption, temperature);
-            float heatToApply = Math.min(availableHeat, slot.maxProgress - slot.progress);
-
-            slot.progress += heatToApply;
-            temperature = Math.max(0, temperature - heatToApply);
-
-            if (slot.progress >= slot.maxProgress) {
-                stack.shrink(1);
-                addMetal(slot.recipe.output(), slot.recipe.outputUnits());
-
-                // Проверяем, есть ли ещё такой же предмет в слоте
-                ItemStack nextStack = inventory.getStackInSlot(4 + i);
-                if (!nextStack.isEmpty() && nextStack.getItem() == slot.recipe.input()) {
-                    slot.progress = 0;
-                    slot.active = true;
-                } else {
-                    bottomSlots[i] = null;
+                // Если остыл сильно - сбрасываем прогресс
+                if (itemTemp < slot.targetTemperature * 0.5f) {
+                    slot.progress = Math.max(0, slot.progress - slot.heatConsumption);
                 }
             }
 
-            // Накопление для GUI
-            if (slot.active) {
+            // ПЛАВКА - начинается СРАЗУ когда нагрето и есть температура печи
+            if (slot.active && temperature >= slot.targetTemperature * 0.9f) {
+                float availableHeat = Math.min(slot.heatConsumption, temperature);
+                float heatToApply = Math.min(availableHeat, slot.maxProgress - slot.progress);
+
+                slot.progress += heatToApply;
+                temperature = Math.max(0, temperature - heatToApply);
+
+                if (slot.progress >= slot.maxProgress) {
+                    // Плавка завершена - предмет становится жидким металлом
+                    stack.shrink(1);
+                    addMetal(slot.recipe.output(), slot.recipe.outputUnits());
+
+                    // Сбрасываем температуру слота
+                    slotTemperatures[slotIndex] = 20;
+                    bottomSlots[i] = null;
+
+                    setChanged();
+                    level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), 3);
+                    continue;
+                }
+
+                // Накопление для GUI
                 bottomProgress += slot.progress;
                 bottomMaxProgress += slot.maxProgress;
                 bottomHeatConsumption += slot.heatConsumption;
@@ -387,10 +462,11 @@ public class SmelterBlockEntity extends BlockEntity implements MenuProvider {
     }
 
     /**
-     * Обработка шлака с динамическим временем плавки
-     * Время зависит от количества металла, максимум 30 секунд (600 тиков)
+     * Обработка шлака с нагревом
      */
     private void processSlagSlot(int slotIndex, ItemStack stack) {
+        int globalSlot = 4 + slotIndex;
+
         if (bottomSlots[slotIndex] == null) {
             Metal slagMetal = SlagItem.getMetal(stack);
             int slagAmount = SlagItem.getAmount(stack);
@@ -403,24 +479,34 @@ public class SmelterBlockEntity extends BlockEntity implements MenuProvider {
                 bottomSlots[slotIndex].slagData.requiredTemp = slagMetal.getMeltingPoint();
                 bottomSlots[slotIndex].slagData.heatConsumption = slagMetal.getHeatConsumptionPerTick();
 
-                // Динамическое время: базовое время металла на количество, но не более 600 тиков
                 int smeltTime = slagMetal.calculateSmeltTimeForUnits(slagAmount);
                 bottomSlots[slotIndex].maxProgress = slagMetal.getHeatConsumptionPerTick() * smeltTime;
                 bottomSlots[slotIndex].heatConsumption = slagMetal.getHeatConsumptionPerTick();
                 bottomSlots[slotIndex].progress = 0;
-                bottomSlots[slotIndex].active = true;
+                bottomSlots[slotIndex].active = false;
+                bottomSlots[slotIndex].itemTemperature = slotTemperatures[globalSlot];
+                bottomSlots[slotIndex].targetTemperature = slagMetal.getMeltingPoint();
             }
         }
 
         BottomSlotData slot = bottomSlots[slotIndex];
         if (slot == null || slot.slagData == null) return;
 
-        if (!slot.active) {
-            if (temperature >= slot.slagData.requiredTemp) slot.active = true;
-            else return;
+        // === НАГРЕВ ШЛАКА ===
+        if (slot.itemTemperature < slot.targetTemperature) {
+            if (temperature > slot.itemTemperature) {
+                float heatTransfer = Math.min(HEAT_RATE * 2, temperature - slot.itemTemperature);
+                slot.itemTemperature += heatTransfer;
+                slotTemperatures[globalSlot] = slot.itemTemperature;
+            }
+            slot.active = false;
+            return;
+        } else {
+            slot.active = true;
         }
 
-        // Проверка места
+        slotTemperatures[globalSlot] = slot.itemTemperature;
+
         if (!hasSpaceFor(slot.slagData.amount)) {
             slot.active = false;
             return;
@@ -436,12 +522,12 @@ public class SmelterBlockEntity extends BlockEntity implements MenuProvider {
         if (slot.progress >= slot.maxProgress) {
             addMetal(slot.slagData.metal, slot.slagData.amount);
             stack.shrink(1);
+            slotTemperatures[globalSlot] = 20;
             bottomSlots[slotIndex] = null;
             setChanged();
             level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), 3);
         }
 
-        // Накопление для GUI
         if (slot.active) {
             bottomProgress += slot.progress;
             bottomMaxProgress += slot.maxProgress;
@@ -449,6 +535,150 @@ public class SmelterBlockEntity extends BlockEntity implements MenuProvider {
             bottomSmelting = true;
         }
     }
+
+
+    /**
+     * ДВУСТОРОННИЙ ТЕПЛООБМЕН: ПЕЧЬ ↔ ПРЕДМЕТЫ
+     * Предметы нагреваются/остывают до температуры печи через HotItemHandler
+     */
+    private void processItemHeatExchange() {
+        float heatTransferRate = 3.0f; // Скорость передачи тепла
+
+        for (int i = 0; i < 8; i++) {
+            ItemStack stack = inventory.getStackInSlot(i);
+            if (stack.isEmpty()) {
+                slotTemperatures[i] = Math.max(20, slotTemperatures[i] - 1);
+                continue;
+            }
+
+            // Получаем текущую температуру предмета через HotItemHandler
+            float itemTemp = getItemTemperature(stack);
+            float furnaceTemp = this.temperature;
+
+            // Теплообмен: предмет → печь или печь → предмет
+            if (Math.abs(itemTemp - furnaceTemp) > 1.0f) {
+                float diff = furnaceTemp - itemTemp;
+                // Чем больше разница, тем быстрее передача
+                float transfer = Math.signum(diff) * Math.min(Math.abs(diff) * 0.15f, heatTransferRate);
+
+                float newTemp = itemTemp + transfer;
+
+                // Устанавливаем температуру предмета через HotItemHandler (реальный нагрев!)
+                setItemTemperature(stack, newTemp);
+                slotTemperatures[i] = newTemp;
+
+                // Влияние на температуру печи (обратная связь)
+                // Горячий предмет нагревает печь, холодный - остужает
+                float furnaceInfluence = -transfer * 0.02f; // 2% от передачи влияет на печь
+                this.temperature = Math.max(0, this.temperature + furnaceInfluence);
+
+                // Помечаем инвентарь как изменённый для синхронизации
+                if ((int)newTemp % 5 == 0) { // Не каждый тик, чтобы не спамить сеть
+                    setChanged();
+                }
+            }
+        }
+    }
+    /**
+     * Получает температуру плавления для предмета
+     */
+    private int getMeltingPointForItem(ItemStack stack) {
+        // Проверяем рецепт плавки
+        SmeltRecipe recipe = MetallurgyRegistry.getSmeltRecipe(stack.getItem());
+        if (recipe != null) {
+            return recipe.minTemp();
+        }
+
+        // Для шлака - температура плавления металла внутри
+        if (stack.getItem() instanceof SlagItem) {
+            return SlagItem.getMeltingPoint(stack);
+        }
+
+        // Сплавы в верхнем ряду - проверяем по рецептам
+        for (AlloyRecipe alloy : MetallurgyRegistry.getAllAlloyRecipes()) {
+            for (AlloySlot slot : alloy.getSlots()) {
+                if (slot.item() == stack.getItem()) {
+                    return alloy.getOutputMetal().getMeltingPoint();
+                }
+            }
+        }
+
+        // Для угля и неметаллов - фиксированная температура "нагрева для реакции"
+        if (stack.is(net.minecraft.world.item.Items.COAL) ||
+                stack.is(net.minecraft.world.item.Items.CHARCOAL)) {
+            return 300;
+        }
+
+        return 800; // По умолчанию для неизвестных предметов
+    }
+    /**
+     * Получает температуру предмета из HotItemHandler
+     */
+    private float getItemTemperature(ItemStack stack) {
+        if (HotItemHandler.isHot(stack)) {
+            return HotItemHandler.getTemperature(stack);
+        }
+        return HotItemHandler.ROOM_TEMP;
+    }
+
+    /**
+     * Устанавливает РЕАЛЬНУЮ температуру предмета через HotItemHandler
+     * Предмет можно вытащить и он сохранит нагрев!
+     */
+    private void setItemTemperature(ItemStack stack, float temp) {
+        // Если температура низкая - очищаем горячесть
+        if (temp <= HotItemHandler.ROOM_TEMP + 5) {
+            if (HotItemHandler.isHot(stack)) {
+                HotItemHandler.clearHotTags(stack);
+                // Синхронизируем с клиентом
+                if (level != null && !level.isClientSide) {
+                    level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), 3);
+                }
+            }
+            return;
+        }
+
+        // Получаем/вычисляем температуру плавления для предмета
+        int meltingPoint = getMeltingPointForItem(stack);
+        if (meltingPoint <= 0) meltingPoint = 1000;
+
+        // Вычисляем heatRatio: temp = ROOM_TEMP + heatRatio * (meltingPoint - ROOM_TEMP)
+        // heatRatio = (temp - ROOM_TEMP) / (meltingPoint - ROOM_TEMP)
+        float heatRatio = (temp - HotItemHandler.ROOM_TEMP) / (meltingPoint - HotItemHandler.ROOM_TEMP);
+        heatRatio = Math.max(0, Math.min(1.2f, heatRatio)); // Можем перегреть до 120%!
+
+        // Устанавливаем HotTime в зависимости от heatRatio
+        // При heatRatio = 1.0 (температура плавления) - полный HotTime
+        int maxTime = HotItemHandler.BASE_COOLING_TIME_HANDS;
+        float hotTime = heatRatio * maxTime;
+
+        // Записываем в NBT предмета
+        stack.getOrCreateTag().putFloat("HotTime", hotTime);
+        stack.getOrCreateTag().putInt("HotTimeMax", maxTime);
+        stack.getOrCreateTag().putInt("MeltingPoint", meltingPoint);
+        stack.getOrCreateTag().putBoolean("CooledInPot", false); // В печи, не в котле
+
+        // Синхронизируем с клиентом для отображения градиента
+        if (level != null && !level.isClientSide && (int)hotTime % 10 == 0) {
+            level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), 3);
+        }
+    }
+
+    /**
+     * Получает температуру из NBT предмета (если есть)
+     */
+    private float getSlotTemperatureFromNBT(ItemStack stack) {
+        // Проверяем кастомный тег температуры для предметов без HotItemHandler
+        if (stack.hasTag() && stack.getTag().contains("SmelterTemp")) {
+            return stack.getTag().getFloat("SmelterTemp");
+        }
+        return HotItemHandler.ROOM_TEMP;
+    }
+
+
+
+
+
 
     // ==================== УТИЛИТЫ ====================
 
@@ -587,6 +817,11 @@ public class SmelterBlockEntity extends BlockEntity implements MenuProvider {
     public float getBottomMaxProgress() { return bottomMaxProgress; }
     public boolean isBottomSmelting() { return bottomSmelting; }
 
+    // Геттер для температур слотов (для рендера)
+    public float getSlotTemperature(int slot) {
+        return slot >= 0 && slot < 8 ? slotTemperatures[slot] : 20;
+    }
+
     public List<MetalStack> getMetalStacks() {
         List<MetalStack> list = new ArrayList<>();
         metalTank.forEach((metal, amount) -> {
@@ -632,7 +867,15 @@ public class SmelterBlockEntity extends BlockEntity implements MenuProvider {
         tag.putInt("RequiredTempTop", requiredTempTop);
         tag.putInt("RequiredTempBottom", requiredTempBottom);
 
-        // Сохраняем прогресс нижних слотов
+        // Сохраняем температуры слотов
+        ListTag tempsTag = new ListTag();
+        for (float temp : slotTemperatures) {
+            CompoundTag t = new CompoundTag();
+            t.putFloat("Temp", temp);
+            tempsTag.add(t);
+        }
+        tag.put("SlotTemperatures", tempsTag);
+
         ListTag bottomSlotsTag = new ListTag();
         for (int i = 0; i < 4; i++) {
             CompoundTag slotTag = new CompoundTag();
@@ -642,6 +885,8 @@ public class SmelterBlockEntity extends BlockEntity implements MenuProvider {
                 slotTag.putFloat("MaxProgress", bottomSlots[i].maxProgress);
                 slotTag.putFloat("HeatConsumption", bottomSlots[i].heatConsumption);
                 slotTag.putBoolean("Active", bottomSlots[i].active);
+                slotTag.putFloat("ItemTemperature", bottomSlots[i].itemTemperature);
+                slotTag.putInt("TargetTemperature", bottomSlots[i].targetTemperature);
 
                 if (bottomSlots[i].recipe != null) {
                     slotTag.putString("RecipeItem", ForgeRegistries.ITEMS.getKey(bottomSlots[i].recipe.input()).toString());
@@ -687,6 +932,14 @@ public class SmelterBlockEntity extends BlockEntity implements MenuProvider {
         requiredTempTop = tag.getInt("RequiredTempTop");
         requiredTempBottom = tag.getInt("RequiredTempBottom");
 
+        // Загружаем температуры слотов
+        if (tag.contains("SlotTemperatures")) {
+            ListTag tempsTag = tag.getList("SlotTemperatures", Tag.TAG_COMPOUND);
+            for (int i = 0; i < Math.min(8, tempsTag.size()); i++) {
+                slotTemperatures[i] = tempsTag.getCompound(i).getFloat("Temp");
+            }
+        }
+
         if (tag.contains("BottomSlots")) {
             ListTag bottomSlotsTag = tag.getList("BottomSlots", Tag.TAG_COMPOUND);
             for (int i = 0; i < Math.min(4, bottomSlotsTag.size()); i++) {
@@ -697,6 +950,8 @@ public class SmelterBlockEntity extends BlockEntity implements MenuProvider {
                     bottomSlots[i].maxProgress = slotTag.getFloat("MaxProgress");
                     bottomSlots[i].heatConsumption = slotTag.getFloat("HeatConsumption");
                     bottomSlots[i].active = slotTag.getBoolean("Active");
+                    bottomSlots[i].itemTemperature = slotTag.getFloat("ItemTemperature");
+                    bottomSlots[i].targetTemperature = slotTag.getInt("TargetTemperature");
 
                     if (slotTag.getBoolean("IsSlag")) {
                         bottomSlots[i].slagData = new SlagSlotData();

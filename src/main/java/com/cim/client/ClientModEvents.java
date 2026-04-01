@@ -1,13 +1,11 @@
 package com.cim.client;
 
-import com.cim.event.HotItemHandler;
-import com.cim.event.SlagItem;
+import com.cim.api.metallurgy.system.ItemHeatColorRegistry;
 import com.cim.main.ResourceRegistry;
 import com.cim.block.basic.ModBlocks;
 import com.cim.client.gecko.block.energy.MachineBatteryRenderer;
 import com.cim.client.overlay.gui.*;
 import com.cim.client.renderer.*;
-import com.cim.item.tools.FluidIdentifierItem;
 import net.minecraft.client.gui.screens.MenuScreens;
 import net.minecraft.client.renderer.block.BlockModelShaper;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderers;
@@ -16,16 +14,12 @@ import net.minecraft.client.renderer.entity.ThrownItemRenderer;
 import net.minecraft.client.renderer.item.ItemProperties;
 import net.minecraft.client.resources.model.BakedModel;
 import net.minecraft.client.resources.model.ModelResourceLocation;
-import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.material.Fluid;
-import net.minecraft.world.level.material.Fluids;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.*;
-import net.minecraftforge.client.extensions.common.IClientFluidTypeExtensions;
 import net.minecraftforge.client.gui.overlay.VanillaGuiOverlay;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -46,7 +40,6 @@ import com.cim.entity.ModEntities;
 import com.cim.item.ModItems;
 import com.cim.main.CrustalIncursionMod;
 import com.cim.menu.ModMenuTypes;
-import net.minecraftforge.registries.ForgeRegistries;
 
 @Mod.EventBusSubscriber(modid = CrustalIncursionMod.MOD_ID, bus = Mod.EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
 public class ClientModEvents {
@@ -128,98 +121,6 @@ public class ClientModEvents {
         event.registerAbove(VanillaGuiOverlay.HOTBAR.id(), "ammo_hud", OverlayAmmoHud.HUD_AMMO);
     }
 
-    @SubscribeEvent
-    public static void registerItemColors(RegisterColorHandlersEvent.Item event) {
-        event.register((stack, tintIndex) -> {
-            // tintIndex 0 - это layer0 (железная база), его не красим.
-            // tintIndex 1 - это layer1 (капля), красим её!
-            if (tintIndex == 1) {
-                String fluidId = FluidIdentifierItem.getSelectedFluid(stack);
-                if (fluidId.equals("none")) return 0xFFFFFF;
-                if (fluidId.equals("minecraft:lava")) return 0xFFFF5500;
-
-                Fluid fluid = ForgeRegistries.FLUIDS.getValue(new ResourceLocation(fluidId));
-                if (fluid != null && fluid != Fluids.EMPTY) {
-                    // Получаем цвет жидкости, точно так же как для рендера в бочке!
-                    return IClientFluidTypeExtensions.of(fluid).getTintColor();
-                }
-            }
-            return 0xFFFFFFFF;
-        }, ModItems.FLUID_IDENTIFIER.get()); // Замени на свой предмет
-
-
-        // === ГОРЯЧИЕ МЕТАЛЛЫ: ОТ ОРАНЖЕВОГО (горячий) К БЕЛОМУ (остыл) ===
-        event.register((stack, tintIndex) -> {
-                    if (tintIndex != 0) return -1;
-
-                    if (!HotItemHandler.isHot(stack)) return -1;
-
-                    float ratio = HotItemHandler.getHeatRatio(stack); // 1.0 = горячий, 0.0 = остыл
-
-                    // Если остыл меньше чем на 5% - показываем оригинальную текстуру
-                    if (ratio < 0.05f) return -1;
-
-                    // ГРАДИЕНТ: ОТ ЯРКО-ОРАНЖЕВОГО (горячий) К БЕЛОМУ (остыл)
-                    // Горячий (100%): 255, 100, 0 (яркий оранжевый)
-                    // Остывший (0%): 255, 255, 255 (белый, оригинальная текстура)
-
-                    int r = 255;
-                    int g = (int) (100 + (255 - 100) * (1 - ratio)); // 100 → 255 (оранжевый → белый)
-                    int b = (int) (0 + 255 * (1 - ratio));           // 0 → 255 (чёрный/тёмный → белый)
-
-                    return (0xFF << 24) | (r << 16) | (g << 8) | b;
-                },
-                Items.IRON_INGOT, Items.GOLD_INGOT, Items.NETHERITE_INGOT, Items.COPPER_INGOT,
-                ResourceRegistry.getMainUnit("steel"),
-                ResourceRegistry.getSmallUnit("steel"),
-                ResourceRegistry.getBlock("steel"),
-                ResourceRegistry.getMainUnit("aluminum"),
-                ResourceRegistry.getSmallUnit("aluminum"),
-                ResourceRegistry.getBlock("aluminum"),
-                ModItems.SLAG.get()
-        );
-
-        // === ШЛАК (улучшенная окраска с температурой) ===
-        event.register((stack, tintIndex) -> {
-            if (tintIndex != 0) return -1;
-            if (!stack.hasTag()) return 0xFF555555;
-
-            CompoundTag tag = stack.getTag();
-            int metalColor = tag.contains("Color") ? tag.getInt("Color") : 0x888888;
-            int r = (metalColor >> 16) & 0xFF;
-            int g = (metalColor >> 8) & 0xFF;
-            int b = metalColor & 0xFF;
-
-            // Если горячий - яркий цвет + оранжевый оттенок от температуры
-            if (tag.contains("HotTime") && tag.getFloat("HotTime") > 0) {
-                float ratio = HotItemHandler.getHeatRatio(stack);
-
-                // Остывший: темный фон + чуть цвета металла
-                int coldR = 0x33 + (r / 4);
-                int coldG = 0x33 + (g / 4);
-                int coldB = 0x33 + (b / 4);
-
-                // Горячий: яркий цвет металла + оранжевый оттенок от температуры
-                int hotR = Math.min(255, r + (int)(60 * ratio));
-                int hotG = Math.min(255, g + (int)(30 * ratio));
-                int hotB = Math.min(255, b + (int)(10 * ratio));
-
-                int finalR = (int) (coldR + (hotR - coldR) * ratio);
-                int finalG = (int) (coldG + (hotG - coldG) * ratio);
-                int finalB = (int) (coldB + (hotB - coldB) * ratio);
-
-                return (0xFF << 24) | (finalR << 16) | (finalG << 8) | finalB;
-            } else {
-                // Остывший шлак - темно-серый с оттенком металла
-                int dr = 0x33 + (r / 4);
-                int dg = 0x33 + (g / 4);
-                int db = 0x33 + (b / 4);
-                return (0xFF << 24) | (dr << 16) | (dg << 8) | db;
-            }
-        }, ModItems.SLAG.get());
-
-    }
-
 
     @SubscribeEvent
     public static void onModifyBakingResult(ModelEvent.ModifyBakingResult event) {
@@ -271,5 +172,66 @@ public class ClientModEvents {
             }
             return -1; // -1 значит "не перекрашивать"
         }, ModBlocks.BRONZE_FLUID_PIPE.get(), ModBlocks.STEEL_FLUID_PIPE.get(), ModBlocks.LEAD_FLUID_PIPE.get(), ModBlocks.TUNGSTEN_FLUID_PIPE.get() /* Добавь остальные трубы */);
+    }
+
+    @SubscribeEvent
+    public static void registerItemColors(RegisterColorHandlersEvent.Item event) {
+
+        // === РЕГИСТРАЦИЯ ГРАДИЕНТОВ ===
+        ItemHeatColorRegistry.registerMixed(ItemHeatColorRegistry.HeatGradient.RED_TO_WHITE,
+                Items.IRON_INGOT,
+                Items.IRON_NUGGET,
+                Items.IRON_BLOCK,  // Block автоматически конвертируется в Item
+                ResourceRegistry.getMainUnit("steel"),
+                ResourceRegistry.getSmallUnit("steel"),
+                ResourceRegistry.getBlock("steel")  // Block автоматически конвертируется в Item
+        );
+
+
+        ItemHeatColorRegistry.registerMixed(ItemHeatColorRegistry.HeatGradient.YELLOW_TO_WHITE,
+                Items.GOLD_INGOT,
+                Items.GOLD_NUGGET,
+                Items.GOLD_BLOCK
+        );
+
+
+        ItemHeatColorRegistry.registerMixed(ItemHeatColorRegistry.HeatGradient.YELLOW_TO_WHITE,
+                Items.COPPER_INGOT,
+                Items.COPPER_BLOCK
+        );
+
+
+        ItemHeatColorRegistry.registerMixed(ItemHeatColorRegistry.HeatGradient.RED_TO_WHITE,
+                Items.NETHERITE_INGOT,
+                Items.NETHERITE_BLOCK
+        );
+
+
+        ItemHeatColorRegistry.registerMixed(ItemHeatColorRegistry.HeatGradient.ORANGE_TO_WHITE,
+                ResourceRegistry.getMainUnit("aluminum"),
+                ResourceRegistry.getSmallUnit("aluminum"),
+                ResourceRegistry.getBlock("aluminum")
+        );
+
+        // === РЕГИСТРАЦИЯ ОБРАБОТЧИКОВ ЦВЕТА ===
+
+        // Стандартный обработчик для всех горячих предметов
+        event.register((stack, tintIndex) -> ItemHeatColorRegistry.getHeatColor(stack, tintIndex),
+                Items.IRON_INGOT, Items.IRON_NUGGET, Items.IRON_BLOCK,
+                Items.GOLD_INGOT, Items.GOLD_NUGGET, Items.GOLD_BLOCK,
+                Items.COPPER_INGOT, Items.COPPER_BLOCK,
+                Items.NETHERITE_INGOT, Items.NETHERITE_BLOCK,
+                ResourceRegistry.getMainUnit("steel"),
+                ResourceRegistry.getSmallUnit("steel"),
+                ResourceRegistry.getBlock("steel"),
+                ResourceRegistry.getMainUnit("aluminum"),
+                ResourceRegistry.getSmallUnit("aluminum"),
+                ResourceRegistry.getBlock("aluminum")
+        );
+
+        // Специальный обработчик для шлака
+        event.register((stack, tintIndex) -> ItemHeatColorRegistry.getSlagHeatColor(stack, tintIndex),
+                ModItems.SLAG.get()
+        );
     }
 }
