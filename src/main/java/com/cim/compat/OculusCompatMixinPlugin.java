@@ -11,14 +11,16 @@ public class OculusCompatMixinPlugin implements IMixinConfigPlugin {
     @Override
     public boolean shouldApplyMixin(String targetClassName, String mixinClassName) {
         if (mixinClassName.contains("compat.irisflw.mixin")) {
-            // Проверяем наличие ядра Окулуса в памяти
-            boolean hasOculus = Thread.currentThread().getContextClassLoader().getResource("net/irisshaders/iris/Iris.class") != null;
+            // Проверяем наличие конкурентов ПРЯМО ТУТ (до начала загрузки миксинов)
+            boolean hasConflict = Thread.currentThread().getContextClassLoader().getResource("irisflw.mixins.json") != null;
 
-            if (!hasOculus) {
-                System.out.println("[CIM] Oculus не найден в среде разработки. Миксины отключены.");
-                return false; // Спасает от краша в runClient!
+            if (hasConflict) {
+                // Если нашли файл миксинов Леона - ПОЛНОСТЬЮ отключаем свои, чтобы не было 'overwrite conflict'
+                return false;
             }
-            return true;
+
+            // Если конкурентов нет, проверяем наличие Окулуса
+            return Thread.currentThread().getContextClassLoader().getResource("net/irisshaders/iris/Iris.class") != null;
         }
         return true;
     }
