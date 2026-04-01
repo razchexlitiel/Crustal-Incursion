@@ -1,3 +1,5 @@
+// Полностью заменить HotItemHandler.java:
+
 package com.cim.event;
 
 import net.minecraft.world.entity.player.Player;
@@ -18,9 +20,8 @@ public class HotItemHandler {
 
         Player player = event.player;
         boolean hasHotItem = false;
-
-        // Остывание раз в 10 тиков (0.5 сек) вместо каждые 2 тика
-        boolean shouldCool = player.level().getGameTime() % 10 == 0;
+        // Остывание раз в 20 тиков (1 секунда)
+        boolean shouldCool = player.level().getGameTime() % 20 == 0;
         boolean inventoryChanged = false;
 
         for (int i = 0; i < player.getInventory().getContainerSize(); i++) {
@@ -30,10 +31,12 @@ public class HotItemHandler {
 
                 if (hotTime > 0) {
                     if (shouldCool) {
-                        hotTime -= 5; // Отнимаем сразу 5 единиц за раз
-                        if (hotTime < 0) hotTime = 0;
-                        stack.getTag().putInt("HotTime", hotTime);
-                        inventoryChanged = true;
+                        int newHotTime = Math.max(0, hotTime - 10); // -10 за раз
+                        // Обновляем только если значение реально изменилось
+                        if (newHotTime != hotTime) {
+                            stack.getOrCreateTag().putInt("HotTime", newHotTime);
+                            inventoryChanged = true;
+                        }
                     }
                     hasHotItem = true;
                 } else {
@@ -50,13 +53,12 @@ public class HotItemHandler {
             player.setSecondsOnFire(2);
         }
 
-        // Синхронизируем инвентарь только если реально были изменения
+        // Синхронизируем только при реальных изменениях
         if (inventoryChanged) {
             player.getInventory().setChanged();
         }
     }
 
-    // Тултип с процентом
     @SubscribeEvent
     public static void onTooltip(ItemTooltipEvent event) {
         ItemStack stack = event.getItemStack();
@@ -69,6 +71,4 @@ public class HotItemHandler {
             event.getToolTip().add(Component.literal("§6§lРАСКАЛЁННЫЙ! §7" + percent + "%"));
         }
     }
-    // Подсказка в тултипе "РАСКАЛЁННЫЙ!"
-
 }

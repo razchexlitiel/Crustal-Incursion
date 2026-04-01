@@ -49,6 +49,8 @@ public class ModItems {
 
     public static final RegistryObject<Item> SLAG = ITEMS.register("slag",
             () -> new SlagItem(new Item.Properties()));
+    public static final RegistryObject<Item> POKER = ITEMS.register("poker",
+            () -> new Item(new Item.Properties()));
 
     //ИНСТРУМЕНТЫ
     public static final RegistryObject<Item> SCREWDRIVER = ITEMS.register("screwdriver",

@@ -98,40 +98,36 @@ public class CastingPotRenderer implements BlockEntityRenderer<CastingPotBlockEn
             poseStack.popPose();
         }
 
-        // 4. ШЛАК (если сформировался)
+        // В CastingPotRenderer.java, ЗАМЕНИТЬ блок рендера шлака (строки ~115-150):
+// 4. ШЛАК (если сформировался)
         if (blockEntity.hasSlag()) {
-            ItemStack slagStack = blockEntity.getSlagStack();
+            // Используем цвет металла напрямую из БЭ, а не создаём стак
+            int slagColor = blockEntity.getSlagColor();
+            boolean isHot = blockEntity.getSlagHotTime() > 0;
+            float hotProgress = blockEntity.getSlagHotProgress();
+
+            // Создаём временный стак для рендера только если нужно
+            ItemStack slagStack = blockEntity.getSlagStackForRender();
 
             if (!slagStack.isEmpty()) {
                 poseStack.pushPose();
                 poseStack.translate(0.5f, 4.01f / 16.0f, 0.5f);
 
-                // Поворачиваем в направлении котла (как слиток)
                 float rotationY = getRotationFromFacing(facing);
                 poseStack.mulPose(com.mojang.math.Axis.YP.rotationDegrees(rotationY));
-
-                // Лежит плоско (как слиток)
                 poseStack.mulPose(com.mojang.math.Axis.XP.rotationDegrees(90));
 
                 float scale = 0.75f;
                 poseStack.scale(scale, scale, scale);
 
-                // Подсветка если горячий
-                boolean isHot = slagStack.hasTag() && slagStack.getTag().getInt("HotTime") > 0;
                 int renderLight = isHot ? 15728880 : packedLight;
 
                 itemRenderer.renderStatic(slagStack, ItemDisplayContext.FIXED,
                         renderLight, packedOverlay, poseStack, buffer,
                         blockEntity.getLevel(), 0);
 
-                // Эффект свечения если горячий (опционально)
-                if (isHot) {
-                    int hotTime = slagStack.getTag().getInt("HotTime");
-                    int maxTime = slagStack.getTag().getInt("HotTimeMax");
-                    float progress = hotTime / (float) maxTime;
-                    if (progress > 0.01f) {
-                        renderHotGlow(poseStack, buffer, progress);
-                    }
+                if (isHot && hotProgress > 0.01f) {
+                    renderHotGlow(poseStack, buffer, hotProgress);
                 }
 
                 poseStack.popPose();

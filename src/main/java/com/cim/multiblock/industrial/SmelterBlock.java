@@ -2,11 +2,14 @@ package com.cim.multiblock.industrial;
 
 import com.cim.block.basic.ModBlocks;
 import com.cim.block.entity.ModBlockEntities;
+import com.cim.event.SlagItem;
+import com.cim.item.ModItems;
 import com.cim.multiblock.system.IMultiblockController;
 import com.cim.multiblock.system.MultiblockStructureHelper;
 import com.cim.multiblock.system.PartRole;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.network.chat.Component;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.Containers;
@@ -146,12 +149,21 @@ public class SmelterBlock extends BaseEntityBlock implements IMultiblockControll
     public InteractionResult use(BlockState state, Level level, BlockPos pos, Player player, InteractionHand hand, BlockHitResult hit) {
         if (!level.isClientSide && level.getBlockEntity(pos) instanceof SmelterBlockEntity smelter) {
             ItemStack heldItem = player.getItemInHand(hand);
+            boolean isPoker = heldItem.is(ModItems.POKER.get()); // NEW
 
-            // === SHIFT + ПКМ КИРКОЙ - СБРОС МЕТАЛЛА КАК ШЛАК ===
-            if (heldItem.getItem() instanceof PickaxeItem && player.isShiftKeyDown()) {
+            // === SHIFT + ПКМ - СБРОС МЕТАЛЛА КАК ШЛАКА (требуется кочерга) ===
+            if (player.isShiftKeyDown()) {
+                if (!isPoker) {
+                    player.displayClientMessage(Component.literal("§cНужна кочерга!"), true);
+                    return InteractionResult.PASS;
+                }
                 if (smelter.hasMetal()) {
                     List<ItemStack> slagItems = smelter.dumpMetalAsSlag();
                     for (ItemStack slag : slagItems) {
+                        if (!slag.hasTag() || !slag.getTag().contains("HotTime")) {
+                            slag.getOrCreateTag().putInt("HotTime", SlagItem.BASE_COOLING_TIME);
+                            slag.getOrCreateTag().putInt("HotTimeMax", SlagItem.BASE_COOLING_TIME);
+                        }
                         Containers.dropItemStack(level, pos.getX(), pos.getY(), pos.getZ(), slag);
                     }
                     level.playSound(null, pos, SoundEvents.ITEM_PICKUP, SoundSource.BLOCKS, 1.0f, 0.8f);
