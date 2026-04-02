@@ -31,16 +31,15 @@ public class ShaftBlockEntity extends BlockEntity implements Rotational {
     public void setSpeed(long speed) {
         if (this.speed != speed) {
             this.speed = speed;
-            setChanged(); // Сохраняем изменения в чанк
-
-            // ВАЖНО: Отправляем пакет обновления на клиент (Flywheel)!
+            setChanged();
+            // ВАЖНО: Отправляем пакет клиенту, чтобы Flywheel начал крутить вал!
             if (level != null && !level.isClientSide) {
                 level.sendBlockUpdated(getBlockPos(), getBlockState(), getBlockState(), 3);
             }
         }
     }
 
-    // --- НАЧАЛО БЛОКА СИНХРОНИЗАЦИИ ---
+    // --- ОБЯЗАТЕЛЬНАЯ СИНХРОНИЗАЦИЯ NBT ---
     @Override
     protected void saveAdditional(net.minecraft.nbt.CompoundTag tag) {
         super.saveAdditional(tag);
@@ -63,6 +62,16 @@ public class ShaftBlockEntity extends BlockEntity implements Rotational {
     @Override
     public net.minecraft.network.protocol.Packet<net.minecraft.network.protocol.game.ClientGamePacketListener> getUpdatePacket() {
         return net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket.create(this);
+    }
+
+    @Override
+    public void onLoad() {
+        super.onLoad();
+        // Когда чанк загружается на сервере, регистрируем блок в сети
+        if (level != null && !level.isClientSide) {
+            com.cim.api.rotation.KineticNetworkManager.get((net.minecraft.server.level.ServerLevel) level)
+                    .updateNetworkAfterPlace(worldPosition);
+        }
     }
     // --- КОНЕЦ БЛОКА СИНХРОНИЗАЦИИ ---
 

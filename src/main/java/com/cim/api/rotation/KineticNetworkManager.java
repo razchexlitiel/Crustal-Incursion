@@ -55,24 +55,50 @@ public class KineticNetworkManager {
 
                 if (neighborCanConnect) {
                     KineticNetwork net = blockToNetwork.get(neighborPos);
+                    // МАГИЯ ТУТ: Если соседа нет в памяти менеджера (после перезахода),
+                    // заставляем его "проснуться" и собрать свою сеть
+                    if (net == null) {
+                        net = createNewNetworkFrom(neighborPos);
+                    }
                     if (net != null) neighborNetworks.add(net);
                 }
             }
         }
 
-        // Logical decision making
+        if (neighborNetworks.size() > 1) {
+            long firstActiveSpeed = 0;
+            boolean conflict = false;
+
+            for (KineticNetwork net : neighborNetworks) {
+                long netSpeed = net.getSpeed();
+                if (netSpeed != 0) {
+                    if (firstActiveSpeed == 0) {
+                        firstActiveSpeed = netSpeed;
+                    } else if (firstActiveSpeed != netSpeed) {
+                        // Если скорости двух сетей разные (напр. 20 и -20) — КОНФЛИКТ!
+                        conflict = true;
+                        break;
+                    }
+                }
+            }
+
+            if (conflict) {
+                LOGGER.info("[Kinetic] Rotational conflict at {}! Breaking shaft.", pos.toShortString());
+                level.destroyBlock(pos, true); // Ломаем блок и выкидываем его как предмет
+                return; // Прекращаем выполнение, сети не объединятся
+            }
+        }
+
+        // --- ДАЛЬШЕ СТАНДАРТНАЯ ЛОГИКА СЛИЯНИЯ ---
         if (neighborNetworks.isEmpty()) {
             KineticNetwork newNet = new KineticNetwork();
             registerBlockToNetwork(pos, newNet);
-            LOGGER.info("[Kinetic] Created new network {} for {}", newNet.getId().toString().substring(0, 8), pos.toShortString());
             newNet.recalculate(level);
         } else if (neighborNetworks.size() == 1) {
             KineticNetwork existingNet = neighborNetworks.iterator().next();
             registerBlockToNetwork(pos, existingNet);
-            LOGGER.info("[Kinetic] Block joined network {}", existingNet.getId().toString().substring(0, 8));
             existingNet.recalculate(level);
         } else {
-            LOGGER.info("[Kinetic] Merging {} networks at {}", neighborNetworks.size(), pos.toShortString());
             mergeNetworks(neighborNetworks, pos);
         }
     }
@@ -102,7 +128,7 @@ public class KineticNetworkManager {
         }
     }
 
-    private void createNewNetworkFrom(BlockPos start) {
+    private KineticNetwork createNewNetworkFrom(BlockPos start) {
         KineticNetwork newNet = new KineticNetwork();
         java.util.Queue<BlockPos> queue = new java.util.LinkedList<>();
         queue.add(start);
@@ -116,9 +142,7 @@ public class KineticNetworkManager {
 
                 for (Direction dir : node.getPropagationDirections()) {
                     BlockPos neighborPos = current.relative(dir);
-                    BlockEntity neighborBE = level.getBlockEntity(neighborPos);
-
-                    if (neighborBE instanceof Rotational neighborNode) {
+                    if (level.getBlockEntity(neighborPos) instanceof Rotational neighborNode) {
                         for (Direction neighborDir : neighborNode.getPropagationDirections()) {
                             if (neighborDir == dir.getOpposite()) {
                                 queue.add(neighborPos);
@@ -130,28 +154,27 @@ public class KineticNetworkManager {
             }
         }
         newNet.recalculate(level);
-        LOGGER.info("[Kinetic] New segment created {}: {} blocks", newNet.getId().toString().substring(0, 8), newNet.getMembers().size());
+        return newNet; // Теперь возвращаем сеть
     }
 
     private void mergeNetworks(Set<KineticNetwork> networks, BlockPos connectorPos) {
         KineticNetwork mainNet = networks.iterator().next();
-        String mainId = mainNet.getId().toString().substring(0, 8);
         networks.remove(mainNet);
 
         for (KineticNetwork otherNet : networks) {
-            String otherId = otherNet.getId().toString().substring(0, 8);
-            int movedBlocks = otherNet.getMembers().size();
-
+            // ФИКС БАГА: Переносим и обычные блоки, и ГЕНЕРАТОРЫ (моторы)
             for (BlockPos memberPos : otherNet.getMembers()) {
                 blockToNetwork.put(memberPos, mainNet);
                 mainNet.addMember(memberPos);
             }
-            LOGGER.info("[Kinetic] Network {} absorbed network {} (moved {} blocks)", mainId, otherId, movedBlocks);
+
+            for (BlockPos genPos : otherNet.getGenerators()) {
+                mainNet.addGenerator(genPos); // Теперь моторы не потеряются!
+            }
         }
 
         registerBlockToNetwork(connectorPos, mainNet);
         mainNet.recalculate(level);
-        LOGGER.info("[Kinetic] Merge complete. Final network {}: {} members", mainId, mainNet.getMembers().size());
     }
 
     private void registerBlockToNetwork(BlockPos pos, KineticNetwork net) {
@@ -161,5 +184,9 @@ public class KineticNetworkManager {
         if (be instanceof Rotational rot && rot.isSource()) {
             net.addGenerator(pos);
         }
+    }
+
+    public KineticNetwork getNetworkFor(BlockPos pos) {
+        return blockToNetwork.get(pos);
     }
 }

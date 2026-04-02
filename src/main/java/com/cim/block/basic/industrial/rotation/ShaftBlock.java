@@ -87,19 +87,20 @@ public class ShaftBlock extends BaseEntityBlock {
     @Override
     public void onPlace(BlockState state, Level level, BlockPos pos, BlockState oldState, boolean isMoving) {
         super.onPlace(state, level, pos, oldState, isMoving);
-
         if (!level.isClientSide) {
-            // Получаем менеджер для этого мира и обновляем сеть
-            // Примечание: тебе нужно будет создать способ получения менеджера,
-            // например через статический метод в главном классе или Capability.
-            KineticNetworkManager.get((ServerLevel)level).updateNetworkAfterPlace(pos);
+            // Обязательно вызываем наш менеджер!
+            com.cim.api.rotation.KineticNetworkManager.get((ServerLevel) level).updateNetworkAfterPlace(pos);
         }
     }
 
     @Override
     public void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean isMoving) {
         if (!level.isClientSide && state.getBlock() != newState.getBlock()) {
-            KineticNetworkManager.get((ServerLevel) level).updateNetworkAfterRemove(pos);
+            // 1. Сначала вызываем super, чтобы Майнкрафт гарантированно стёр BlockEntity из мира
+            super.onRemove(state, level, pos, newState, isMoving);
+            // 2. И только теперь пересобираем сеть — мертвый блок в неё уже не попадёт
+            com.cim.api.rotation.KineticNetworkManager.get((ServerLevel) level).updateNetworkAfterRemove(pos);
+            return;
         }
         super.onRemove(state, level, pos, newState, isMoving);
     }

@@ -17,6 +17,7 @@ import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.DirectionProperty;
 import org.jetbrains.annotations.Nullable;
+import net.minecraft.network.chat.Component;
 
 public class MotorElectroBlock extends BaseEntityBlock {
     public static final DirectionProperty FACING = BlockStateProperties.FACING;
@@ -25,6 +26,47 @@ public class MotorElectroBlock extends BaseEntityBlock {
         super(properties);
         this.registerDefaultState(this.stateDefinition.any().setValue(FACING, Direction.NORTH));
     }
+
+    @Override
+    public net.minecraft.world.InteractionResult use(BlockState state, Level level, BlockPos pos, net.minecraft.world.entity.player.Player player, net.minecraft.world.InteractionHand hand, net.minecraft.world.phys.BlockHitResult hit) {
+        if (player.getItemInHand(hand).isEmpty()) {
+            if (!level.isClientSide) {
+                if (level.getBlockEntity(pos) instanceof MotorElectroBlockEntity motor) {
+                    // 1. Меняем направление мотора
+                    motor.toggleDirection();
+
+                    // 2. Получаем текущую сеть
+                    com.cim.api.rotation.KineticNetworkManager manager = com.cim.api.rotation.KineticNetworkManager.get((ServerLevel) level);
+                    com.cim.api.rotation.KineticNetwork net = manager.getNetworkFor(pos);
+
+                    if (net != null) {
+                        // 3. Спрашиваем сеть: "Все ли моторы теперь согласны?"
+                        if (net.checkConflict((ServerLevel) level)) {
+                            // КОНФЛИКТ! Ищем блок, через который мотор подключен к сети
+                            Direction motorFacing = state.getValue(FACING);
+                            BlockPos adjacentPos = pos.relative(motorFacing);
+
+                            // Убеждаемся, что перед нами кинетический блок
+                            if (level.getBlockEntity(adjacentPos) instanceof com.cim.api.rotation.Rotational) {
+                                // Ломаем связующее звено!
+                                // true означает, что блок выпадет как предмет (дроп)
+                                level.destroyBlock(adjacentPos, true);
+                                player.displayClientMessage(Component.literal("Конфликт вращения! Вал не выдержал напряжения."), true);
+                            }
+                        } else {
+                            // Если всё мирно, просто обновляем скорости для всех
+                            net.recalculate((ServerLevel) level);
+                            player.displayClientMessage(Component.literal("Направление изменено!"), true);
+                        }
+                    }
+                }
+            }
+            return net.minecraft.world.InteractionResult.sidedSuccess(level.isClientSide);
+        }
+        return super.use(state, level, pos, player, hand, hit);
+    }
+
+
 
     @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
@@ -50,7 +92,11 @@ public class MotorElectroBlock extends BaseEntityBlock {
     @Override
     public void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean isMoving) {
         if (!level.isClientSide && state.getBlock() != newState.getBlock()) {
-            KineticNetworkManager.get((ServerLevel) level).updateNetworkAfterRemove(pos);
+            // 1. Сначала вызываем super, чтобы Майнкрафт гарантированно стёр BlockEntity из мира
+            super.onRemove(state, level, pos, newState, isMoving);
+            // 2. И только теперь пересобираем сеть — мертвый блок в неё уже не попадёт
+            com.cim.api.rotation.KineticNetworkManager.get((ServerLevel) level).updateNetworkAfterRemove(pos);
+            return;
         }
         super.onRemove(state, level, pos, newState, isMoving);
     }
