@@ -52,7 +52,7 @@ public class CastingPotBlockEntity extends BlockEntity {
     public static final float POT_COOLING_TIME = HotItemHandler.BASE_COOLING_TIME_POT; // 160 тиков
 
     // Поля для шлака
-    private static final int SLAG_FORMATION_TIME = 40;
+    private static final int SLAG_FORMATION_TIME = 80;
     private int metalIdleTime = 0;
     private boolean isSlagged = false;
     private CompoundTag slagData = null;
@@ -164,6 +164,13 @@ public class CastingPotBlockEntity extends BlockEntity {
         slagData.putInt(SlagItem.TAG_MELTING_POINT, currentMetal.getMeltingPoint());
         slagData.putInt(SlagItem.TAG_COLOR, currentMetal.getColor());
         slagData.putFloat(SlagItem.TAG_HEAT_CONSUMPTION, currentMetal.getHeatConsumptionPerTick());
+
+        // === УСТАНАВЛИВАЕМ ГОРЯЧЕСТЬ ШЛАКА ===
+        // Шлак должен быть горячим как расплавленный металл
+        int maxTime = HotItemHandler.BASE_COOLING_TIME_POT; // 160 тиков для котла
+        slagData.putFloat("HotTime", (float) maxTime);
+        slagData.putInt("HotTimeMax", maxTime);
+        slagData.putBoolean("CooledInPot", true); // Охлаждается в котле (быстрее)
 
         storedUnits = 0;
         currentMetal = null;
@@ -365,12 +372,12 @@ public class CastingPotBlockEntity extends BlockEntity {
     public ItemStack extractSlagForHopper() {
         if (!isSlagged || slagData == null) return ItemStack.EMPTY;
 
-        ItemStack slag = SlagItem.createSlagFromNBT(slagData);
-        // Проверяем, остыл ли шлак полностью
+        // Проверяем, остыл ли шлак
         if (slagData.contains("HotTime") && slagData.getFloat("HotTime") > 0.5f) {
             return ItemStack.EMPTY; // Ещё горячий - воронка не берёт
         }
 
+        ItemStack slag = SlagItem.createSlagFromNBT(slagData);
         clearSlag();
         setChanged();
         level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), 3);
@@ -444,6 +451,19 @@ public class CastingPotBlockEntity extends BlockEntity {
         if (!isSlagged || slagData == null) return ItemStack.EMPTY;
 
         ItemStack slag = SlagItem.createSlagFromNBT(slagData);
+
+        // Переносим данные о горячести в ItemStack если шлак ещё горячий
+        if (slagData.contains("HotTime") && slagData.getFloat("HotTime") > 0.5f) {
+            float hotTime = slagData.getFloat("HotTime");
+            int maxTime = slagData.getInt("HotTimeMax");
+            int meltingPoint = slagData.getInt(SlagItem.TAG_MELTING_POINT);
+
+            slag.getOrCreateTag().putFloat("HotTime", hotTime);
+            slag.getOrCreateTag().putInt("HotTimeMax", maxTime);
+            slag.getOrCreateTag().putInt("MeltingPoint", meltingPoint);
+            slag.getOrCreateTag().putBoolean("CooledInPot", slagData.getBoolean("CooledInPot"));
+        }
+
         clearSlag();
         setChanged();
         level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), 3);

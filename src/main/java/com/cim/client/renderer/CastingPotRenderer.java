@@ -65,7 +65,19 @@ public class CastingPotRenderer implements BlockEntityRenderer<CastingPotBlockEn
             poseStack.popPose();
         }
 
-        // 2. ЖИДКИЙ МЕТАЛЛ (не нужно вращать, это куб)
+        // 2. ЖИДКИЙ МЕТАЛЛ (рендерим только если нет готового предмета)
+        if (blockEntity.getStoredUnits() > 0 && output.isEmpty()) {
+            float fillLevel = blockEntity.getFillLevel();
+            float heightPixels = 0.1f + 1.9f * fillLevel;
+            float yCenter = (4.35f + heightPixels / 2.0f) / 16.0f;
+            int color = blockEntity.getCurrentMetal() != null ? blockEntity.getCurrentMetal().getColor() : 0xFFFFFF;
+
+            poseStack.pushPose();
+            poseStack.translate(0.5f, yCenter, 0.5f);
+            poseStack.scale(0.75f, heightPixels / 16.0f, 0.75f);
+            renderLiquidCube(poseStack, buffer, 15728880, color);
+            poseStack.popPose();
+        }
 
         // 3. ГОТОВЫЙ ПРЕДМЕТ
         if (!output.isEmpty()) {
