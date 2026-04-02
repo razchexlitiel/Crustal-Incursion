@@ -34,6 +34,8 @@ import java.util.*;
 
 public class CastingPotBlockEntity extends BlockEntity {
     public static final int CAPACITY_MOLD_INGOT = MetalUnits2.UNITS_PER_INGOT; // 9 единиц
+    public static final int CAPACITY_MOLD_NUGGET = MetalUnits2.UNITS_PER_NUGGET; // 1 единица
+    public static final int CAPACITY_MOLD_BLOCK = MetalUnits2.UNITS_PER_BLOCK; // 81 единица
 
     private ItemStack mold = ItemStack.EMPTY;
     private ItemStack outputItem = ItemStack.EMPTY;
@@ -50,7 +52,15 @@ public class CastingPotBlockEntity extends BlockEntity {
 
     // Время охлаждения в котле - соответствует HotItemHandler.BASE_COOLING_TIME_POT
     public static final float POT_COOLING_TIME = HotItemHandler.BASE_COOLING_TIME_POT; // 160 тиков
+    // Для формы блока - храним тип металла для рендера
+    private Metal blockRenderMetal = null;
+    public boolean isBlockMold() {
+        return mold.is(ModItems.MOLD_BLOCK.get());
+    }
 
+    public Metal getBlockRenderMetal() {
+        return blockRenderMetal != null ? blockRenderMetal : currentMetal;
+    }
     // Поля для шлака
     private static final int SLAG_FORMATION_TIME = 80;
     private int metalIdleTime = 0;
@@ -127,12 +137,19 @@ public class CastingPotBlockEntity extends BlockEntity {
         if (currentMetal == null || storedUnits < capacity) return;
 
         ItemStack result = ItemStack.EMPTY;
-        if (currentMetal.hasIngot()) {
+
+        if (mold.is(ModItems.MOLD_INGOT.get()) && currentMetal.hasIngot()) {
             result = new ItemStack(currentMetal.getIngot());
+        } else if (mold.is(ModItems.MOLD_NUGGET.get()) && currentMetal.hasNugget()) {
+            result = new ItemStack(currentMetal.getNugget());
+        } else if (mold.is(ModItems.MOLD_BLOCK.get()) && currentMetal.hasBlock()) {
+            // Для блока создаём ItemStack блока
+            result = new ItemStack(currentMetal.getBlock());
+            // Сохраняем металл для рендера (если нужно для визуала)
+            this.blockRenderMetal = currentMetal;
         }
 
         if (!result.isEmpty()) {
-            // Устанавливаем горячесть через HotItemHandler - в котле охлаждение быстрее
             HotItemHandler.setHot(result, currentMetal.getMeltingPoint(), true);
             this.outputItem = result;
         }
@@ -143,8 +160,6 @@ public class CastingPotBlockEntity extends BlockEntity {
             this.storedUnits = 0;
         }
         this.solidifyTimer = 0;
-
-        // Запускаем таймер охлаждения для отслеживания в БЭ
         this.coolingTimer = HotItemHandler.BASE_COOLING_TIME_POT;
 
         setChanged();
@@ -558,6 +573,10 @@ public class CastingPotBlockEntity extends BlockEntity {
     private void updateCapacity() {
         if (mold.is(ModItems.MOLD_INGOT.get())) {
             this.capacity = CAPACITY_MOLD_INGOT;
+        } else if (mold.is(ModItems.MOLD_NUGGET.get())) {
+            this.capacity = CAPACITY_MOLD_NUGGET;
+        } else if (mold.is(ModItems.MOLD_BLOCK.get())) {
+            this.capacity = CAPACITY_MOLD_BLOCK;
         } else {
             this.capacity = 0;
         }
@@ -661,6 +680,9 @@ public class CastingPotBlockEntity extends BlockEntity {
         if (currentMetal != null) {
             tag.putString("MetalId", currentMetal.getId().toString());
         }
+        if (blockRenderMetal != null) {
+            tag.putString("BlockRenderMetal", blockRenderMetal.getId().toString());
+        }
     }
 
     @Override
@@ -682,6 +704,10 @@ public class CastingPotBlockEntity extends BlockEntity {
             ResourceLocation id = new ResourceLocation(tag.getString("MetalId"));
             MetallurgyRegistry.get(id).ifPresent(m -> this.currentMetal = m);
         }
+        if (tag.contains("BlockRenderMetal")) {
+            ResourceLocation id = new ResourceLocation(tag.getString("BlockRenderMetal"));
+            MetallurgyRegistry.get(id).ifPresent(m -> this.blockRenderMetal = m);
+        }
         updateCapacity();
     }
 
@@ -701,6 +727,9 @@ public class CastingPotBlockEntity extends BlockEntity {
 
         if (currentMetal != null) {
             tag.putString("MetalId", currentMetal.getId().toString());
+        }
+        if (blockRenderMetal != null) {
+            tag.putString("BlockRenderMetal", blockRenderMetal.getId().toString());
         }
         return tag;
     }
@@ -733,6 +762,12 @@ public class CastingPotBlockEntity extends BlockEntity {
                 MetallurgyRegistry.get(id).ifPresent(m -> this.currentMetal = m);
             } else {
                 this.currentMetal = null;
+            }
+            if (tag.contains("BlockRenderMetal")) {
+                ResourceLocation id = new ResourceLocation(tag.getString("BlockRenderMetal"));
+                MetallurgyRegistry.get(id).ifPresent(m -> this.blockRenderMetal = m);
+            } else {
+                this.blockRenderMetal = null;
             }
             updateCapacity();
         }
