@@ -1,6 +1,9 @@
 package com.cim.api.rotation;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.Tag;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import java.util.HashSet;
@@ -21,9 +24,18 @@ public class KineticNetwork {
     private long currentSpeed = 0;
     private long totalGeneratedTorque = 0;
     private long totalConsumedTorque = 0;
+    private long totalInertia = 1; // Защита от деления на ноль
+    private long totalFriction = 0;
+    private long targetNetworkSpeed = 0;
+    private boolean needsRecalculation = true;// К чему стремится мотор
 
     public KineticNetwork() {
         this.networkId = UUID.randomUUID();
+    }
+
+    // Конструктор специально для загрузки сети из памяти
+    public KineticNetwork(UUID id) {
+        this.networkId = id;
     }
 
     public UUID getId() { return networkId; }
@@ -31,53 +43,125 @@ public class KineticNetwork {
     /**
      * Главный мозг сети. Вызывается при любом изменении состава блоков.
      */
-    public void recalculate(ServerLevel level) {
-        this.totalGeneratedTorque = 0;
-        long networkSpeed = 0; // Знаковое число скорости сети
 
-        for (BlockPos genPos : generators) {
-            if (level.getBlockEntity(genPos) instanceof Rotational gen) {
-                totalGeneratedTorque += gen.getTorque();
+    public boolean tick(ServerLevel level) {
+        if (members.isEmpty()) return false;
 
-                if (networkSpeed == 0) {
-                    long speed = gen.getSpeed();
+        if (this.needsRecalculation) {
+            this.recalculate(level);
+            this.needsRecalculation = false;
+        }
 
-                    // --- МАГИЯ СИНХРОНИЗАЦИИ ОСЕЙ ---
-                    // Получаем стейт генератора, чтобы узнать куда он смотрит
-                    net.minecraft.world.level.block.state.BlockState state = level.getBlockState(genPos);
-                    if (state.hasProperty(net.minecraft.world.level.block.state.properties.BlockStateProperties.FACING)) {
-                        net.minecraft.core.Direction facing = state.getValue(net.minecraft.world.level.block.state.properties.BlockStateProperties.FACING);
+        long oldSpeed = this.currentSpeed;
+        long deltaSpeed = 0;
 
-                        // Если генератор смотрит в положительном направлении глобальных осей,
-                        // мы инвертируем его скорость, чтобы она совпадала с визуальной физикой валов
-                        if (facing == net.minecraft.core.Direction.SOUTH ||
-                                facing == net.minecraft.core.Direction.EAST ||
-                                facing == net.minecraft.core.Direction.UP) {
-                            speed = -speed;
-                        }
-                    }
+        // 1. РАЗГОН (если генераторы работают)
+        if (totalGeneratedTorque > 0) {
+            // Формула из плана
+            long effectiveTorque = totalGeneratedTorque - totalFriction;
 
-                    networkSpeed = speed;
+            if (effectiveTorque > 0) {
+                // Вычисляем ускорение
+                deltaSpeed = effectiveTorque / totalInertia;
+                if (deltaSpeed == 0) deltaSpeed = 1; // Минимальный шаг
+
+                // Направляем ускорение в нужную сторону
+                deltaSpeed = targetNetworkSpeed > 0 ? deltaSpeed : -deltaSpeed;
+            }
+        }
+        // 2. ИНЕРЦИЯ И ОСТАНОВКА (моторы выключены) [cite: 30]
+        else {
+            if (this.currentSpeed != 0) {
+                // Трение всегда против движения [cite: 28, 29]
+                deltaSpeed = (totalFriction / totalInertia);
+                if (deltaSpeed == 0) deltaSpeed = 1;
+
+                if (this.currentSpeed > 0) {
+                    deltaSpeed = -deltaSpeed;
                 }
             }
         }
 
-        long totalConsumption = members.size();
+        // 3. ПРИМЕНЯЕМ УСКОРЕНИЕ
+        if (deltaSpeed != 0) {
+            long newSpeed = this.currentSpeed + deltaSpeed;
 
-        // Если крутящего момента не хватает — останавливаем сеть
-        if (totalGeneratedTorque < totalConsumption) {
-            this.currentSpeed = 0;
-        } else {
-            this.currentSpeed = networkSpeed;
-        }
+            // Ограничения скорости
+            if (totalGeneratedTorque > 0) {
+                // Не даем разогнаться быстрее мотора
+                if ((targetNetworkSpeed > 0 && newSpeed > targetNetworkSpeed) ||
+                        (targetNetworkSpeed < 0 && newSpeed < targetNetworkSpeed)) {
+                    newSpeed = targetNetworkSpeed;
+                }
+            } else {
+                // Если тормозим, то останавливаемся ровно в нуле [cite: 30]
+                if ((this.currentSpeed > 0 && newSpeed < 0) ||
+                        (this.currentSpeed < 0 && newSpeed > 0)) {
+                    newSpeed = 0;
+                }
+            }
 
-        // Рассылаем итоговую скорость всем участникам
-        for (BlockPos pos : members) {
-            if (level.getBlockEntity(pos) instanceof Rotational node) {
-                node.setSpeed(this.currentSpeed);
+            // 4. РАССЫЛАЕМ ОБНОВЛЕНИЯ
+            if (this.currentSpeed != newSpeed) {
+                this.currentSpeed = newSpeed;
+
+                for (BlockPos pos : members) {
+                    if (level.isLoaded(pos)) { // [cite: 42]
+                        BlockEntity be = level.getBlockEntity(pos);
+                        if (be instanceof Rotational node) {
+                            node.setSpeed(this.currentSpeed);
+                        }
+                    }
+                }
             }
         }
+        return oldSpeed != this.currentSpeed;
     }
+
+    public void recalculate(ServerLevel level) {
+        this.totalGeneratedTorque = 0;
+        this.totalInertia = 0;
+        this.totalFriction = 0;
+        this.targetNetworkSpeed = 0;
+
+        // 1. Собираем физику со всех участников
+        for (BlockPos pos : members) {
+            // ВАЖНО: Проверяем загрузку чанка! [cite: 42]
+            if (level.isLoaded(pos) && level.getBlockEntity(pos) instanceof Rotational node) {
+                this.totalInertia += node.getInertiaContribution();
+                this.totalFriction += node.getFrictionContribution();
+
+                node.setSpeed(this.currentSpeed);
+            }
+
+
+        }
+
+        // 2. Опрашиваем генераторы
+        for (BlockPos genPos : generators) {
+            if (level.isLoaded(genPos) && level.getBlockEntity(genPos) instanceof Rotational gen) {
+                totalGeneratedTorque += gen.getTorque();
+
+                if (targetNetworkSpeed == 0) {
+                    long speed = gen.getGeneratedSpeed();
+                    // ... (Тут твоя текущая магия синхронизации осей через Direction)
+                    net.minecraft.world.level.block.state.BlockState state = level.getBlockState(genPos);
+                    if (state.hasProperty(net.minecraft.world.level.block.state.properties.BlockStateProperties.FACING)) {
+                        net.minecraft.core.Direction facing = state.getValue(net.minecraft.world.level.block.state.properties.BlockStateProperties.FACING);
+                        if (facing == net.minecraft.core.Direction.SOUTH || facing == net.minecraft.core.Direction.EAST || facing == net.minecraft.core.Direction.UP) {
+                            speed = -speed;
+                        }
+                    }
+                    targetNetworkSpeed = speed;
+                }
+            }
+        }
+
+        // Защита от нулевой инерции
+        if (this.totalInertia <= 0) this.totalInertia = 1;
+    }
+
+
 
     public boolean checkConflict(ServerLevel level) {
         // Если мотор один или их вообще нет — конфликта быть не может
@@ -123,6 +207,47 @@ public class KineticNetwork {
         }
     }
 
+    public CompoundTag serializeNBT() {
+        CompoundTag nbt = new CompoundTag();
+        nbt.putUUID("Id", networkId);
+        nbt.putLong("Speed", currentSpeed);
+
+        ListTag membersTag = new ListTag();
+        for (BlockPos pos : members) {
+            membersTag.add(net.minecraft.nbt.LongTag.valueOf(pos.asLong()));
+        }
+        nbt.put("Members", membersTag);
+
+        ListTag generatorsTag = new ListTag();
+        for (BlockPos pos : generators) {
+            generatorsTag.add(net.minecraft.nbt.LongTag.valueOf(pos.asLong()));
+        }
+        nbt.put("Generators", generatorsTag);
+
+        return nbt;
+    }
+
+    public static KineticNetwork deserializeNBT(CompoundTag nbt) {
+        // Создаем сеть с сохраненным UUID
+        KineticNetwork net = new KineticNetwork(nbt.getUUID("Id"));
+        net.currentSpeed = nbt.getLong("Speed");
+
+        ListTag membersTag = nbt.getList("Members", Tag.TAG_LONG);
+        for (int i = 0; i < membersTag.size(); i++) {
+            // Берем тег из списка, кастуем его к LongTag и вытаскиваем long
+            long posLong = ((net.minecraft.nbt.LongTag) membersTag.get(i)).getAsLong();
+            net.members.add(BlockPos.of(posLong));
+        }
+
+        ListTag gensTag = nbt.getList("Generators", Tag.TAG_LONG);
+        for (int i = 0; i < gensTag.size(); i++) {
+            long posLong = ((net.minecraft.nbt.LongTag) gensTag.get(i)).getAsLong();
+            net.generators.add(BlockPos.of(posLong));
+        }
+
+        return net;
+    }
+
     public void addMember(BlockPos pos) {
         this.members.add(pos);
     }
@@ -130,6 +255,15 @@ public class KineticNetwork {
     public void addGenerator(BlockPos pos) {
         this.generators.add(pos);
         this.members.add(pos); // Генератор всегда является и обычным участником [cite: 2]
+    }
+
+    public void removeMember(BlockPos pos) {
+        this.members.remove(pos);
+        this.generators.remove(pos);
+    }
+
+    public void requestRecalculation() {
+        this.needsRecalculation = true;
     }
 
     // Также добавь геттер для members, если его нет (нужен для Merge)
@@ -141,8 +275,13 @@ public class KineticNetwork {
     public long getSpeed() { return currentSpeed; }
     public Set<BlockPos> getGenerators() { return generators; }
 
-    public void removeMember(BlockPos pos) {
-        this.members.remove(pos);
-        this.generators.remove(pos);
+    public long getTargetSpeed() {
+        return targetNetworkSpeed;
     }
+
+    public void setCurrentSpeed(long speed) {
+        this.currentSpeed = speed;
+    }
+
+
 }

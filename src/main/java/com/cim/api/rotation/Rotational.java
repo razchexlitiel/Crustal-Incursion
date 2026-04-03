@@ -18,6 +18,18 @@ public interface Rotational {
     long getMaxSpeed();
     long getMaxTorque();
 
+    // --- ДАННЫЕ ДЛЯ ФИЗИКИ (ЭТАП 1: Шаг 3) ---
+    long getInertiaContribution(); // Масса блока (сопротивление разгону) [cite: 34]
+    long getFrictionContribution(); // Потери крутящего момента на трение [cite: 35]
+    long getMaxTorqueTolerance();
+
+    default long getGeneratedSpeed() {
+        return 0; // По умолчанию обычные блоки ничего не генерируют
+    }// Предел прочности до скручивания вала [cite: 36]
+    // Метод специально для визуализатора Flywheel
+    default long getVisualSpeed() {
+        return getSpeed();
+    }
     /**
      * Возвращает true, если этот блок производит энергию (мотор, ветряк).
      * Помогает сети быстро наполнять список generators[cite: 2].

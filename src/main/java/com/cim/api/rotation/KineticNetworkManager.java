@@ -1,18 +1,27 @@
 package com.cim.api.rotation;
 
-import com.cim.api.rotation.KineticNetwork;
-import com.cim.api.rotation.Rotational;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.Tag;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.saveddata.SavedData; // НОВЫЙ ИМПОРТ
+
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+
 import static com.cim.main.CrustalIncursionMod.LOGGER;
 
-public class KineticNetworkManager {
+// 1. ИЗМЕНЕНИЕ: Теперь мы наследуем SavedData
+public class KineticNetworkManager extends SavedData {
+
+    private static final String DATA_NAME = "cim_kinetic_networks"; // Имя файла в папке data/
+
+    // Твоя мапа остается! Мы просто будем её сохранять в файл и восстанавливать из него.
     private final Map<BlockPos, KineticNetwork> blockToNetwork = new HashMap<>();
     private final ServerLevel level;
 
@@ -20,17 +29,53 @@ public class KineticNetworkManager {
         this.level = level;
     }
 
-    private static final java.util.WeakHashMap<ServerLevel, KineticNetworkManager> INSTANCES = new java.util.WeakHashMap<>();
-
+    // 2. ИЗМЕНЕНИЕ: Удаляем WeakHashMap. Теперь DataStorage сам управляет памятью.
     public static KineticNetworkManager get(ServerLevel level) {
-        return INSTANCES.computeIfAbsent(level, KineticNetworkManager::new);
+        return level.getDataStorage().computeIfAbsent(
+                tag -> load(level, tag),
+                () -> new KineticNetworkManager(level),
+                DATA_NAME
+        );
     }
+
+    // 3. НОВОЕ: Метод сохранения (вызывается Майнкрафтом при автосейве)
+    @Override
+    public CompoundTag save(CompoundTag nbt) {
+        ListTag networksList = new ListTag();
+
+        // Получаем все УНИКАЛЬНЫЕ сети из твоей мапы
+        Set<KineticNetwork> uniqueNetworks = new HashSet<>(blockToNetwork.values());
+        for (KineticNetwork net : uniqueNetworks) {
+            networksList.add(net.serializeNBT()); // Вызовем метод сети для превращения в NBT
+        }
+
+        nbt.put("Networks", networksList);
+        return nbt;
+    }
+
+    // 3. НОВОЕ: Метод загрузки (вызывается при запуске сервера)
+    public static KineticNetworkManager load(ServerLevel level, CompoundTag nbt) {
+        KineticNetworkManager manager = new KineticNetworkManager(level);
+        ListTag networksList = nbt.getList("Networks", Tag.TAG_COMPOUND);
+
+        for (int i = 0; i < networksList.size(); i++) {
+            CompoundTag netTag = networksList.getCompound(i);
+            KineticNetwork net = KineticNetwork.deserializeNBT(netTag); // Восстанавливаем сеть из NBT
+
+            // Восстанавливаем твою мапу blockToNetwork
+            for (BlockPos pos : net.getMembers()) {
+                manager.blockToNetwork.put(pos, net);
+            }
+        }
+        return manager;
+    }
+
+    // --- ТВОИ МЕТОДЫ (С добавлением this.setDirty()) ---
 
     public void updateNetworkAfterPlace(BlockPos pos) {
         LOGGER.info("[Kinetic] Block placed at {}", pos.toShortString());
 
         BlockEntity be = level.getBlockEntity(pos);
-        // 'node' is already defined here by the pattern matching
         if (!(be instanceof Rotational node)) {
             LOGGER.warn("[Kinetic] Block at {} does not support rotation!", pos.toShortString());
             return;
@@ -55,8 +100,6 @@ public class KineticNetworkManager {
 
                 if (neighborCanConnect) {
                     KineticNetwork net = blockToNetwork.get(neighborPos);
-                    // МАГИЯ ТУТ: Если соседа нет в памяти менеджера (после перезахода),
-                    // заставляем его "проснуться" и собрать свою сеть
                     if (net == null) {
                         net = createNewNetworkFrom(neighborPos);
                     }
@@ -70,12 +113,18 @@ public class KineticNetworkManager {
             boolean conflict = false;
 
             for (KineticNetwork net : neighborNetworks) {
-                long netSpeed = net.getSpeed();
+                // БЕРЕМ ЦЕЛЕВУЮ СКОРОСТЬ (так как текущая может быть 0 до первого тика)
+                long netSpeed = net.getTargetSpeed();
+
+                // Если генераторов нет, смотрим на текущую скорость по инерции
+                if (netSpeed == 0) {
+                    netSpeed = net.getSpeed();
+                }
+
                 if (netSpeed != 0) {
                     if (firstActiveSpeed == 0) {
                         firstActiveSpeed = netSpeed;
                     } else if (firstActiveSpeed != netSpeed) {
-                        // Если скорости двух сетей разные (напр. 20 и -20) — КОНФЛИКТ!
                         conflict = true;
                         break;
                     }
@@ -84,12 +133,11 @@ public class KineticNetworkManager {
 
             if (conflict) {
                 LOGGER.info("[Kinetic] Rotational conflict at {}! Breaking shaft.", pos.toShortString());
-                level.destroyBlock(pos, true); // Ломаем блок и выкидываем его как предмет
-                return; // Прекращаем выполнение, сети не объединятся
+                level.destroyBlock(pos, true);
+                return;
             }
         }
 
-        // --- ДАЛЬШЕ СТАНДАРТНАЯ ЛОГИКА СЛИЯНИЯ ---
         if (neighborNetworks.isEmpty()) {
             KineticNetwork newNet = new KineticNetwork();
             registerBlockToNetwork(pos, newNet);
@@ -97,10 +145,50 @@ public class KineticNetworkManager {
         } else if (neighborNetworks.size() == 1) {
             KineticNetwork existingNet = neighborNetworks.iterator().next();
             registerBlockToNetwork(pos, existingNet);
+
+            // ПРОВЕРКА КОНФЛИКТА
+            if (existingNet.checkConflict(level)) {
+                LOGGER.info("[Kinetic] Direct motor placement conflict at {}!", pos.toShortString());
+
+                // 1. Откатываем добавление мотора в эту сеть
+                updateNetworkAfterRemove(pos);
+
+                // 2. Ищем вал, через который произошло подключение
+                BlockPos blockToBreak = pos; // По умолчанию ломаем сам поставленный блок
+                for (Direction dir : node.getPropagationDirections()) {
+                    BlockPos neighborPos = pos.relative(dir);
+                    if (existingNet.getMembers().contains(neighborPos)) {
+                        BlockEntity beNeighbor = level.getBlockEntity(neighborPos);
+                        // Если сосед - это НЕ другой источник энергии, значит это вал! Ломаем его.
+                        if (beNeighbor instanceof Rotational rot && !rot.isSource()) {
+                            blockToBreak = neighborPos;
+                            break;
+                        }
+                    }
+                }
+
+                // 3. Ломаем "слабое звено" (true = с выпадением предмета!)
+                level.destroyBlock(blockToBreak, true);
+
+                // 4. Если мы сломали соседний вал, наш свежий мотор остался целым в мире.
+                // Даем ему собственную независимую сеть!
+                if (!blockToBreak.equals(pos)) {
+                    KineticNetwork newNet = new KineticNetwork();
+                    registerBlockToNetwork(pos, newNet);
+                    newNet.recalculate(level);
+                }
+
+                this.setDirty();
+                return;
+            }
+
             existingNet.recalculate(level);
         } else {
             mergeNetworks(neighborNetworks, pos);
         }
+
+        // 4. ИЗМЕНЕНИЕ: Сообщаем Майнкрафту, что данные изменились и их надо сохранить!
+        this.setDirty();
     }
 
     public void updateNetworkAfterRemove(BlockPos pos) {
@@ -114,9 +202,9 @@ public class KineticNetworkManager {
 
         for (BlockPos memberPos : membersToRebuild) {
             blockToNetwork.remove(memberPos);
-            if (level.getBlockEntity(memberPos) instanceof Rotational rot) {
-                rot.setSpeed(0);
-            }
+//            if (level.getBlockEntity(memberPos) instanceof Rotational rot) {
+//                rot.setSpeed(0);
+//            }
         }
 
         LOGGER.info("[Kinetic] Network {} dissolved. Rebuilding {} blocks...", oldNet.getId().toString().substring(0, 8), membersToRebuild.size());
@@ -126,10 +214,18 @@ public class KineticNetworkManager {
                 createNewNetworkFrom(startPos);
             }
         }
+
+        // 4. ИЗМЕНЕНИЕ: Сообщаем о сохранении
+        this.setDirty();
     }
 
     private KineticNetwork createNewNetworkFrom(BlockPos start) {
         KineticNetwork newNet = new KineticNetwork();
+
+        if (level.getBlockEntity(start) instanceof Rotational startNode) {
+            newNet.setCurrentSpeed(startNode.getSpeed());
+        }
+
         java.util.Queue<BlockPos> queue = new java.util.LinkedList<>();
         queue.add(start);
 
@@ -154,7 +250,7 @@ public class KineticNetworkManager {
             }
         }
         newNet.recalculate(level);
-        return newNet; // Теперь возвращаем сеть
+        return newNet;
     }
 
     private void mergeNetworks(Set<KineticNetwork> networks, BlockPos connectorPos) {
@@ -162,14 +258,13 @@ public class KineticNetworkManager {
         networks.remove(mainNet);
 
         for (KineticNetwork otherNet : networks) {
-            // ФИКС БАГА: Переносим и обычные блоки, и ГЕНЕРАТОРЫ (моторы)
             for (BlockPos memberPos : otherNet.getMembers()) {
                 blockToNetwork.put(memberPos, mainNet);
                 mainNet.addMember(memberPos);
             }
 
             for (BlockPos genPos : otherNet.getGenerators()) {
-                mainNet.addGenerator(genPos); // Теперь моторы не потеряются!
+                mainNet.addGenerator(genPos);
             }
         }
 
@@ -183,6 +278,23 @@ public class KineticNetworkManager {
         BlockEntity be = level.getBlockEntity(pos);
         if (be instanceof Rotational rot && rot.isSource()) {
             net.addGenerator(pos);
+        }
+    }
+
+    public void tickAllNetworks() {
+        Set<KineticNetwork> uniqueNetworks = new HashSet<>(blockToNetwork.values());
+        boolean anyChanged = false;
+
+        for (KineticNetwork net : uniqueNetworks) {
+            // Пусть метод tick возвращает true, если скорость изменилась
+            if (net.tick(this.level)) {
+                anyChanged = true;
+            }
+        }
+
+        // Если хоть одна сеть в мире изменила скорость — помечаем для сохранения
+        if (anyChanged) {
+            this.setDirty();
         }
     }
 

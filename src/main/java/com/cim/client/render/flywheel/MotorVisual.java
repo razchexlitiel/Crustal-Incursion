@@ -60,7 +60,7 @@ public class MotorVisual extends AbstractBlockEntityVisual<MotorElectroBlockEnti
 
     @Override
     public void beginFrame(Context ctx) {
-        float speed = blockEntity.getSpeed();
+        long speed = blockEntity.getVisualSpeed();
         // Временная заглушка для постоянного вращения (пока нет общей синхронизации сети)
         float time = (float) (System.currentTimeMillis() % 100000) / 50f;
         float angle = time * speed * 0.1f;
