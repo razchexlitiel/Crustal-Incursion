@@ -11,12 +11,6 @@ import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
-import com.cim.block.basic.industrial.rotation.GearPortBlock;
-import com.cim.block.basic.industrial.rotation.Mode;
-import com.cim.block.basic.industrial.rotation.ShaftBlock;
-import com.cim.block.basic.industrial.rotation.TachometerBlock;
-import com.cim.block.entity.industrial.rotation.GearPortBlockEntity;
-import com.cim.block.entity.industrial.rotation.TachometerBlockEntity;
 
 public class ScrewdriverItem extends Item {
 
@@ -35,59 +29,59 @@ public class ScrewdriverItem extends Item {
         boolean isSneaking = player.isShiftKeyDown();
 
         // Обработка вала
-        if (state.getBlock() instanceof ShaftBlock) {
-            Direction currentFacing = state.getValue(ShaftBlock.FACING);
-            Direction newFacing;
-
-            if (isSneaking) {
-                newFacing = currentFacing.getOpposite();
-            } else {
-                Direction lookDir = getLookDirection(player);
-                newFacing = rotate90(currentFacing, lookDir);
-            }
-
-            BlockState newState = state.setValue(ShaftBlock.FACING, newFacing);
-            level.setBlock(pos, newState, 3);
-            syncWithNeighbors(level, pos, newState);
-
-            return InteractionResult.sidedSuccess(level.isClientSide);
-        }
-
-        // Обработка порта
-        else if (state.getBlock() instanceof GearPortBlock) {
-            if (!level.isClientSide) {
-                BlockEntity be = level.getBlockEntity(pos);
-                if (be instanceof GearPortBlockEntity gear) {
-                    Direction face = context.getClickedFace();
-                    String message = gear.handleScrewdriverClick(face, isSneaking);
-                    if (message != null) {
-                        player.displayClientMessage(Component.literal(message), false);
-                    }
-                }
-            }
-            return InteractionResult.sidedSuccess(level.isClientSide);
-        }// Обработка тахометра
-        else if (state.getBlock() instanceof TachometerBlock) {
-            if (!level.isClientSide) {
-                BlockEntity be = level.getBlockEntity(pos);
-                if (be instanceof TachometerBlockEntity tach) {
-                    if (isSneaking) {
-                        // Shift+click: переключить режим
-                        Mode currentMode = state.getValue(TachometerBlock.MODE);
-                        Mode newMode = (currentMode == Mode.SPEED) ? Mode.TORQUE : Mode.SPEED;
-                        level.setBlock(pos, state.setValue(TachometerBlock.MODE, newMode), 3);
-                        player.displayClientMessage(Component.literal("Mode switched to " + newMode.getSerializedName()), false);
-                    } else {
-                        // Обычный клик: изменить множитель
-                        int newMult = tach.getMultiplier() + 1;
-                        if (newMult > 3) newMult = 1;
-                        tach.setMultiplier(newMult);
-                        player.displayClientMessage(Component.literal("Multiplier set to " + newMult), false);
-                    }
-                }
-            }
-            return InteractionResult.sidedSuccess(level.isClientSide);
-        }
+//        if (state.getBlock() instanceof ShaftBlock) {
+//            Direction currentFacing = state.getValue(ShaftBlock.FACING);
+//            Direction newFacing;
+//
+//            if (isSneaking) {
+//                newFacing = currentFacing.getOpposite();
+//            } else {
+//                Direction lookDir = getLookDirection(player);
+//                newFacing = rotate90(currentFacing, lookDir);
+//            }
+//
+//            BlockState newState = state.setValue(ShaftBlock.FACING, newFacing);
+//            level.setBlock(pos, newState, 3);
+//            syncWithNeighbors(level, pos, newState);
+//
+//            return InteractionResult.sidedSuccess(level.isClientSide);
+//        }
+//
+//        // Обработка порта
+//        else if (state.getBlock() instanceof GearPortBlock) {
+//            if (!level.isClientSide) {
+//                BlockEntity be = level.getBlockEntity(pos);
+//                if (be instanceof GearPortBlockEntity gear) {
+//                    Direction face = context.getClickedFace();
+//                    String message = gear.handleScrewdriverClick(face, isSneaking);
+//                    if (message != null) {
+//                        player.displayClientMessage(Component.literal(message), false);
+//                    }
+//                }
+//            }
+//            return InteractionResult.sidedSuccess(level.isClientSide);
+//        }// Обработка тахометра
+//        else if (state.getBlock() instanceof TachometerBlock) {
+//            if (!level.isClientSide) {
+//                BlockEntity be = level.getBlockEntity(pos);
+//                if (be instanceof TachometerBlockEntity tach) {
+//                    if (isSneaking) {
+//                        // Shift+click: переключить режим
+//                        Mode currentMode = state.getValue(TachometerBlock.MODE);
+//                        Mode newMode = (currentMode == Mode.SPEED) ? Mode.TORQUE : Mode.SPEED;
+//                        level.setBlock(pos, state.setValue(TachometerBlock.MODE, newMode), 3);
+//                        player.displayClientMessage(Component.literal("Mode switched to " + newMode.getSerializedName()), false);
+//                    } else {
+//                        // Обычный клик: изменить множитель
+//                        int newMult = tach.getMultiplier() + 1;
+//                        if (newMult > 3) newMult = 1;
+//                        tach.setMultiplier(newMult);
+//                        player.displayClientMessage(Component.literal("Multiplier set to " + newMult), false);
+//                    }
+//                }
+//            }
+//            return InteractionResult.sidedSuccess(level.isClientSide);
+//        }
 
         return InteractionResult.PASS;
     }
@@ -96,28 +90,28 @@ public class ScrewdriverItem extends Item {
      * Проверяет соседние валы и разворачивает текущий, если нужно (фронт к фронту, зад к заду)
      * Логика: вал должен смотреть в ту же сторону что и сосед (продолжать линию)
      */
-    private void syncWithNeighbors(Level level, BlockPos pos, BlockState state) {
-        Direction myFacing = state.getValue(ShaftBlock.FACING);
-
-        // Проверяем соседей вдоль оси вала (фронт и тыл)
-        for (Direction dir : new Direction[]{myFacing, myFacing.getOpposite()}) {
-            BlockPos neighborPos = pos.relative(dir);
-            BlockState neighborState = level.getBlockState(neighborPos);
-
-            if (neighborState.getBlock() instanceof ShaftBlock) {
-                Direction neighborFacing = neighborState.getValue(ShaftBlock.FACING);
-
-                // Если сосед смотрит в ту же сторону — всё ок, ничего не делаем
-                // Если сосед смотрит в противоположную сторону — разворачиваемся
-                if (neighborFacing == myFacing.getOpposite()) {
-                    Direction correctedFacing = myFacing.getOpposite();
-                    BlockState correctedState = state.setValue(ShaftBlock.FACING, correctedFacing);
-                    level.setBlock(pos, correctedState, 3);
-                    return;
-                }
-            }
-        }
-    }
+//    private void syncWithNeighbors(Level level, BlockPos pos, BlockState state) {
+//        Direction myFacing = state.getValue(ShaftBlock.FACING);
+//
+//        // Проверяем соседей вдоль оси вала (фронт и тыл)
+//        for (Direction dir : new Direction[]{myFacing, myFacing.getOpposite()}) {
+//            BlockPos neighborPos = pos.relative(dir);
+//            BlockState neighborState = level.getBlockState(neighborPos);
+//
+//            if (neighborState.getBlock() instanceof ShaftBlock) {
+//                Direction neighborFacing = neighborState.getValue(ShaftBlock.FACING);
+//
+//                // Если сосед смотрит в ту же сторону — всё ок, ничего не делаем
+//                // Если сосед смотрит в противоположную сторону — разворачиваемся
+//                if (neighborFacing == myFacing.getOpposite()) {
+//                    Direction correctedFacing = myFacing.getOpposite();
+//                    BlockState correctedState = state.setValue(ShaftBlock.FACING, correctedFacing);
+//                    level.setBlock(pos, correctedState, 3);
+//                    return;
+//                }
+//            }
+//        }
+//    }
 
     /**
      * Поворачивает направление на 90°

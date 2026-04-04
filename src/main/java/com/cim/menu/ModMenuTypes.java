@@ -17,8 +17,8 @@ public class ModMenuTypes {
     public static final RegistryObject<MenuType<MachineBatteryMenu>> MACHINE_BATTERY_MENU =
             MENUS.register("machine_battery_menu", () -> IForgeMenuType.create(MachineBatteryMenu::new));
 
-    public static final RegistryObject<MenuType<MotorElectroMenu>> MOTOR_ELECTRO_MENU =
-            MENUS.register("motor_electro_menu", () -> IForgeMenuType.create(MotorElectroMenu::new));
+//    public static final RegistryObject<MenuType<MotorElectroMenu>> MOTOR_ELECTRO_MENU =
+//            MENUS.register("motor_electro_menu", () -> IForgeMenuType.create(MotorElectroMenu::new));
 
     public static final RegistryObject<MenuType<TurretLightMenu>> TURRET_AMMO_MENU =
             MENUS.register("turret_ammo", () -> IForgeMenuType.create((windowId, inv, data) -> {
@@ -29,16 +29,16 @@ public class ModMenuTypes {
     public static final RegistryObject<MenuType<HeaterMenu>> HEATER_MENU =
             MENUS.register("heater_menu", () -> IForgeMenuType.create(HeaterMenu::create));
 
-    public static final RegistryObject<MenuType<ShaftPlacerMenu>> SHAFT_PLACER_MENU =
-            MENUS.register("shaft_placer_menu",
-                    () -> IForgeMenuType.create(ShaftPlacerMenu::new));
+//    public static final RegistryObject<MenuType<ShaftPlacerMenu>> SHAFT_PLACER_MENU =
+//            MENUS.register("shaft_placer_menu",
+//                    () -> IForgeMenuType.create(ShaftPlacerMenu::new));
 
     public static final RegistryObject<MenuType<SmelterMenu>> SMELTER_MENU =
             MENUS.register("smelter_menu", () -> IForgeMenuType.create(SmelterMenu::create));
 
-    public static final RegistryObject<MenuType<MiningPortMenu>> MINING_PORT_MENU =
-            MENUS.register("mining_port_menu",
-                    () -> IForgeMenuType.create(MiningPortMenu::new));
+//    public static final RegistryObject<MenuType<MiningPortMenu>> MINING_PORT_MENU =
+//            MENUS.register("mining_port_menu",
+//                    () -> IForgeMenuType.create(MiningPortMenu::new));
 
     public static final RegistryObject<MenuType<FluidBarrelMenu>> FLUID_BARREL_MENU =
             MENUS.register("fluid_barrel_menu",

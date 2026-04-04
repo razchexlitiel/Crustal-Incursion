@@ -5,12 +5,13 @@ import com.cim.block.entity.fluids.FluidBarrelBlockEntity;
 
 import com.cim.block.entity.fluids.FluidPipeBlockEntity;
 
+import com.cim.block.entity.industrial.rotation.MotorElectroBlockEntity;
+import com.cim.block.entity.industrial.rotation.ShaftBlockEntity;
 import com.cim.multiblock.industrial.HeaterBlockEntity;
 
 import com.cim.block.entity.industrial.casting.CastingDescentBlockEntity;
 import com.cim.block.entity.industrial.casting.CastingPotBlockEntity;
 import com.cim.block.entity.industrial.energy.*;
-import com.cim.block.entity.industrial.rotation.*;
 
 import com.cim.multiblock.industrial.HeaterBlockEntity;
 import com.cim.multiblock.industrial.SmelterBlockEntity;
@@ -45,9 +46,7 @@ public class ModBlockEntities {
                             .build(null)
             );
 
-    public static final RegistryObject<BlockEntityType<RConverterBlockEntity>> R_CONVERTER_BE =
-            BLOCK_ENTITIES.register("rconverter",
-                    () -> BlockEntityType.Builder.of(RConverterBlockEntity::new, ModBlocks.RCONVERTER.get()).build(null));
+
 
 
     public static final RegistryObject<BlockEntityType<TurretLightPlacerBlockEntity>> TURRET_LIGHT_PLACER_BE =
@@ -99,49 +98,32 @@ public class ModBlockEntities {
             () -> BlockEntityType.Builder.of(CastingDescentBlockEntity::new, ModBlocks.CASTING_DESCENT.get()).build(null)
     );
 
-    public static final RegistryObject<BlockEntityType<WindGenFlugerBlockEntity>> WIND_GEN_FLUGER_BE =
-            BLOCK_ENTITIES.register("wind_gen_fluger",
-                    () -> BlockEntityType.Builder.of(WindGenFlugerBlockEntity::new, ModBlocks.WIND_GEN_FLUGER.get()).build(null));
-
     public static final RegistryObject<BlockEntityType<CastingPotBlockEntity>> CASTING_POT =
             BLOCK_ENTITIES.register("casting_pot",
                     () -> BlockEntityType.Builder.of(CastingPotBlockEntity::new,
                             com.cim.block.basic.ModBlocks.CASTING_POT.get()).build(null));
 
-    public static final RegistryObject<BlockEntityType<TachometerBlockEntity>> TACHOMETER_BE =
-            BLOCK_ENTITIES.register("tachometer",
-                    () -> BlockEntityType.Builder.of(TachometerBlockEntity::new, ModBlocks.TACHOMETER.get()).build(null));
-
-    public static final RegistryObject<BlockEntityType<RotationMeterBlockEntity>> ROTATION_METER_BE =
-            BLOCK_ENTITIES.register("rotation_meter_be",
-                    () -> BlockEntityType.Builder.of(RotationMeterBlockEntity::new, ModBlocks.ROTATION_METER.get()).build(null));
-
-    public static final RegistryObject<BlockEntityType<AdderBlockEntity>> ADDER_BE =
-            BLOCK_ENTITIES.register("adder",
-                    () -> BlockEntityType.Builder.of(AdderBlockEntity::new, ModBlocks.ADDER.get()).build(null));
-
-    public static final RegistryObject<BlockEntityType<StopperBlockEntity>> STOPPER_BE =
-            BLOCK_ENTITIES.register("stopper",
-                    () -> BlockEntityType.Builder.of(StopperBlockEntity::new, ModBlocks.STOPPER.get()).build(null));
-
-    public static final RegistryObject<BlockEntityType<GearPortBlockEntity>> GEAR_PORT_BE =
-            BLOCK_ENTITIES.register("gear_port_be",
-                    () -> BlockEntityType.Builder.of(GearPortBlockEntity::new, ModBlocks.GEAR_PORT.get()).build(null));
-
-    public static final RegistryObject<BlockEntityType<ShaftPlacerBlockEntity>> SHAFT_PLACER_BE =
-            BLOCK_ENTITIES.register("shaft_placer_be",
-                    () -> BlockEntityType.Builder.of(ShaftPlacerBlockEntity::new, ModBlocks.SHAFT_PLACER.get()).build(null));
-
-    public static final RegistryObject<BlockEntityType<DrillHeadBlockEntity>> DRILL_HEAD_BE =
-            BLOCK_ENTITIES.register("drill_head_be",
-                    () -> BlockEntityType.Builder.of(DrillHeadBlockEntity::new, ModBlocks.DRILL_HEAD.get()).build(null));
-
-    public static final RegistryObject<BlockEntityType<MiningPortBlockEntity>> MINING_PORT_BE =
-            BLOCK_ENTITIES.register("mining_port_be",
-                    () -> BlockEntityType.Builder.of(MiningPortBlockEntity::new, ModBlocks.MINING_PORT.get()).build(null));
+    public static final RegistryObject<BlockEntityType<ShaftBlockEntity>> SHAFT_BE = BLOCK_ENTITIES.register("shaft_be",
+            () -> BlockEntityType.Builder.of(ShaftBlockEntity::new,
+                    ModBlocks.SHAFT_LIGHT_IRON.get(),
+                    ModBlocks.SHAFT_MEDIUM_IRON.get(),
+                    ModBlocks.SHAFT_HEAVY_IRON.get(),
+                    ModBlocks.SHAFT_LIGHT_DURALUMIN.get(),
+                    ModBlocks.SHAFT_MEDIUM_DURALUMIN.get(),
+                    ModBlocks.SHAFT_HEAVY_DURALUMIN.get(),
+                    ModBlocks.SHAFT_LIGHT_STEEL.get(),
+                    ModBlocks.SHAFT_MEDIUM_STEEL.get(),
+                    ModBlocks.SHAFT_HEAVY_STEEL.get(),
+                    ModBlocks.SHAFT_LIGHT_TITANIUM.get(),
+                    ModBlocks.SHAFT_MEDIUM_TITANIUM.get(),
+                    ModBlocks.SHAFT_HEAVY_TITANIUM.get(),
+                    ModBlocks.SHAFT_LIGHT_TUNGSTEN_CARBIDE.get(),
+                    ModBlocks.SHAFT_MEDIUM_TUNGSTEN_CARBIDE.get(),
+                    ModBlocks.SHAFT_HEAVY_TUNGSTEN_CARBIDE.get()
+            ).build(null));
 
     public static final RegistryObject<BlockEntityType<MotorElectroBlockEntity>> MOTOR_ELECTRO_BE =
-            BLOCK_ENTITIES.register("motor_electro_be",
+            BLOCK_ENTITIES.register("motor_electro",
                     () -> BlockEntityType.Builder.of(MotorElectroBlockEntity::new, ModBlocks.MOTOR_ELECTRO.get()).build(null));
 
     public static final RegistryObject<BlockEntityType<FluidPipeBlockEntity>> FLUID_PIPE_BE =
@@ -161,12 +143,12 @@ public class ModBlockEntities {
                     BlockEntityType.Builder.of(BeamCollisionBlockEntity::new,
                             ModBlocks.BEAM_COLLISION.get()).build(null));
 
-    public static final RegistryObject<BlockEntityType<ShaftBlockEntity>> SHAFT_BLOCK_BE =
-            BLOCK_ENTITIES.register("shaft",
-                    () -> BlockEntityType.Builder.of(ShaftBlockEntity::new,
-                            ModBlocks.SHAFT_IRON.get(),
-                            ModBlocks.SHAFT_WOODEN.get() // и все другие валы
-                    ).build(null));
+//    public static final RegistryObject<BlockEntityType<ShaftBlockEntity>> SHAFT_BLOCK_BE =
+//            BLOCK_ENTITIES.register("shaft",
+//                    () -> BlockEntityType.Builder.of(ShaftBlockEntity::new,
+//                            ModBlocks.SHAFT_IRON.get(),
+//                            ModBlocks.SHAFT_WOODEN.get() // и все другие валы
+//                    ).build(null));
 
     public static final RegistryObject<BlockEntityType<ConnectorBlockEntity>> CONNECTOR_BE =
             BLOCK_ENTITIES.register("connector", () ->

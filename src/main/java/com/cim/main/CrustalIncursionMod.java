@@ -25,6 +25,7 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
+import net.minecraftforge.fml.loading.FMLLoader;
 import net.minecraftforge.registries.RegistryObject;
 import org.slf4j.Logger;
 import com.cim.api.hive.HiveNetworkManagerProvider;
@@ -79,6 +80,29 @@ public class CrustalIncursionMod {
         ModFoliagePlacerTypes.register(modEventBus);
         ModFluids.register(modEventBus);
         MinecraftForge.EVENT_BUS.register(new HiveEventHandler());
+        // Проверяем, есть ли Окулус
+        // Проверяем наличие Окулуса
+        if (net.minecraftforge.fml.loading.FMLEnvironment.dist == net.minecraftforge.api.distmarker.Dist.CLIENT) {
+            // 1. Проверяем наличие Окулуса
+            if (net.minecraftforge.fml.loading.FMLLoader.getLoadingModList().getModFileById("oculus") != null) {
+
+                // 2. УНИВЕРСАЛЬНЫЙ ЩИТ: Ищем признаки любого стороннего фикса Iris-Flywheel
+                // Мы ищем по файлу миксинов, так как ID мода у всех может быть разным
+                boolean hasThirdPartyFix =
+                        Thread.currentThread().getContextClassLoader().getResource("irisflw.mixins.json") != null ||
+                                net.minecraftforge.fml.loading.FMLLoader.getLoadingModList().getModFileById("oculusflywheelcompat") != null ||
+                                net.minecraftforge.fml.loading.FMLLoader.getLoadingModList().getModFileById("irisflw") != null;
+
+                if (!hasThirdPartyFix) {
+                    // Если чисто — зажигаем!
+                    com.cim.compat.irisflw.IrisFlw.init();
+                    LOGGER.info("🔥 [CIM] Движок Flywheel-Oculus успешно запущен!");
+                } else {
+                    // Если кто-то уже чинит — вежливо отходим
+                    LOGGER.warn("🛡️ [CIM] Обнаружен сторонний графический фикс. Встроенная оптимизация CIM отключена для стабильности.");
+                }
+            }
+        }
 
     }
     private void registerCapabilities(IEventBus modEventBus) {
@@ -164,19 +188,25 @@ public class CrustalIncursionMod {
             event.accept(ModItems.CROWBAR.get());
             event.accept(ModItems.BEAM_PLACER.get());
             event.accept(ModItems.SCREWDRIVER.get());
-            event.accept(ModBlocks.SHAFT_WOODEN);
-            event.accept(ModBlocks.SHAFT_IRON);
-            event.accept(ModBlocks.DRILL_HEAD);
+
+            event.accept(ModBlocks.SHAFT_LIGHT_IRON);
+            event.accept(ModBlocks.SHAFT_MEDIUM_IRON);
+            event.accept(ModBlocks.SHAFT_HEAVY_IRON);
+            event.accept(ModBlocks.SHAFT_LIGHT_DURALUMIN);
+            event.accept(ModBlocks.SHAFT_MEDIUM_DURALUMIN);
+            event.accept(ModBlocks.SHAFT_HEAVY_DURALUMIN);
+            event.accept(ModBlocks.SHAFT_LIGHT_STEEL);
+            event.accept(ModBlocks.SHAFT_MEDIUM_STEEL);
+            event.accept(ModBlocks.SHAFT_HEAVY_STEEL);
+            event.accept(ModBlocks.SHAFT_LIGHT_TITANIUM);
+            event.accept(ModBlocks.SHAFT_MEDIUM_TITANIUM);
+            event.accept(ModBlocks.SHAFT_HEAVY_TITANIUM);
+            event.accept(ModBlocks.SHAFT_LIGHT_TUNGSTEN_CARBIDE);
+            event.accept(ModBlocks.SHAFT_MEDIUM_TUNGSTEN_CARBIDE);
+            event.accept(ModBlocks.SHAFT_HEAVY_TUNGSTEN_CARBIDE);
+
             event.accept(ModBlocks.MOTOR_ELECTRO);
-            event.accept(ModBlocks.WIND_GEN_FLUGER);
-            event.accept(ModBlocks.GEAR_PORT);
-            event.accept(ModBlocks.RCONVERTER);
-            event.accept(ModBlocks.ADDER);
-            event.accept(ModBlocks.STOPPER);
-            event.accept(ModBlocks.TACHOMETER);
-            event.accept(ModBlocks.ROTATION_METER);
-            event.accept(ModBlocks.SHAFT_PLACER);
-            event.accept(ModBlocks.MINING_PORT);
+
 
             event.accept(ModItems.WIRE_COIL);
             event.accept(ModBlocks.CONNECTOR);
@@ -195,7 +225,8 @@ public class CrustalIncursionMod {
                     ModItems.BATTERY_ADVANCED,
                     ModItems.BATTERY_LITHIUM,
                     ModItems.BATTERY_TRIXITE
-            ); for (RegistryObject<Item> batteryRegObj : batteriesToAdd) {Item item = batteryRegObj.get();if (item instanceof ModBatteryItem batteryItem) {ItemStack emptyStack = new ItemStack(batteryItem);event.accept(emptyStack);ItemStack chargedStack = new ItemStack(batteryItem);ModBatteryItem.setEnergy(chargedStack, batteryItem.getCapacity());event.accept(chargedStack);}}
+            ); for (RegistryObject<Item> batteryRegObj : batteriesToAdd) {Item item = batteryRegObj.get();
+                if (item instanceof ModBatteryItem batteryItem) {ItemStack emptyStack = new ItemStack(batteryItem);event.accept(emptyStack);ItemStack chargedStack = new ItemStack(batteryItem);ModBatteryItem.setEnergy(chargedStack, batteryItem.getCapacity());event.accept(chargedStack);}}
 
             event.accept(ModItems.FLUID_IDENTIFIER.get());
             event.accept(ModItems.INFINITE_FLUID_BARREL);

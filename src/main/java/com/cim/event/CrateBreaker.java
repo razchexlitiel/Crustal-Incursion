@@ -44,8 +44,8 @@ public class CrateBreaker {
 
                     new DropChance(ModBlocks.MACHINE_BATTERY, 0.1),
                     new DropChance(ModBlocks.SWITCH, 0.1),
-                    new DropChance(ModBlocks.STOPPER, 0.1),
-                    new DropChance(ModBlocks.SHAFT_IRON, 0.1),
+//                    new DropChance(ModBlocks.STOPPER, 0.1),
+//                    new DropChance(ModBlocks.SHAFT_IRON, 0.1),
                     new DropChance(ModItems.SCREWDRIVER, 0.1),
                     new DropChance(ModItems.TURRET_CHIP, 0.1)
 

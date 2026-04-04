@@ -27,7 +27,7 @@ public class ModCreativeTabs {
     public static final RegistryObject<CreativeModeTab> CIM_TECH_TAB = CREATIVE_MODE_TABS.register("cim_tech_tab",
             () -> CreativeModeTab.builder()
                     .title(Component.translatable("itemGroup." + CrustalIncursionMod.MOD_ID + ".cim_tech_tab"))
-                    .icon(() -> new ItemStack(ModBlocks.STOPPER.get()))
+                    .icon(() -> new ItemStack(ModBlocks.MACHINE_BATTERY.get()))
                     .withTabsBefore(new ResourceLocation(CrustalIncursionMod.MOD_ID, "cim_build_tab"))
                     .build());
 
