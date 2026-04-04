@@ -203,6 +203,8 @@ public class ModLangProvider extends LanguageProvider {
         add("item.cim.cast_pickaxe_iron.warning.twohanded", "Требуется свободная вторая рука!");
         add("item.cim.cast_pickaxe_iron.desc.hold", "§7Можно держать заряд сколько угодно");
         add("item.cim.cast_pickaxe_iron.warning.range", "Слишком далеко!");
+        add("item.cim.cast_pickaxe_iron.desc.priority", "§7Приоритет: сначала мобы, потом блоки");
+        add("item.cim.cast_pickaxe_iron.warning.cooldown", "Перезарядка...");
 
 
         // Металлы
