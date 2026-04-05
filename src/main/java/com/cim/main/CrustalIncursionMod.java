@@ -7,6 +7,7 @@ import com.cim.api.metallurgy.ModMetallurgy;
 import com.cim.api.metallurgy.system.Metal;
 import com.cim.api.metallurgy.system.MetalUnits2;
 import com.cim.api.metallurgy.system.MetallurgyRegistry;
+import com.cim.entity.mobs.GrenadierZombieEntity;
 import com.cim.event.SlagItem;
 import com.mojang.logging.LogUtils;
 import net.minecraft.resources.ResourceLocation;
@@ -321,6 +322,7 @@ public class CrustalIncursionMod {
             event.accept(ModBlocks.HIVE_ROOTS.get()); // Обычная версия
             event.accept(ModBlocks.DEPTH_WORM_NEST_DEAD);
             event.accept(ModBlocks.HIVE_SOIL_DEAD);
+            event.accept(ModItems.GRENADIER_ZOMBIE_SPAWN_EGG.get());
         }
 
        }
@@ -330,6 +332,7 @@ public class CrustalIncursionMod {
         event.put(ModEntities.DEPTH_WORM.get(), DepthWormEntity.createAttributes().build());
         event.put(ModEntities.TURRET_LIGHT.get(), TurretLightEntity.createAttributes().build());
         event.put(ModEntities.TURRET_LIGHT_LINKED.get(), TurretLightEntity.createAttributes().build());
+        event.put(ModEntities.GRENADIER_ZOMBIE.get(), GrenadierZombieEntity.createAttributes().build());
     }
     @SubscribeEvent
     public static void onEntitySpawn(MobSpawnEvent.FinalizeSpawn event) {

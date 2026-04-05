@@ -20,6 +20,8 @@ import com.cim.multiblock.system.MultiblockBlockItem;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.item.ArmorItem;
 import net.minecraft.world.item.Item;
+import net.minecraft.world.item.SpawnEggItem;
+import net.minecraftforge.common.ForgeSpawnEggItem;
 import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.ForgeRegistries;
 import net.minecraftforge.registries.RegistryObject;
@@ -88,6 +90,10 @@ public class ModItems {
     public static final RegistryObject<GrenadierGogglesItem> GRENADIER_GOGGLES = ITEMS.register("grenadier_goggles",
             () -> new GrenadierGogglesItem(GrenadierArmorMaterial.GRENADIER, ArmorItem.Type.HELMET,
                     new Item.Properties().stacksTo(1)));
+
+    public static final RegistryObject<ForgeSpawnEggItem> GRENADIER_ZOMBIE_SPAWN_EGG = ITEMS.register("grenadier_zombie_spawn_egg",
+            () -> new ForgeSpawnEggItem(ModEntities.GRENADIER_ZOMBIE, 0x4C7F52, 0x8B0000,
+                    new Item.Properties()));
 
     public static final RegistryObject<Item> MOLD_NUGGET = ITEMS.register("mold_nugget",
             () -> new Item(new Item.Properties()));
