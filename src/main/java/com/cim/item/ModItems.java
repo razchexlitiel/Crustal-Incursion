@@ -3,6 +3,8 @@ package com.cim.item;
 import com.cim.entity.ModEntities;
 import com.cim.entity.weapons.grenades.GrenadeIfType;
 import com.cim.entity.weapons.grenades.GrenadeType;
+import com.cim.item.armor.GrenadierArmorMaterial;
+import com.cim.item.armor.GrenadierGogglesItem;
 import com.cim.item.energy.EnergyCellItem;
 import com.cim.item.food.FoodZamaz;
 import com.cim.event.SlagItem;
@@ -16,6 +18,7 @@ import com.cim.item.weapons.grenades.GrenadeItem;
 import com.cim.item.weapons.grenades.GrenadeNucItem;
 import com.cim.multiblock.system.MultiblockBlockItem;
 import net.minecraft.world.effect.MobEffects;
+import net.minecraft.world.item.ArmorItem;
 import net.minecraft.world.item.Item;
 import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.ForgeRegistries;
@@ -81,6 +84,10 @@ public class ModItems {
 
     public static final RegistryObject<Item> MOLD_INGOT = ITEMS.register("mold_ingot",
             () -> new Item(new Item.Properties()));
+
+    public static final RegistryObject<GrenadierGogglesItem> GRENADIER_GOGGLES = ITEMS.register("grenadier_goggles",
+            () -> new GrenadierGogglesItem(GrenadierArmorMaterial.GRENADIER, ArmorItem.Type.HELMET,
+                    new Item.Properties().stacksTo(1)));
 
     public static final RegistryObject<Item> MOLD_NUGGET = ITEMS.register("mold_nugget",
             () -> new Item(new Item.Properties()));

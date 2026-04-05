@@ -254,6 +254,7 @@ public class CrustalIncursionMod {
             event.accept(ModItems.CAST_PICKAXE_IRON);
             event.accept(ModItems.CAST_PICKAXE_STEEL);
 
+            event.accept(ModItems.GRENADIER_GOGGLES);
             event.accept(ModBlocks.DET_MINER);
             event.accept(ModItems.DETONATOR);
             event.accept(ModItems.MULTI_DETONATOR);

@@ -189,6 +189,8 @@ public class ModLangProvider extends LanguageProvider {
         add("entity.cim.grenade_if_he_projectile", "HE Impact grenade");
         add("entity.cim.grenade_nuc_projectile", "Nuclear grenade");
 
+        add(ModItems.GRENADIER_GOGGLES.get(), "Grenadier Goggles");
+
     }
 
 
@@ -201,6 +203,8 @@ public class ModLangProvider extends LanguageProvider {
         add("item.cim.cast_pickaxe.desc.mining_power", "§6Мощность: %s");
         add("item.cim.cast_pickaxe.desc.vein_miner_info", "Жилковый майнер: %s");
 
+        add(ModItems.GRENADIER_GOGGLES.get(), "Очки гренадёра");
+        add("item.cim.grenadier_goggles.desc.explosion_resist", "Защита от взрывов: +%s%%");
         // Металлы
         add("metal.cim.gold", "Золото");
         add("metal.cim.iron", "Железо");

@@ -1,0 +1,112 @@
+{
+  "format_version": "1.12.0",
+  "minecraft:geometry": [{
+    "description": {
+      "identifier": "geometry.grenadier_goggles",
+      "texture_width": 32,
+      "texture_height": 32,
+      "visible_bounds_width": 2,
+      "visible_bounds_height": 3.5,
+      "visible_bounds_offset": [0, 1.25, 0]
+    },
+    "bones": [
+      {
+        "name": "armorHead",
+        "pivot": [0, 24, 0],
+        "cubes": []
+      },
+      {
+        "name": "hat",
+        "parent": "armorHead",
+        "pivot": [0, 0, 0],
+        "cubes": [
+
+						{
+							"origin": [-4, 26.75, -4.25],
+							"size": [8, 1.75, 0.2],
+							"inflate": 0.002,
+							"uv": {
+								"north": {"uv": [0, 0], "uv_size": [8, 2]},
+								"east": {"uv": [6, 12], "uv_size": [1, 2]},
+								"south": {"uv": [0, 3], "uv_size": [8, 2]},
+								"west": {"uv": [8, 12], "uv_size": [1, 2]},
+								"up": {"uv": [0, 6], "uv_size": [8, 1]},
+								"down": {"uv": [0, 9], "uv_size": [8, -1]}
+							}
+						},
+						{
+							"origin": [-4, 26.25, -4.25],
+							"size": [8, 0.5, 0.2],
+							"uv": {
+								"north": {"uv": [0, 0], "uv_size": [8, 2]},
+								"east": {"uv": [6, 12], "uv_size": [1, 2]},
+								"south": {"uv": [0, 3], "uv_size": [8, 2]},
+								"west": {"uv": [8, 12], "uv_size": [1, 2]},
+								"up": {"uv": [0, 6], "uv_size": [8, 1]},
+								"down": {"uv": [0, 9], "uv_size": [8, -1]}
+							}
+						},
+						{
+							"origin": [0.1, 27.75, -0.35],
+							"size": [5, 0.75, 0.2],
+							"pivot": [4.1, 27.5, -0.25],
+							"rotation": [0, -90, 0],
+							"uv": {
+								"north": {"uv": [9, 0], "uv_size": [5, 1]},
+								"east": {"uv": [18, 8], "uv_size": [1, 1]},
+								"south": {"uv": [9, 2], "uv_size": [5, 1]},
+								"west": {"uv": [10, 18], "uv_size": [1, 1]},
+								"up": {"uv": [9, 4], "uv_size": [5, 1]},
+								"down": {"uv": [9, 7], "uv_size": [5, -1]}
+							}
+						},
+						{
+							"origin": [1.975, 26.96534, 2.46974],
+							"size": [2.25, 0.75, 0.2],
+							"inflate": 0.002,
+							"pivot": [4.1, 27.34034, 2.56974],
+							"rotation": [-90, -67.5, 90],
+							"uv": {
+								"north": {"uv": [15, 2], "uv_size": [2, 1]},
+								"east": {"uv": [18, 10], "uv_size": [1, 1]},
+								"south": {"uv": [15, 4], "uv_size": [2, 1]},
+								"west": {"uv": [12, 18], "uv_size": [1, 1]},
+								"up": {"uv": [6, 15], "uv_size": [2, 1]},
+								"down": {"uv": [15, 7], "uv_size": [2, -1]}
+							}
+						},
+						{
+							"origin": [-5.1, 27.75, -0.35],
+							"size": [5, 0.75, 0.2],
+							"pivot": [-4.1, 27.5, -0.25],
+							"rotation": [0, 90, 0],
+							"uv": {
+								"north": {"uv": [9, 8], "uv_size": [5, 1]},
+								"east": {"uv": [18, 14], "uv_size": [1, 1]},
+								"south": {"uv": [0, 10], "uv_size": [5, 1]},
+								"west": {"uv": [16, 18], "uv_size": [1, 1]},
+								"up": {"uv": [6, 10], "uv_size": [5, 1]},
+								"down": {"uv": [0, 13], "uv_size": [5, -1]}
+							}
+						},
+						{
+							"origin": [-4.225, 26.96534, 2.46974],
+							"size": [2.25, 0.75, 0.2],
+							"inflate": 0.002,
+							"pivot": [-4.1, 27.34034, 2.56974],
+							"rotation": [-90, 67.5, -90],
+							"uv": {
+								"north": {"uv": [15, 8], "uv_size": [2, 1]},
+								"east": {"uv": [18, 12], "uv_size": [1, 1]},
+								"south": {"uv": [15, 10], "uv_size": [2, 1]},
+								"west": {"uv": [14, 18], "uv_size": [1, 1]},
+								"up": {"uv": [0, 16], "uv_size": [2, 1]},
+								"down": {"uv": [3, 17], "uv_size": [2, -1]}
+							}
+						}
+					]
+				}
+			]
+		}
+	]
+}
