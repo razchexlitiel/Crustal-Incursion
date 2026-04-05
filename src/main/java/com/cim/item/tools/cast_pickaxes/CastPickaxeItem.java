@@ -188,27 +188,27 @@ public class CastPickaxeItem extends PickaxeItem implements GeoItem {
             triggerAnim(player, instanceId, "controller", "hit");
         }
 
+        player.getCooldowns().addCooldown(this, COOLDOWN_TICKS);
+
         if (chargePercent < 0.05f) {
             player.swing(hand, true);
+            if (!level.isClientSide) {
+                level.playSound(null, player.blockPosition(),
+                        SoundEvents.PLAYER_ATTACK_WEAK,
+                        SoundSource.PLAYERS, 0.5f, 1.2f);
+            }
             return;
         }
 
-        if (chargePercent >= 1.0f) {
-            player.getCooldowns().addCooldown(this, COOLDOWN_TICKS);
-        }
-
         int attackResult = performAttack(stack, level, player, chargePercent, hand);
-
         player.swing(hand, true);
 
         if (!level.isClientSide) {
-            boolean playStrongSound = (attackResult == 1);
-            if (playStrongSound) {
+            if (attackResult == 1) {
                 level.playSound(null, player.blockPosition(),
                         SoundEvents.PLAYER_ATTACK_STRONG,
                         SoundSource.PLAYERS, 0.8f, 1.0f);
-            } else if (attackResult == 0 && chargePercent >= 0.05f) {
-                // лёгкий промах (можно оставить или убрать)
+            } else if (attackResult == 0) {
                 level.playSound(null, player.blockPosition(),
                         SoundEvents.PLAYER_ATTACK_WEAK,
                         SoundSource.PLAYERS, 0.5f, 1.2f);
@@ -272,7 +272,6 @@ public class CastPickaxeItem extends PickaxeItem implements GeoItem {
         boolean fullCharge = chargePercent >= 1.0f;
         boolean canHarvest = isCorrectToolForDrops(stack, state);
 
-        // Частицы крита при полном заряде (всегда)
         if (fullCharge) {
             spawnCritParticles(level, pos.getCenter());
         }
@@ -294,13 +293,16 @@ public class CastPickaxeItem extends PickaxeItem implements GeoItem {
             return true;
         } else {
             stack.hurtAndBreak(1, player, (p) -> p.broadcastBreakEvent(hand));
+            spawnCritParticles(level, pos.getCenter());
 
             if (fullCharge) {
-                // Дополнительные частицы для недобываемого блока
-                spawnCritParticles(level, pos.getCenter()); // повторно для надёжности
                 level.playSound(null, player.blockPosition(),
                         SoundEvents.PLAYER_ATTACK_STRONG,
-                        SoundSource.PLAYERS, 1.0f, 0.8f); // громче и ниже тон
+                        SoundSource.PLAYERS, 1.0f, 0.8f);
+            } else {
+                level.playSound(null, player.blockPosition(),
+                        SoundEvents.PLAYER_ATTACK_WEAK,
+                        SoundSource.PLAYERS, 0.5f, 1.2f);
             }
             return true;
         }
@@ -382,13 +384,13 @@ public class CastPickaxeItem extends PickaxeItem implements GeoItem {
         int extraBlocks = toBreak.size();
         float durabilityCost = 2.0f + (extraBlocks * stats.getVeinMinerDurabilityCost());
         int totalDamage = (int)Math.ceil(durabilityCost);
-
         stack.hurtAndBreak(totalDamage, player, (p) -> p.broadcastBreakEvent(hand));
         player.causeFoodExhaustion(0.2f);
 
         playPickaxeHitSound(level, center, chargePercent);
+        spawnCritParticles(level, center.getCenter());
+
         for (BlockPos pos : toBreak) {
-            playPickaxeHitSound(level, pos, chargePercent);
             spawnCritParticles(level, pos.getCenter());
         }
         return true;
