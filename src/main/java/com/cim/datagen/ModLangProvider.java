@@ -194,27 +194,12 @@ public class ModLangProvider extends LanguageProvider {
 
     private void addRussian() {
         //Секвойя
-
-        // Железная кирка
         add("item.cim.cast_pickaxe_iron", "Литая железная кирка");
-        add("perk.cim.cast_pickaxe.iron_tier", "Тир: Железо");
-        add("item.cim.cast_pickaxe_iron.desc.charge", "§6Зажмите ПКМ для мощного удара");
-        add("item.cim.cast_pickaxe_iron.desc.mining_power", "§7Мощь: %s секунд обычной добычи");
-        add("item.cim.cast_pickaxe_iron.desc.twohanded", "§8§oТребуется свободная вторая рука");
-        add("item.cim.cast_pickaxe_iron.warning.twohanded", "Требуется свободная вторая рука!");
-
-        // Стальная кирка
         add("item.cim.cast_pickaxe_steel", "Литая стальная кирка");
-        add("perk.cim.cast_pickaxe.diamond_tier", "Тир: Алмаз");
-        add("perk.cim.cast_pickaxe.vein_miner", "Жилковый майнер %s (%s блоков радиусом)");
-        add("perk.cim.cast_pickaxe.extended_mining", "Расширенная добыча: %s сек эквивалент");
 
-        // Общие (для всех кирок)
         add("item.cim.cast_pickaxe.desc.charge", "§7Зажмите ПКМ для мощного удара");
-        add("item.cim.cast_pickaxe.desc.mining_power", "§6Мощность добычи: %s сек");
-        add("item.cim.cast_pickaxe.desc.vein_miner_info", "§7Жилковый майнер: до %s блоков, §c-%s%% прочности");
-        add("item.cim.cast_pickaxe.desc.twohanded", "§8§oТребуется свободная вторая рука");
-
+        add("item.cim.cast_pickaxe.desc.mining_power", "§6Мощность: %s");
+        add("item.cim.cast_pickaxe.desc.vein_miner_info", "§7Жилковый майнер %s");
 
         // Металлы
         add("metal.cim.gold", "Золото");

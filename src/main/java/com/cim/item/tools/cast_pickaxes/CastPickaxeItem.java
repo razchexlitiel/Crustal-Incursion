@@ -49,6 +49,9 @@ public class CastPickaxeItem extends PickaxeItem implements GeoItem {
     private final AnimatableInstanceCache cache = GeckoLibUtil.createInstanceCache(this);
     private final CastPickaxeStats stats;
 
+    private static final String TAG_ANIM_STATE = "CastAnimState";
+    private static final int ANIM_STATE_CHARGING = 1;
+    private static final int ANIM_STATE_HOLDING = 2;
     private static final UUID ATTACK_DAMAGE_UUID = UUID.fromString("c6a7b6f2-4b2c-11ee-be56-0242ac120002");
     private static final UUID ATTACK_SPEED_UUID = UUID.fromString("c6a7b9c0-4b2c-11ee-be56-0242ac120002");
     private static final int COOLDOWN_TICKS = 20;
@@ -88,8 +91,7 @@ public class CastPickaxeItem extends PickaxeItem implements GeoItem {
      * Для кирки с 60 тиков зарядки, анимация должна играться в 1.5x (60/40)
      */
     public float getAnimationSpeed() {
-        // Базовая анимация рассчитана на 40 тиков (2 сек)
-        return stats.getChargeTicks() / 40.0f;
+        return 40.0f / stats.getChargeTicks();
     }
 
     private boolean canUse(Player player) {
@@ -458,7 +460,6 @@ public class CastPickaxeItem extends PickaxeItem implements GeoItem {
             } else {
                 text = Component.translatable(perk.translationKey);
             }
-            // Применяем цвет через Style
             tooltip.add(text.withStyle(net.minecraft.network.chat.Style.EMPTY.withColor(perk.color)));
         }
         tooltip.add(Component.translatable("item.cim.cast_pickaxe.desc.charge").withStyle(ChatFormatting.GRAY));
@@ -468,12 +469,8 @@ public class CastPickaxeItem extends PickaxeItem implements GeoItem {
         if (stats.getVeinMinerLimit() > 0) {
             tooltip.add(Component.translatable("item.cim.cast_pickaxe.desc.vein_miner_info",
                     stats.getVeinMinerLimit(),
-                    (int)(stats.getVeinMinerDurabilityCost() * 100)).withStyle(ChatFormatting.GREEN));
+                    (int)(stats.getVeinMinerDurabilityCost() * 100)).withStyle(ChatFormatting.GOLD));
         }
-
-        tooltip.add(Component.translatable("item.cim.cast_pickaxe.desc.twohanded")
-                .withStyle(ChatFormatting.DARK_GRAY, ChatFormatting.ITALIC));
-        super.appendHoverText(stack, level, tooltip, flag);
     }
 
     @Override
