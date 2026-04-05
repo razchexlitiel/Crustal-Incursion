@@ -197,17 +197,26 @@ public class CastPickaxeItem extends PickaxeItem implements GeoItem {
             player.getCooldowns().addCooldown(this, COOLDOWN_TICKS);
         }
 
-        boolean success = performAttack(stack, level, player, chargePercent, hand);
+        int attackResult = performAttack(stack, level, player, chargePercent, hand);
 
         player.swing(hand, true);
+
         if (!level.isClientSide) {
-            level.playSound(null, player.blockPosition(),
-                    success ? SoundEvents.PLAYER_ATTACK_STRONG : SoundEvents.PLAYER_ATTACK_WEAK,
-                    SoundSource.PLAYERS, 0.8f, success ? 1.0f : 1.2f);
+            boolean playStrongSound = (attackResult == 1);
+            if (playStrongSound) {
+                level.playSound(null, player.blockPosition(),
+                        SoundEvents.PLAYER_ATTACK_STRONG,
+                        SoundSource.PLAYERS, 0.8f, 1.0f);
+            } else if (attackResult == 0 && chargePercent >= 0.05f) {
+                // лёгкий промах (можно оставить или убрать)
+                level.playSound(null, player.blockPosition(),
+                        SoundEvents.PLAYER_ATTACK_WEAK,
+                        SoundSource.PLAYERS, 0.5f, 1.2f);
+            }
         }
     }
 
-    private boolean performAttack(ItemStack stack, Level level, Player player, float chargePercent, InteractionHand hand) {
+    private int performAttack(ItemStack stack, Level level, Player player, float chargePercent, InteractionHand hand) {
         Vec3 eyePos = player.getEyePosition(1.0f);
         Vec3 lookVec = player.getViewVector(1.0f);
         float reach = stats.getReach();
@@ -215,7 +224,8 @@ public class CastPickaxeItem extends PickaxeItem implements GeoItem {
 
         LivingEntity target = findEntityOnPath(player, level, eyePos, reachVec);
         if (target != null && player.distanceToSqr(target) <= reach * reach) {
-            return performHeavyAttack(stack, level, player, target, chargePercent);
+            boolean hit = performHeavyAttack(stack, level, player, target, chargePercent);
+            return hit ? 1 : 0;
         } else {
             BlockHitResult blockHit = level.clip(new net.minecraft.world.level.ClipContext(
                     eyePos, reachVec,
@@ -223,13 +233,13 @@ public class CastPickaxeItem extends PickaxeItem implements GeoItem {
                     net.minecraft.world.level.ClipContext.Fluid.NONE,
                     player
             ));
-
             if (blockHit.getType() != HitResult.Type.MISS) {
-                return performHeavyStrike(stack, level, player, blockHit.getBlockPos(),
+                boolean hit = performHeavyStrike(stack, level, player, blockHit.getBlockPos(),
                         blockHit.getDirection(), chargePercent, hand);
+                return hit ? 2 : 0;
             }
         }
-        return false;
+        return 0;
     }
 
     private LivingEntity findEntityOnPath(Player player, Level level, Vec3 start, Vec3 end) {
@@ -260,32 +270,59 @@ public class CastPickaxeItem extends PickaxeItem implements GeoItem {
         BlockState state = level.getBlockState(pos);
         float hardness = state.getDestroySpeed(level, pos);
         boolean fullCharge = chargePercent >= 1.0f;
+        boolean canHarvest = isCorrectToolForDrops(stack, state);
 
-        spawnHeavyEffects(level, pos, face, state, fullCharge);
+        // Частицы крита при полном заряде (всегда)
+        if (fullCharge) {
+            spawnCritParticles(level, pos.getCenter());
+        }
+
         if (hardness < 0) return true;
 
         float maxHardness = stats.getMaxHardness(chargePercent);
-        boolean canHarvest = isCorrectToolForDrops(stack, state);
 
         if (fullCharge && stats.getVeinMinerLimit() > 0 && stats.canVeinMine(state)) {
-            return performVeinMiner(stack, level, player, pos, state, face, hand);
+            return performVeinMiner(stack, level, player, pos, state, face, hand, chargePercent);
         }
 
-        // Обычная добыча с учетом процента заряда
         if (canHarvest && hardness <= maxHardness) {
             level.destroyBlock(pos, true, player);
             int damage = fullCharge ? 2 : 1;
             stack.hurtAndBreak(damage, player, (p) -> p.broadcastBreakEvent(hand));
             if (fullCharge) player.causeFoodExhaustion(0.2f);
+            playPickaxeHitSound(level, pos, chargePercent);
             return true;
         } else {
             stack.hurtAndBreak(1, player, (p) -> p.broadcastBreakEvent(hand));
+
+            if (fullCharge) {
+                // Дополнительные частицы для недобываемого блока
+                spawnCritParticles(level, pos.getCenter()); // повторно для надёжности
+                level.playSound(null, player.blockPosition(),
+                        SoundEvents.PLAYER_ATTACK_STRONG,
+                        SoundSource.PLAYERS, 1.0f, 0.8f); // громче и ниже тон
+            }
             return true;
         }
     }
 
+    private void spawnCritParticles(Level level, Vec3 pos) {
+        if (level.isClientSide) return;
+        ((ServerLevel)level).sendParticles(ParticleTypes.CRIT,
+                pos.x, pos.y, pos.z, 15, 0.3, 0.3, 0.3, 0.1);
+    }
+
+    private void playPickaxeHitSound(Level level, BlockPos pos, float chargePercent) {
+        if (level.isClientSide) return;
+        float volume = 0.4f + chargePercent * 0.8f;
+        float pitch = 1.2f - chargePercent * 0.4f;
+        level.playSound(null, pos,
+                com.cim.sound.ModSounds.PICKAXE_HIT.get(),
+                SoundSource.PLAYERS, volume, pitch);
+    }
+
     private boolean performVeinMiner(ItemStack stack, Level level, Player player, BlockPos center,
-                                     BlockState centerState, Direction face, InteractionHand hand) {
+                                     BlockState centerState, Direction face, InteractionHand hand, float chargePercent) {
         List<BlockPos> toBreak = new ArrayList<>();
         Queue<BlockPos> queue = new LinkedList<>();
         Set<BlockPos> visited = new HashSet<>();
@@ -349,12 +386,11 @@ public class CastPickaxeItem extends PickaxeItem implements GeoItem {
         stack.hurtAndBreak(totalDamage, player, (p) -> p.broadcastBreakEvent(hand));
         player.causeFoodExhaustion(0.2f);
 
-        // Эффекты
-        spawnHeavyEffects(level, center, face, centerState, true);
+        playPickaxeHitSound(level, center, chargePercent);
         for (BlockPos pos : toBreak) {
-            spawnHeavyEffects(level, pos, face, level.getBlockState(pos), false);
+            playPickaxeHitSound(level, pos, chargePercent);
+            spawnCritParticles(level, pos.getCenter());
         }
-
         return true;
     }
 
@@ -390,26 +426,6 @@ public class CastPickaxeItem extends PickaxeItem implements GeoItem {
             return true;
         }
         return false;
-    }
-
-    private void spawnHeavyEffects(Level level, BlockPos pos, Direction face, BlockState state, boolean strong) {
-        if (level.isClientSide) return;
-
-        Vec3 hitVec = pos.getCenter().add(
-                face.getStepX() * 0.5, face.getStepY() * 0.5, face.getStepZ() * 0.5
-        );
-
-        ((ServerLevel)level).sendParticles(
-                new BlockParticleOption(ParticleTypes.BLOCK, state),
-                hitVec.x, hitVec.y, hitVec.z, strong ? 30 : 10, 0.3, 0.3, 0.3, 0.15
-        );
-
-        ((ServerLevel)level).sendParticles(ParticleTypes.CRIT,
-                hitVec.x, hitVec.y, hitVec.z, strong ? 15 : 5, 0.2, 0.2, 0.2, 0.5);
-
-        level.playSound(null, pos,
-                strong ? SoundEvents.ANVIL_LAND : SoundEvents.STONE_HIT,
-                SoundSource.BLOCKS, 0.5f, strong ? 0.6f : 1.2f);
     }
 
     @Override
@@ -468,8 +484,9 @@ public class CastPickaxeItem extends PickaxeItem implements GeoItem {
 
         if (stats.getVeinMinerLimit() > 0) {
             tooltip.add(Component.translatable("item.cim.cast_pickaxe.desc.vein_miner_info",
-                    stats.getVeinMinerLimit(),
-                    (int)(stats.getVeinMinerDurabilityCost() * 100)).withStyle(ChatFormatting.GOLD));
+                            stats.getVeinMinerLimit(),
+                            (int)(stats.getVeinMinerDurabilityCost() * 100))
+                    .withStyle(ChatFormatting.GOLD));
         }
     }
 

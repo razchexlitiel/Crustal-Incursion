@@ -36,6 +36,13 @@
       "cim:mukeexplosion"
     ]
   },
+  "pickaxe_hit": {
+    "category": "block",
+    "subtitle": "sounds.cim.pickaxe_hit",
+    "sounds": [
+      "cim:break/pickaxe_hit"
+    ]
+  },
   "item.bounce_random": {
     "subtitle": "sounds.cim.subtitle.bounce",
     "sounds": [

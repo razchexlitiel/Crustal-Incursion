@@ -28,7 +28,7 @@ public class ModSounds {
     public static final RegistryObject<SoundEvent> AIRSTRIKE = registerSoundEvents("airstrike");
     public static final RegistryObject<SoundEvent> TOOL_TECH_BLEEP = registerSoundEvents("techbleep");
     public static final RegistryObject<SoundEvent> TOOL_TECH_BOOP = registerSoundEvents("techboop");
-
+    public static final RegistryObject<SoundEvent> PICKAXE_HIT = registerSoundEvents("pickaxe_hit");
     public static final RegistryObject<SoundEvent> MUKE_EXPLOSION = registerSoundEvents("mukeexplosion");
     public static final RegistryObject<SoundEvent> BOUNCE_RANDOM = registerSoundEvents("item.bounce_random");
     // Вспомогательный метод

@@ -199,7 +199,7 @@ public class ModLangProvider extends LanguageProvider {
 
         add("item.cim.cast_pickaxe.desc.charge", "§7Зажмите ПКМ для мощного удара");
         add("item.cim.cast_pickaxe.desc.mining_power", "§6Мощность: %s");
-        add("item.cim.cast_pickaxe.desc.vein_miner_info", "§7Жилковый майнер %s");
+        add("item.cim.cast_pickaxe.desc.vein_miner_info", "Жилковый майнер: %s");
 
         // Металлы
         add("metal.cim.gold", "Золото");
