@@ -34,9 +34,9 @@ class ConglomerateVeinFeature extends Feature<NoneFeatureConfiguration> {
 
         if (!(level instanceof ServerLevel serverLevel)) return false;
 
-        // Параметры жилы
-        int radius = 3 + rand.nextInt(4); // 3-6 блоков в радиусе
-        int height = 2 + rand.nextInt(3); // 2-4 блока в высоту
+        // УВЕЛИЧЕННЫЕ ПАРАМЕТРЫ: радиус 5-8, высота 5-8
+        int radius = 5 + rand.nextInt(4); // 5-8 блоков в радиусе
+        int height = 5 + rand.nextInt(4); // 5-8 блоков в высоту
         VeinType type = VeinType.values()[rand.nextInt(VeinType.values().length)];
 
         Set<BlockPos> veinBlocks = new HashSet<>();
@@ -45,8 +45,12 @@ class ConglomerateVeinFeature extends Feature<NoneFeatureConfiguration> {
         for (int x = -radius; x <= radius; x++) {
             for (int y = 0; y < height; y++) {
                 for (int z = -radius; z <= radius; z++) {
-                    // Проверка эллипсоида
-                    double dist = (x*x)/(double)(radius*radius) + (y*y)/(double)(height*height) + (z*z)/(double)(radius*radius);
+                    // Проверка эллипсоида (делим height на 2 для правильной формы)
+                    double halfHeight = height / 2.0;
+                    double yOffset = y - halfHeight;
+                    double dist = (x*x)/(double)(radius*radius) +
+                            (yOffset*yOffset)/(halfHeight*halfHeight) +
+                            (z*z)/(double)(radius*radius);
                     if (dist > 1.0) continue;
 
                     BlockPos pos = origin.offset(x, y, z);
@@ -59,7 +63,8 @@ class ConglomerateVeinFeature extends Feature<NoneFeatureConfiguration> {
             }
         }
 
-        if (veinBlocks.size() < 10) return false; // Слишком маленькая жила
+        // Минимум 30 блоков для жилы (вместо 10)
+        if (veinBlocks.size() < 30) return false;
 
         // Регистрируем жилу в менеджере
         UUID veinId = VeinManager.get(serverLevel).registerVein(veinBlocks, type);

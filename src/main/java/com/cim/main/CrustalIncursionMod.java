@@ -22,11 +22,14 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.common.data.DatapackBuiltinEntriesProvider;
 import net.minecraftforge.event.AttachCapabilitiesEvent;
@@ -397,18 +400,56 @@ public class CrustalIncursionMod {
     @SubscribeEvent
     public void onRightClick(PlayerInteractEvent.RightClickBlock event) {
         if (event.getLevel().isClientSide) return;
-        if (event.getItemStack().is(Items.STICK)) { // Палкой тестируем
-            BlockPos pos = event.getPos().above();
-            event.getLevel().setBlock(pos, ModBlocks.CONGLOMERATE.get().defaultBlockState(), 3);
+        if (event.getItemStack().is(Items.STICK)) {
+            ServerLevel level = (ServerLevel) event.getLevel();
+            BlockPos origin = event.getPos().above();
 
-            // Создаём тестовую жилу
-            Set<BlockPos> blocks = new HashSet<>();
-            blocks.add(pos);
-            UUID veinId = VeinManager.get((ServerLevel)event.getLevel())
-                    .registerVein(blocks, VeinManager.VeinType.IRON_COPPER);
+            RandomSource rand = level.random;
+            int radius = 5 + rand.nextInt(4);
+            int height = 5 + rand.nextInt(4);
+            VeinManager.VeinType type = VeinManager.VeinType.values()[rand.nextInt(VeinManager.VeinType.values().length)];
 
-            ((ConglomerateBlockEntity)event.getLevel().getBlockEntity(pos)).setVeinId(veinId);
+            Set<BlockPos> veinBlocks = new HashSet<>();
+
+            for (int x = -radius; x <= radius; x++) {
+                for (int y = -height/2; y < height/2 + height%2; y++) { // Центрируем по Y
+                    for (int z = -radius; z <= radius; z++) {
+                        double halfHeight = height / 2.0;
+                        double yOffset = y;
+                        double dist = (x*x)/(double)(radius*radius) +
+                                (yOffset*yOffset)/(halfHeight*halfHeight) +
+                                (z*z)/(double)(radius*radius);
+                        if (dist > 1.0) continue;
+
+                        BlockPos pos = origin.offset(x, y, z);
+                        // ЗАМЕЩАЕМ любой не-бедрок блок (включая воздух, но кроме бедрока)
+                        BlockState existing = level.getBlockState(pos);
+                        if (!existing.is(net.minecraft.world.level.block.Blocks.BEDROCK)) {
+                            veinBlocks.add(pos.immutable());
+                        }
+                    }
+                }
+            }
+
+            if (veinBlocks.size() < 30) {
+                event.getEntity().displayClientMessage(Component.literal("§cСлишком мало места для жилы! Нужно " + (30 - veinBlocks.size()) + " блоков"), true);
+                return;
+            }
+
+            UUID veinId = VeinManager.get(level).registerVein(veinBlocks, type);
+
+            for (BlockPos pos : veinBlocks) {
+                level.setBlock(pos, ModBlocks.CONGLOMERATE.get().defaultBlockState(), 2);
+                BlockEntity be = level.getBlockEntity(pos);
+                if (be instanceof ConglomerateBlockEntity conglomerateBe) {
+                    conglomerateBe.setVeinId(veinId);
+                }
+            }
+
+            event.getEntity().displayClientMessage(
+                    Component.literal("§aЖила: " + veinBlocks.size() + " блоков, " + type.name()),
+                    false
+            );
         }
     }
-
 }
