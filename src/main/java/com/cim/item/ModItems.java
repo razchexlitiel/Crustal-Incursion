@@ -5,6 +5,7 @@ import com.cim.entity.weapons.grenades.GrenadeIfType;
 import com.cim.entity.weapons.grenades.GrenadeType;
 import com.cim.item.armor.GrenadierArmorMaterial;
 import com.cim.item.armor.GrenadierGogglesItem;
+import com.cim.item.conglomerates.ConglomerateItem;
 import com.cim.item.energy.EnergyCellItem;
 import com.cim.item.food.FoodZamaz;
 import com.cim.event.SlagItem;
@@ -19,6 +20,7 @@ import com.cim.item.weapons.grenades.GrenadeNucItem;
 import com.cim.multiblock.system.MultiblockBlockItem;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.item.ArmorItem;
+import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.SpawnEggItem;
 import net.minecraftforge.common.ForgeSpawnEggItem;
@@ -139,7 +141,20 @@ public class ModItems {
             () -> new TurretLightPortativePlacer(new Item.Properties().stacksTo(1)));
 
 
+    // Conglomerate items
+    public static final RegistryObject<Item> CONGLOMERATE_CHUNK = ITEMS.register("conglomerate_chunk",
+            () -> new ConglomerateItem(new Item.Properties()));
 
+    public static final RegistryObject<Item> HARD_ROCK = ITEMS.register("hard_rock",
+            () -> new Item(new Item.Properties()));
+
+
+    // BlockItems
+    public static final RegistryObject<Item> CONGLOMERATE_BLOCK_ITEM = ITEMS.register("conglomerate",
+            () -> new BlockItem(ModBlocks.CONGLOMERATE.get(), new Item.Properties()));
+
+    public static final RegistryObject<Item> DEPLETED_CONGLOMERATE_BLOCK_ITEM = ITEMS.register("depleted_conglomerate",
+            () -> new BlockItem(ModBlocks.DEPLETED_CONGLOMERATE.get(), new Item.Properties()));
 
 
     //БЛОК-АЙТЕМЫ

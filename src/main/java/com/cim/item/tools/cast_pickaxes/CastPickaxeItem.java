@@ -2,6 +2,7 @@ package com.cim.item.tools.cast_pickaxes;
 
 
 
+import com.cim.block.basic.conglomerate.ConglomerateBlock;
 import com.cim.client.gecko.item.tools.CastPickaxeItemRenderer;
 import com.google.common.collect.ImmutableMultimap;
 import com.google.common.collect.Multimap;
@@ -268,15 +269,31 @@ public class CastPickaxeItem extends PickaxeItem implements GeoItem {
         if (level.isClientSide) return false;
 
         BlockState state = level.getBlockState(pos);
-        float hardness = state.getDestroySpeed(level, pos);
         boolean fullCharge = chargePercent >= 1.0f;
-        boolean canHarvest = isCorrectToolForDrops(stack, state);
 
-        if (fullCharge) {
+        // СНАЧАЛА проверяем ConglomerateBlock (у него hardness < 0!)
+        if (state.getBlock() instanceof ConglomerateBlock conglomerate) {
+            if (!fullCharge) {
+                spawnCritParticles(level, pos.getCenter());
+                level.playSound(null, pos, SoundEvents.STONE_HIT, SoundSource.BLOCKS, 1.0f, 0.5f);
+                return true;
+            }
+
+            ConglomerateBlock.CastPickaxeTier tier = (this.stats == CastPickaxeStats.iron())
+                    ? ConglomerateBlock.CastPickaxeTier.IRON
+                    : ConglomerateBlock.CastPickaxeTier.STEEL;
+
+            conglomerate.mineWithCastPickaxe((ServerLevel)level, pos, player, tier);
+            stack.hurtAndBreak(5, player, (p) -> p.broadcastBreakEvent(hand));
             spawnCritParticles(level, pos.getCenter());
+            return true;
         }
 
-        if (hardness < 0) return true;
+        // Только потом проверяем hardness
+        float hardness = state.getDestroySpeed(level, pos);
+        boolean canHarvest = isCorrectToolForDrops(stack, state);
+
+        if (hardness < 0) return true; // Бедрок и т.п.
 
         float maxHardness = stats.getMaxHardness(chargePercent);
 

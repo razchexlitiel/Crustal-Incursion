@@ -4,6 +4,7 @@ import com.cim.api.energy.ConnectorTier;
 import com.cim.api.fluids.PipeTier;
 import com.cim.api.rotation.ShaftDiameter;
 import com.cim.api.rotation.ShaftMaterial;
+import com.cim.block.basic.conglomerate.ConglomerateBlock;
 import com.cim.block.basic.deco.BeamBlock;
 import com.cim.block.basic.deco.BeamCollisionBlock;
 import com.cim.block.basic.deco.SteelPropsBlock;
@@ -102,7 +103,19 @@ public class ModBlocks {
             () -> new FluidPipeBlock(PipeTier.TUNGSTEN, BlockBehaviour.Properties.copy(Blocks.IRON_BLOCK).noOcclusion()));
 
 
+    // Конгломераты
+    public static final RegistryObject<Block> CONGLOMERATE = BLOCKS.register("conglomerate",
+            () -> new ConglomerateBlock(BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.STONE)
+                    .strength(-1.0F, 3600000.0F)
+                    .sound(SoundType.STONE)));
 
+    public static final RegistryObject<Block> DEPLETED_CONGLOMERATE = BLOCKS.register("depleted_conglomerate",
+            () -> new Block(BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.STONE)
+                    .strength(3.0F, 6.0F)
+                    .sound(SoundType.STONE)
+                    .requiresCorrectToolForDrops()));
 
     //ВЗРЫВЧАТКА
     public static final RegistryObject<Block> DET_MINER = registerBlock("det_miner",

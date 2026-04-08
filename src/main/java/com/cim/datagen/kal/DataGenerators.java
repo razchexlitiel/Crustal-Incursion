@@ -1,5 +1,6 @@
-package com.cim.datagen;
+package com.cim.datagen.kal;
 
+import com.cim.datagen.ModLangProvider;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.data.DataGenerator;
 import net.minecraft.data.PackOutput;

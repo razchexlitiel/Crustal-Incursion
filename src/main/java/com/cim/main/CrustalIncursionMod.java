@@ -7,25 +7,39 @@ import com.cim.api.metallurgy.ModMetallurgy;
 import com.cim.api.metallurgy.system.Metal;
 import com.cim.api.metallurgy.system.MetalUnits2;
 import com.cim.api.metallurgy.system.MetallurgyRegistry;
+import com.cim.api.vein.VeinManager;
+import com.cim.block.entity.conglomerate.ConglomerateBlockEntity;
 import com.cim.entity.mobs.grenadier.GrenadierZombieEntity;
 import com.cim.event.SlagItem;
+import com.cim.worldgen.feature.ModBiomeModifiers;
+import com.cim.worldgen.feature.ModConfiguredFeatures;
+import com.cim.worldgen.feature.ModFeatures;
+import com.cim.worldgen.feature.ModPlacedFeatures;
 import com.mojang.logging.LogUtils;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.RegistrySetBuilder;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
 import net.minecraftforge.common.MinecraftForge;
+import net.minecraftforge.common.data.DatapackBuiltinEntriesProvider;
 import net.minecraftforge.event.AttachCapabilitiesEvent;
 import net.minecraftforge.event.BuildCreativeModeTabContentsEvent;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.entity.living.MobSpawnEvent;
+import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
+import net.minecraftforge.registries.ForgeRegistries;
 import net.minecraftforge.registries.RegistryObject;
 import org.slf4j.Logger;
 import com.cim.api.hive.HiveNetworkManagerProvider;
@@ -50,7 +64,10 @@ import com.cim.item.ModItems;
 import terrablender.api.Regions;
 import terrablender.api.SurfaceRuleManager;
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.UUID;
 
 @Mod(CrustalIncursionMod.MOD_ID)
 public class CrustalIncursionMod {
@@ -79,6 +96,7 @@ public class CrustalIncursionMod {
         ModTrunkPlacerTypes.register(modEventBus);
         ModFoliagePlacerTypes.register(modEventBus);
         ModFluids.register(modEventBus);
+        ModFeatures.FEATURES.register(modEventBus);
         MinecraftForge.EVENT_BUS.register(new HiveEventHandler());
         // Проверяем, есть ли Окулус
         // Проверяем наличие Окулуса
@@ -304,6 +322,11 @@ public class CrustalIncursionMod {
 
         if (event.getTab() == ModCreativeTabs.CIM_NATURE_TAB.get()) {
 
+            event.accept(ModBlocks.CONGLOMERATE.get());
+            event.accept(ModBlocks.DEPLETED_CONGLOMERATE.get());
+            event.accept(ModItems.CONGLOMERATE_CHUNK);
+            event.accept(ModItems.HARD_ROCK);
+
             event.accept(ModBlocks.SEQUOIA_BARK.get());
             event.accept(ModBlocks.SEQUOIA_HEARTWOOD.get());
             event.accept(ModBlocks.SEQUOIA_LEAVES.get());
@@ -370,4 +393,22 @@ public class CrustalIncursionMod {
             }
         }
     }
+
+    @SubscribeEvent
+    public void onRightClick(PlayerInteractEvent.RightClickBlock event) {
+        if (event.getLevel().isClientSide) return;
+        if (event.getItemStack().is(Items.STICK)) { // Палкой тестируем
+            BlockPos pos = event.getPos().above();
+            event.getLevel().setBlock(pos, ModBlocks.CONGLOMERATE.get().defaultBlockState(), 3);
+
+            // Создаём тестовую жилу
+            Set<BlockPos> blocks = new HashSet<>();
+            blocks.add(pos);
+            UUID veinId = VeinManager.get((ServerLevel)event.getLevel())
+                    .registerVein(blocks, VeinManager.VeinType.IRON_COPPER);
+
+            ((ConglomerateBlockEntity)event.getLevel().getBlockEntity(pos)).setVeinId(veinId);
+        }
+    }
+
 }

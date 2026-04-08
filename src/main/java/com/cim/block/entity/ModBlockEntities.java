@@ -1,5 +1,6 @@
 package com.cim.block.entity;
 
+import com.cim.block.entity.conglomerate.ConglomerateBlockEntity;
 import com.cim.block.entity.deco.BeamCollisionBlockEntity;
 import com.cim.block.entity.fluids.FluidBarrelBlockEntity;
 
@@ -30,6 +31,8 @@ import com.cim.block.entity.weapons.TurretLightPlacerBlockEntity;
 import com.cim.main.CrustalIncursionMod;
 import com.cim.block.basic.ModBlocks;
 
+import static com.cim.block.basic.ModBlocks.BLOCKS;
+
 public class ModBlockEntities {
     public static final DeferredRegister<BlockEntityType<?>> BLOCK_ENTITIES =
             DeferredRegister.create(ForgeRegistries.BLOCK_ENTITY_TYPES, CrustalIncursionMod.MOD_ID);
@@ -46,8 +49,10 @@ public class ModBlockEntities {
                             .build(null)
             );
 
-
-
+    public static final RegistryObject<BlockEntityType<ConglomerateBlockEntity>> CONGLOMERATE =
+            BLOCK_ENTITIES.register("conglomerate",
+                    () -> BlockEntityType.Builder.of(ConglomerateBlockEntity::new,
+                            ModBlocks.CONGLOMERATE.get()).build(null));
 
     public static final RegistryObject<BlockEntityType<TurretLightPlacerBlockEntity>> TURRET_LIGHT_PLACER_BE =
             BLOCK_ENTITIES.register("turret_light_placer",
