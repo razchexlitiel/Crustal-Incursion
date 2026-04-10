@@ -206,6 +206,7 @@ public class CrustalIncursionMod {
             event.accept(ModBlocks.SHAFT_HEAVY_TUNGSTEN_CARBIDE);
 
             event.accept(ModBlocks.MOTOR_ELECTRO);
+            event.accept(ModBlocks.BEARING_BLOCK);
 
 
             event.accept(ModItems.WIRE_COIL);

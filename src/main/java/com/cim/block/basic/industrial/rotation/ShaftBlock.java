@@ -63,13 +63,59 @@ public class ShaftBlock extends BaseEntityBlock {
     @Nullable
     @Override
     public BlockState getStateForPlacement(BlockPlaceContext context) {
-        BlockPos clickedPos = context.getClickedPos().relative(context.getClickedFace().getOpposite());
-        BlockState clickedState = context.getLevel().getBlockState(clickedPos);
+        Level level = context.getLevel();
+        BlockPos pos = context.getClickedPos();
+        Direction clickedFace = context.getClickedFace();
 
-        if (clickedState.getBlock() instanceof ShaftBlock) {
-            return this.defaultBlockState().setValue(FACING, clickedState.getValue(FACING));
+        // 1. Получаем блок, по которому мы кликнули (чтобы понять, к чему крепимся)
+        BlockPos posAgainst = pos.relative(clickedFace.getOpposite());
+        BlockState stateAgainst = level.getBlockState(posAgainst);
+
+        // Изначально предполагаем направление по взгляду игрока
+        Direction placementFacing = context.getNearestLookingDirection().getOpposite();
+
+        // --- ЛОГИКА КЛИКА ПО ДРУГОМУ БЛОКУ ---
+        if (stateAgainst.getBlock() instanceof ShaftBlock clickedShaft) {
+            // Если мы пытаемся продолжить линию вала (кликаем в торец)
+            if (stateAgainst.getValue(FACING).getAxis() == clickedFace.getAxis()) {
+
+                // ГЛАВНАЯ ПРОВЕРКА: Если диаметры разные — отменяем установку!
+                if (clickedShaft.getDiameter() != this.diameter) {
+                    return null;
+                }
+                // Если диаметры совпали (материал не важен), выстраиваем в линию
+                placementFacing = stateAgainst.getValue(FACING);
+
+            } else {
+                // Если кликнули сбоку по валу, логично сделать новый вал параллельным старому
+                placementFacing = stateAgainst.getValue(FACING);
+            }
+        } else if (stateAgainst.getBlock() instanceof BearingBlock) {
+            // Опционально: если ставим вал кликая по подшипнику, перенимаем его ось
+            placementFacing = stateAgainst.getValue(BearingBlock.FACING);
         }
-        return this.defaultBlockState().setValue(FACING, context.getClickedFace());
+
+
+        // --- ЗАЩИТА ОТ ХИТРЕЦОВ ---
+        // Игрок мог кликнуть по полу, чтобы поставить валы встык.
+        // Проверяем соседей спереди и сзади по оси вращения будущего вала.
+        for (Direction dir : new Direction[]{placementFacing, placementFacing.getOpposite()}) {
+            BlockState neighborState = level.getBlockState(pos.relative(dir));
+
+            if (neighborState.getBlock() instanceof ShaftBlock neighborShaft) {
+                // Если соседний вал лежит на той же оси (будет соединен с нашим)
+                if (neighborState.getValue(FACING).getAxis() == placementFacing.getAxis()) {
+
+                    // Проверяем диаметр. Разные? Запрет установки!
+                    if (neighborShaft.getDiameter() != this.diameter) {
+                        return null;
+                    }
+                }
+            }
+        }
+
+        // Если все проверки пройдены, ставим блок!
+        return this.defaultBlockState().setValue(FACING, placementFacing);
     }
 
     @Nullable

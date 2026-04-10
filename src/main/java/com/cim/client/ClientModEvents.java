@@ -164,6 +164,21 @@ public class ClientModEvents {
                 return true;
             }
         });
+
+        VisualizerRegistry.setVisualizer(ModBlockEntities.BEARING_BE.get(), new dev.engine_room.flywheel.api.visualization.BlockEntityVisualizer<com.cim.block.entity.industrial.rotation.BearingBlockEntity>() {
+
+            @Override
+            public dev.engine_room.flywheel.api.visual.BlockEntityVisual<? super com.cim.block.entity.industrial.rotation.BearingBlockEntity> createVisual(dev.engine_room.flywheel.api.visualization.VisualizationContext ctx, com.cim.block.entity.industrial.rotation.BearingBlockEntity be, float partialTick) {
+                // Возвращаем инстанс подшипника (внутреннее кольцо и вставленный вал)
+                return new com.cim.client.render.flywheel.BearingVisual(ctx, be, partialTick);
+            }
+
+            @Override
+            public boolean skipVanillaRender(com.cim.block.entity.industrial.rotation.BearingBlockEntity be) {
+                // Отключаем ванильный BlockEntityRenderer
+                return true;
+            }
+        });
     }
     //================================================================================================
     //================================================================================================

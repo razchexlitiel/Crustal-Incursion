@@ -15,6 +15,7 @@ import com.cim.block.basic.industrial.casting.CastingDescentBlock;
 import com.cim.block.basic.industrial.casting.CastingPotBlock;
 import com.cim.block.basic.industrial.energy.*;
 
+import com.cim.block.basic.industrial.rotation.BearingBlock;
 import com.cim.block.basic.industrial.rotation.MotorElectroBlock;
 import com.cim.block.basic.industrial.rotation.ShaftBlock;
 import com.cim.block.basic.necrosis.hive.HiveRootsBlock;
@@ -350,6 +351,11 @@ public class ModBlocks {
     // Максимально чистая регистрация базового вала
     // Меняем BLOCKS.register на твой метод registerBlock
 
+    public static final RegistryObject<Block> BEARING_BLOCK = registerBlock("bearing",
+            () -> new BearingBlock(BlockBehaviour.Properties.copy(Blocks.IRON_BLOCK)
+                    .noOcclusion() // Важно для рендера моделей внутри
+                    .strength(5.0f, 6.0f)
+                    .requiresCorrectToolForDrops()));
 
     public static final RegistryObject<Block> MOTOR_ELECTRO = registerBlock("motor_electro",
             () -> new MotorElectroBlock(BlockBehaviour.Properties.copy(Blocks.IRON_BLOCK).noOcclusion()));

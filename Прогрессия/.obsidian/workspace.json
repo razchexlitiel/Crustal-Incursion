@@ -1,0 +1,315 @@
+{
+  "main": {
+    "id": "6a171f2ce4dce33e",
+    "type": "split",
+    "children": [
+      {
+        "id": "f8dba843c20018d3",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "c12558be610f9ce9",
+            "type": "leaf",
+            "state": {
+              "type": "canvas",
+              "state": {
+                "file": "Долгий ящик/Долгий ящик.canvas",
+                "viewState": {
+                  "x": -46.03179931640625,
+                  "y": -82.5396728515625,
+                  "zoom": 0
+                }
+              },
+              "icon": "lucide-layout-dashboard",
+              "title": "Долгий ящик"
+            }
+          },
+          {
+            "id": "d0856c0b4bf00890",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "Прогрессия/Малая шамотная плавильня.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "Малая шамотная плавильня"
+            }
+          },
+          {
+            "id": "13b801e1ee7dabcd",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "Долгий ящик/Пасхалко и фигурки.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "Пасхалко и фигурки"
+            }
+          },
+          {
+            "id": "0fd3917263d75419",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "Долгий ящик/Аналоговнетные технологии от марко поло.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "Аналоговнетные технологии от марко поло"
+            }
+          },
+          {
+            "id": "7cb36bda3824bda8",
+            "type": "leaf",
+            "state": {
+              "type": "canvas",
+              "state": {
+                "file": "Долгий ящик/Долгий ящик.canvas",
+                "viewState": {
+                  "x": -235,
+                  "y": -210,
+                  "zoom": 0
+                }
+              },
+              "icon": "lucide-layout-dashboard",
+              "title": "Долгий ящик"
+            }
+          },
+          {
+            "id": "b0dfb12d697b0218",
+            "type": "leaf",
+            "state": {
+              "type": "canvas",
+              "state": {
+                "file": "Дерево развития.canvas",
+                "viewState": {
+                  "x": 159.34481319796748,
+                  "y": 481.0270550236072,
+                  "zoom": -0.8673091064510099
+                }
+              },
+              "icon": "lucide-layout-dashboard",
+              "title": "Дерево развития"
+            }
+          },
+          {
+            "id": "f81dd4bb42e932ce",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "Долгий ящик/Газики.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "Газики"
+            }
+          },
+          {
+            "id": "a526e555c84c51ea",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "Долгий ящик/Пасхалко и фигурки.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "Пасхалко и фигурки"
+            }
+          }
+        ],
+        "currentTab": 5
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "304af7cd7e5d9fc3",
+    "type": "split",
+    "children": [
+      {
+        "id": "f59ecc8ac900a2be",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "0cdcfca238d418e2",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {
+                "sortOrder": "alphabetical",
+                "autoReveal": false
+              },
+              "icon": "lucide-folder-closed",
+              "title": "Файловый менеджер"
+            }
+          },
+          {
+            "id": "555280e4321bfae4",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              },
+              "icon": "lucide-search",
+              "title": "Search"
+            }
+          },
+          {
+            "id": "516fee11347044bf",
+            "type": "leaf",
+            "state": {
+              "type": "bookmarks",
+              "state": {},
+              "icon": "lucide-bookmark",
+              "title": "Bookmarks"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300
+  },
+  "right": {
+    "id": "11fbf9ce65fdc800",
+    "type": "split",
+    "children": [
+      {
+        "id": "5bb63d534a3bfb5c",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "fef3647382e8cfb6",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "file": "Дерево развития.canvas",
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-coming-in",
+              "title": "Backlinks for Дерево развития"
+            }
+          },
+          {
+            "id": "4714999f62fcb3e9",
+            "type": "leaf",
+            "state": {
+              "type": "outgoing-link",
+              "state": {
+                "file": "Дерево развития.canvas",
+                "linksCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-going-out",
+              "title": "Outgoing links from Дерево развития"
+            }
+          },
+          {
+            "id": "0cc5272445c30617",
+            "type": "leaf",
+            "state": {
+              "type": "tag",
+              "state": {
+                "sortOrder": "frequency",
+                "useHierarchy": true,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-tags",
+              "title": "Tags"
+            }
+          },
+          {
+            "id": "5a9fa19a83c03ff7",
+            "type": "leaf",
+            "state": {
+              "type": "all-properties",
+              "state": {
+                "sortOrder": "frequency",
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-archive",
+              "title": "All properties"
+            }
+          },
+          {
+            "id": "08299206bf4da832",
+            "type": "leaf",
+            "state": {
+              "type": "outline",
+              "state": {
+                "file": "Дерево развития.canvas",
+                "followCursor": false,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-list",
+              "title": "Outline of Дерево развития"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300,
+    "collapsed": true
+  },
+  "left-ribbon": {
+    "hiddenItems": {
+      "switcher:Меню быстрого перехода": false,
+      "graph:Граф": false,
+      "canvas:Создать новый холст": false,
+      "daily-notes:Сегодняшняя заметка": false,
+      "templates:Вставить шаблон": false,
+      "command-palette:Открыть палитру команд": false,
+      "bases:Создать новую базу": false,
+      "obsidian-excalidraw-plugin:New drawing": false
+    }
+  },
+  "active": "b0dfb12d697b0218",
+  "lastOpenFiles": [
+    "Долгий ящик/Аналоговнетные технологии от марко поло.md",
+    "Долгий ящик/Долгий ящик.canvas",
+    "Дерево развития.canvas",
+    "Прогрессия/Малая шамотная плавильня.md",
+    "Прогрессия/Малый твердотопливный шамотный нагреватель.md",
+    "Долгий ящик/Аналоговнетный житель марко поло.md",
+    "Долгий ящик/Газики.md",
+    "Долгий ящик/Мыльная вода.md",
+    "Долгий ящик/Пасхалко и фигурки.md",
+    "Долгий ящик/Эндгейм сплавы.md",
+    "Долгий ящик",
+    "Welcome.md",
+    "Прогрессия/Малые ручные жернова.md",
+    "Прогрессия",
+    "Прогрессия/Большие ручные жернова.md",
+    "Excalidraw/Drawing 2026-04-09 18.06.16.excalidraw.md",
+    "Excalidraw"
+  ]
+}
