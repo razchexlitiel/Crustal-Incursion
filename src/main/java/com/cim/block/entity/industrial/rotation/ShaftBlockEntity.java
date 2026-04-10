@@ -1,6 +1,7 @@
 package com.cim.block.entity.industrial.rotation;
 
 import com.cim.api.rotation.Rotational;
+import com.cim.api.rotation.ShaftDiameter;
 import com.cim.block.basic.industrial.rotation.ShaftBlock;
 import com.cim.block.entity.ModBlockEntities;
 import net.minecraft.core.BlockPos;
@@ -17,7 +18,31 @@ public class ShaftBlockEntity extends BlockEntity implements Rotational {
         super(ModBlockEntities.SHAFT_BE.get(), pos, state);
     }
 
-    // ... твой конструктор и переменные ...
+    @Override
+    public boolean canConnectMechanically(Direction direction, Rotational neighbor) {
+        ShaftDiameter thisDiameter = ((ShaftBlock)this.getBlockState().getBlock()).getDiameter();
+
+        // ПРОВЕРКА С ВАЛОМ
+        if (neighbor instanceof ShaftBlockEntity otherShaft) {
+            ShaftDiameter otherDiameter = ((ShaftBlock)otherShaft.getBlockState().getBlock()).getDiameter();
+            return thisDiameter == otherDiameter;
+        }
+
+        // ПРОВЕРКА С ПОДШИПНИКОМ
+        if (neighbor instanceof BearingBlockEntity bearing) {
+            // Вал коннектится к подшипнику только если там такой же диаметр
+            return bearing.hasShaft() && bearing.getShaftDiameter() == thisDiameter;
+        }
+
+        // ПРОВЕРКА С МОТОРОМ
+        if (neighbor instanceof MotorElectroBlockEntity) {
+            // Вал согласится на мотор, только если этот вал — малый (LIGHT)
+            return thisDiameter == ShaftDiameter.LIGHT;
+        }
+
+        return true;
+    }
+
 
     @Override
     public void setSpeed(long speed) {

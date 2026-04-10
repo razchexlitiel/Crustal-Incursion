@@ -1,6 +1,8 @@
 package com.cim.block.entity.industrial.rotation;
 
 import com.cim.api.rotation.Rotational;
+import com.cim.api.rotation.ShaftDiameter;
+import com.cim.block.basic.industrial.rotation.ShaftBlock;
 import com.cim.block.entity.ModBlockEntities;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -52,6 +54,21 @@ public class MotorElectroBlockEntity extends BlockEntity implements Rotational {
         }
         return this.currentSpeed;
     }
+
+    @Override
+    public boolean canConnectMechanically(Direction direction, Rotational neighbor) {
+        // Если сосед — это вал
+        if (neighbor instanceof ShaftBlockEntity shaftBE) {
+            // Проверяем его диаметр через блок
+            if (shaftBE.getBlockState().getBlock() instanceof ShaftBlock shaftBlock) {
+                // Разрешаем только LIGHT валы
+                return shaftBlock.getDiameter() == ShaftDiameter.LIGHT;
+            }
+        }
+        // К другим механизмам (например, если мотор в мотор) разрешаем по умолчанию или запрещаем
+        return true;
+    }
+
 
     // Метод для получения текущей визуальной скорости (понадобится для Flywheel)
     public long getCurrentVisualSpeed() {

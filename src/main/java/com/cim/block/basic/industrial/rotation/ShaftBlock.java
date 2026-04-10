@@ -67,54 +67,55 @@ public class ShaftBlock extends BaseEntityBlock {
         BlockPos pos = context.getClickedPos();
         Direction clickedFace = context.getClickedFace();
 
-        // 1. Получаем блок, по которому мы кликнули (чтобы понять, к чему крепимся)
+        // Получаем позицию блока, по которому кликнул игрок
         BlockPos posAgainst = pos.relative(clickedFace.getOpposite());
         BlockState stateAgainst = level.getBlockState(posAgainst);
+        BlockEntity beAgainst = level.getBlockEntity(posAgainst);
+
+        // 1. ЖЕСТКИЙ ЗАПРЕТ: Разрешаем ставить только на кинетические блоки!
+        // Поскольку все наши механизмы (мотор, подшипник, вал) имеют BlockEntity
+        // с интерфейсом Rotational, эта проверка отсекает вообще всё лишнее (землю, камень, воздух).
+        if (!(beAgainst instanceof com.cim.api.rotation.Rotational)) {
+            return null; // Отменяем установку
+        }
 
         // Изначально предполагаем направление по взгляду игрока
         Direction placementFacing = context.getNearestLookingDirection().getOpposite();
 
-        // --- ЛОГИКА КЛИКА ПО ДРУГОМУ БЛОКУ ---
+        // --- ЛОГИКА ВЫРАВНИВАНИЯ И ПРОВЕРКИ ДИАМЕТРОВ ---
         if (stateAgainst.getBlock() instanceof ShaftBlock clickedShaft) {
             // Если мы пытаемся продолжить линию вала (кликаем в торец)
             if (stateAgainst.getValue(FACING).getAxis() == clickedFace.getAxis()) {
-
-                // ГЛАВНАЯ ПРОВЕРКА: Если диаметры разные — отменяем установку!
                 if (clickedShaft.getDiameter() != this.diameter) {
-                    return null;
+                    return null; // Разные диаметры соединять нельзя
                 }
-                // Если диаметры совпали (материал не важен), выстраиваем в линию
                 placementFacing = stateAgainst.getValue(FACING);
-
             } else {
-                // Если кликнули сбоку по валу, логично сделать новый вал параллельным старому
+                // Если кликнули сбоку по валу, делаем новый вал параллельным
                 placementFacing = stateAgainst.getValue(FACING);
             }
         } else if (stateAgainst.getBlock() instanceof BearingBlock) {
-            // Опционально: если ставим вал кликая по подшипнику, перенимаем его ось
+            // Перенимаем ось подшипника
             placementFacing = stateAgainst.getValue(BearingBlock.FACING);
+        } else if (stateAgainst.getBlock() instanceof MotorElectroBlock) {
+            // Перенимаем ось мотора
+            placementFacing = stateAgainst.getValue(MotorElectroBlock.FACING);
         }
 
-
-        // --- ЗАЩИТА ОТ ХИТРЕЦОВ ---
-        // Игрок мог кликнуть по полу, чтобы поставить валы встык.
-        // Проверяем соседей спереди и сзади по оси вращения будущего вала.
+        // --- ЗАЩИТА ОТ СОСЕДЕЙ ---
+        // Проверяем, не упрется ли новый вал в вал другого диаметра с другой стороны
         for (Direction dir : new Direction[]{placementFacing, placementFacing.getOpposite()}) {
             BlockState neighborState = level.getBlockState(pos.relative(dir));
 
             if (neighborState.getBlock() instanceof ShaftBlock neighborShaft) {
-                // Если соседний вал лежит на той же оси (будет соединен с нашим)
                 if (neighborState.getValue(FACING).getAxis() == placementFacing.getAxis()) {
-
-                    // Проверяем диаметр. Разные? Запрет установки!
                     if (neighborShaft.getDiameter() != this.diameter) {
-                        return null;
+                        return null; // С другой стороны стоит вал другого размера!
                     }
                 }
             }
         }
 
-        // Если все проверки пройдены, ставим блок!
         return this.defaultBlockState().setValue(FACING, placementFacing);
     }
 

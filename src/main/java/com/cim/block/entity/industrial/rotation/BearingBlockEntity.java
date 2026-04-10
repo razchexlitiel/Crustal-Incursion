@@ -6,6 +6,7 @@ import com.cim.api.rotation.Rotational;
 import com.cim.api.rotation.ShaftDiameter;
 import com.cim.api.rotation.ShaftMaterial;
 import com.cim.block.basic.industrial.rotation.BearingBlock;
+import com.cim.block.basic.industrial.rotation.ShaftBlock;
 import com.cim.block.entity.ModBlockEntities;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -51,6 +52,30 @@ public class BearingBlockEntity extends BlockEntity implements Rotational {
         this.shaftMaterial = null;
         this.shaftDiameter = null;
         setChanged(); // И здесь тоже убираем ручной синк
+    }
+
+    @Override
+    public boolean canConnectMechanically(Direction direction, Rotational neighbor) {
+        // 1. Если в самом подшипнике нет вала, он вообще не может ни с чем соединиться по оси
+        if (!this.hasShaft()) {
+            return false;
+        }
+
+        // 2. Если сосед — вал, проверяем строгое соответствие диаметров
+        if (neighbor instanceof ShaftBlockEntity shaftBE) {
+            if (shaftBE.getBlockState().getBlock() instanceof ShaftBlock shaftBlock) {
+                // Сравниваем диаметр вала в подшипнике и диаметр вала-соседа
+                return shaftBlock.getDiameter() == this.getShaftDiameter();
+            }
+        }
+
+        // 3. Если сосед — другой подшипник или мотор
+        if (neighbor instanceof BearingBlockEntity otherBearing) {
+            // Два подшипника соединятся, только если в обоих одинаковые валы
+            return otherBearing.hasShaft() && otherBearing.getShaftDiameter() == this.getShaftDiameter();
+        }
+
+        return true;
     }
 
     // --- КИНЕТИКА (Rotational) ---

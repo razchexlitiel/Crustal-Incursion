@@ -93,8 +93,12 @@ public class KineticNetworkManager extends SavedData {
 
                 for (Direction neighborDir : neighborNode.getPropagationDirections()) {
                     if (neighborDir == sideFromNeighbor) {
-                        neighborCanConnect = true;
-                        break;
+                        // ОСИ СОВПАДАЮТ! Теперь спрашиваем блоки, совместимы ли они физически
+                        if (node.canConnectMechanically(dir, neighborNode) &&
+                                neighborNode.canConnectMechanically(sideFromNeighbor, node)) {
+                            neighborCanConnect = true;
+                        }
+                        break; // Выходим из цикла направлений соседа
                     }
                 }
 
@@ -241,7 +245,11 @@ public class KineticNetworkManager extends SavedData {
                     if (level.getBlockEntity(neighborPos) instanceof Rotational neighborNode) {
                         for (Direction neighborDir : neighborNode.getPropagationDirections()) {
                             if (neighborDir == dir.getOpposite()) {
-                                queue.add(neighborPos);
+                                // ПРОВЕРЯЕМ ФИЗИЧЕСКУЮ СОВМЕСТИМОСТЬ ПЕРЕД ДОБАВЛЕНИЕМ В СЕТЬ
+                                if (node.canConnectMechanically(dir, neighborNode) &&
+                                        neighborNode.canConnectMechanically(dir.getOpposite(), node)) {
+                                    queue.add(neighborPos);
+                                }
                                 break;
                             }
                         }
