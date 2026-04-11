@@ -70,8 +70,9 @@ public class HeaterMenu extends AbstractContainerMenu {
         return new HeaterMenu(id, inv, (HeaterBlockEntity) entity, new SimpleContainerData(4));
     }
 
-    public int getTemperature() {
-        return data.get(HeaterBlockEntity.DATA_TEMP);
+    public float getTemperatureFloat() {
+        // Данные хранятся как int * 10
+        return data.get(HeaterBlockEntity.DATA_TEMP) / 10.0f;
     }
 
     public int getBurnTime() {
