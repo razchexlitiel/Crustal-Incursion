@@ -17,24 +17,19 @@ import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.client.Minecraft;
 
 public class BearingBlockEntity extends BlockEntity implements Rotational {
 
     private long speed = 0;
     private long lastSyncedSpeed = 0;
 
-    // Данные о вставленном вале
     private boolean hasShaft = false;
     private ShaftMaterial shaftMaterial = null;
     private ShaftDiameter shaftDiameter = null;
 
     public BearingBlockEntity(BlockPos pos, BlockState state) {
-        // Убедись, что ModBlockEntities.BEARING_BE ссылается на твой DeferredRegister
         super(ModBlockEntities.BEARING_BE.get(), pos, state);
     }
-
-    // --- ЛОГИКА ВАЛА ---
 
     public boolean hasShaft() { return hasShaft; }
     public ShaftMaterial getShaftMaterial() { return shaftMaterial; }
@@ -44,42 +39,30 @@ public class BearingBlockEntity extends BlockEntity implements Rotational {
         this.hasShaft = true;
         this.shaftMaterial = material;
         this.shaftDiameter = diameter;
-        setChanged(); // Больше никакого syncToClient() здесь!
-        // Метод level.setBlock() в BearingBlock сам идеально отправит нужный пакет без гонок.
+        setChanged();
     }
 
     public void removeShaft() {
         this.hasShaft = false;
         this.shaftMaterial = null;
         this.shaftDiameter = null;
-        setChanged(); // И здесь тоже убираем ручной синк
+        setChanged();
     }
 
     @Override
     public boolean canConnectMechanically(Direction direction, Rotational neighbor) {
-        // 1. Если в самом подшипнике нет вала, он вообще не может ни с чем соединиться по оси
-        if (!this.hasShaft()) {
-            return false;
-        }
+        if (!this.hasShaft()) return false;
 
-        // 2. Если сосед — вал, проверяем строгое соответствие диаметров
         if (neighbor instanceof ShaftBlockEntity shaftBE) {
             if (shaftBE.getBlockState().getBlock() instanceof ShaftBlock shaftBlock) {
-                // Сравниваем диаметр вала в подшипнике и диаметр вала-соседа
                 return shaftBlock.getDiameter() == this.getShaftDiameter();
             }
         }
-
-        // 3. Если сосед — другой подшипник или мотор
         if (neighbor instanceof BearingBlockEntity otherBearing) {
-            // Два подшипника соединятся, только если в обоих одинаковые валы
             return otherBearing.hasShaft() && otherBearing.getShaftDiameter() == this.getShaftDiameter();
         }
-
         return true;
     }
-
-    // --- КИНЕТИКА (Rotational) ---
 
     @Override
     public void setSpeed(long speed) {
@@ -97,29 +80,27 @@ public class BearingBlockEntity extends BlockEntity implements Rotational {
         if (this.speed == 0 && this.lastSyncedSpeed != 0) return true;
         if (this.speed != 0 && this.lastSyncedSpeed == 0) return true;
         long diff = Math.abs(this.speed - this.lastSyncedSpeed);
-        long threshold = Math.max(2, Math.abs(this.lastSyncedSpeed) / 20); // 5% порог
+        long threshold = Math.max(2, Math.abs(this.lastSyncedSpeed) / 20);
         return diff >= threshold;
     }
 
     private void syncToClient() {
         if (level != null && !level.isClientSide) {
-            level.sendBlockUpdated(getBlockPos(), getBlockState(), getBlockState(), 3);
+            // Флаг 2
+            level.sendBlockUpdated(getBlockPos(), getBlockState(), getBlockState(), 2);
         }
     }
 
     @Override
     public Direction[] getPropagationDirections() {
-        // Если вала нет — подшипник ничего не передает!
-        if (!hasShaft) {
-            return new Direction[0];
-        }
+        if (!hasShaft) return new Direction[0];
         Direction facing = getBlockState().getValue(BearingBlock.FACING);
         return new Direction[]{facing, facing.getOpposite()};
     }
 
     @Override
     public long getInertiaContribution() {
-        long baseInertia = 10; // Масса самого подшипника
+        long baseInertia = 10;
         if (hasShaft && shaftMaterial != null && shaftDiameter != null) {
             baseInertia += (long) (shaftMaterial.baseInertia() * shaftDiameter.inertiaMod);
         }
@@ -127,55 +108,41 @@ public class BearingBlockEntity extends BlockEntity implements Rotational {
     }
 
     @Override
-    public long getFrictionContribution() {
-        return 1; // Подшипник смазан, трение минимальное
-    }
+    public long getFrictionContribution() { return 1; }
 
     @Override
-    public long getMaxTorqueTolerance() { return 10000; } // Каркас крепкий
+    public long getMaxTorqueTolerance() { return 10000; }
     @Override
     public long getMaxSpeed() { return 1024; }
 
     @Override
     public long getMaxTorque() {
-        // Если вал вставлен, подшипник держит столько же, сколько этот вал
         if (hasShaft() && getShaftMaterial() != null && getShaftDiameter() != null) {
             return (long) (getShaftMaterial().baseTorque() * getShaftDiameter().torqueMod);
         }
-        // Если вала нет, сам по себе каркас подшипника очень крепкий
         return 10000;
     }
 
     @Override
     public long getSpeed() { return speed; }
+
     @Override
     public long getVisualSpeed() {
-        // 1. Если вал не вставлен, подшипник визуально не должен крутиться
-        if (!this.hasShaft) {
-            return 0;
-        }
-
+        if (!this.hasShaft) return 0;
         BlockState state = getBlockState();
+        if (!state.hasProperty(BearingBlock.FACING)) return 0;
 
-        // ЗАЩИТА: Если блок превратился в воздух при выгрузке
-        if (!state.hasProperty(BearingBlock.FACING)) {
-            return 0;
-        }
-
-        // 2. Синхронизируем направление вращения с мировой осью мотора и валов
         Direction facing = state.getValue(BearingBlock.FACING);
         if (facing == Direction.SOUTH || facing == Direction.EAST || facing == Direction.UP) {
             return -this.speed;
         }
-
         return this.speed;
     }
+
     @Override
     public long getTorque() { return 0; }
     @Override
     public boolean isSource() { return false; }
-
-    // --- СИНХРОНИЗАЦИЯ NBT ---
 
     @Override
     protected void saveAdditional(CompoundTag tag) {
@@ -201,7 +168,6 @@ public class BearingBlockEntity extends BlockEntity implements Rotational {
             String matName = tag.getString("ShaftMaterial");
             String diaName = tag.getString("ShaftDiameter");
 
-            // Восстанавливаем материал по имени
             this.shaftMaterial = switch (matName) {
                 case "duralumin" -> ShaftMaterial.DURALUMIN;
                 case "steel" -> ShaftMaterial.STEEL;
@@ -210,11 +176,10 @@ public class BearingBlockEntity extends BlockEntity implements Rotational {
                 default -> ShaftMaterial.IRON;
             };
 
-            // Восстанавливаем диаметр
             try {
                 this.shaftDiameter = ShaftDiameter.valueOf(diaName);
             } catch (IllegalArgumentException e) {
-                this.shaftDiameter = ShaftDiameter.MEDIUM; // Fallback
+                this.shaftDiameter = ShaftDiameter.MEDIUM;
             }
         }
     }
@@ -239,36 +204,13 @@ public class BearingBlockEntity extends BlockEntity implements Rotational {
             if (net != null) {
                 this.speed = net.getSpeed();
                 this.lastSyncedSpeed = this.speed;
-                syncToClient();
                 net.requestRecalculation();
             }
         }
     }
 
     @Override
-    public void handleUpdateTag(net.minecraft.nbt.CompoundTag tag) {
-        super.handleUpdateTag(tag);
-        if (level != null && level.isClientSide) {
-            // Коротко и ясно, IDE это съест:
-            Minecraft.getInstance().execute(() -> {
-                if (!this.isRemoved()) {
-                    requestModelDataUpdate();
-                    level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), 8);
-                }
-            });
-        }
-    }
-
-    @Override
-    public void onDataPacket(net.minecraft.network.Connection net, net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket pkt) {
-        super.onDataPacket(net, pkt);
-        if (level != null && level.isClientSide) {
-            Minecraft.getInstance().execute(() -> {
-                if (!this.isRemoved()) {
-                    requestModelDataUpdate();
-                    level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), 8);
-                }
-            });
-        }
+    public net.minecraft.world.phys.AABB getRenderBoundingBox() {
+        return new net.minecraft.world.phys.AABB(worldPosition).inflate(1.2D);
     }
 }

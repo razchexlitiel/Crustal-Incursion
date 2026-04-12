@@ -18,48 +18,31 @@ public class ShaftBlockEntity extends BlockEntity implements Rotational {
     private long lastSyncedSpeed = 0;
     private int networkSign = 1;
 
-    // Хранение надетой шестерни
     private ItemStack attachedGear = ItemStack.EMPTY;
 
     public ShaftBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.SHAFT_BE.get(), pos, state);
     }
 
-    // --- ЛОГИКА ШЕСТЕРНИ ---
-
-    public boolean hasGear() {
-        return !attachedGear.isEmpty();
-    }
-
-    public ItemStack getAttachedGear() {
-        return attachedGear;
-    }
+    public boolean hasGear() { return !attachedGear.isEmpty(); }
+    public ItemStack getAttachedGear() { return attachedGear; }
 
     public void setAttachedGear(ItemStack gear) {
         this.attachedGear = gear;
         this.setChanged();
 
-        // Синхронизируем с клиентом немедленно, чтобы шестерня появилась визуально
         if (level != null && !level.isClientSide) {
-            level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), 3);
+            // Флаг 2! Тихо обновляем данные на клиенте
+            level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), 2);
         }
     }
 
     @Override
     public Direction[] getPropagationDirections() {
         BlockState state = getBlockState();
-
-        // ЗАЩИТА
-        if (!state.hasProperty(ShaftBlock.FACING)) {
-            return new Direction[0];
-        }
-
+        if (!state.hasProperty(ShaftBlock.FACING)) return new Direction[0];
         Direction facing = state.getValue(ShaftBlock.FACING);
-        // Если на валу есть шестерня, он начинает раздавать энергию во ВСЕ стороны (включая боковые)
-        if (hasGear()) {
-            return Direction.values();
-        }
-        // Обычный вал передает только прямо и назад
+        if (hasGear()) return Direction.values();
         return new Direction[]{facing, facing.getOpposite()};
     }
 
@@ -69,60 +52,45 @@ public class ShaftBlockEntity extends BlockEntity implements Rotational {
         Direction thisFacing = getBlockState().getValue(ShaftBlock.FACING);
         boolean isEndToEnd = (direction.getAxis() == thisFacing.getAxis());
 
-
         if (neighbor instanceof ShaftBlockEntity otherShaft) {
             Direction otherFacing = otherShaft.getBlockState().getValue(ShaftBlock.FACING);
             ShaftDiameter otherDiameter = ((ShaftBlock)otherShaft.getBlockState().getBlock()).getDiameter();
 
             if (isEndToEnd) {
-                // Торцевое соединение: валы должны быть соосны и одного диаметра
                 return thisDiameter == otherDiameter && otherFacing.getAxis() == thisFacing.getAxis();
             } else {
-                // БОКОВОЕ СОЕДИНЕНИЕ (Шестерни)
-                // 1. Оси валов должны быть параллельны (X и X, Z и Z)
-                // 2. На ОБОИХ валах должны быть надеты шестерни
                 if (thisFacing.getAxis() == otherFacing.getAxis() && this.hasGear() && otherShaft.hasGear()) {
-                    return true; // В будущем тут можно добавить проверку суммы радиусов шестерней
+                    return true;
                 }
                 return false;
             }
         }
-
         if (neighbor instanceof BearingBlockEntity bearing) {
             return bearing.hasShaft() && bearing.getShaftDiameter() == thisDiameter;
         }
-
         if (neighbor instanceof MotorElectroBlockEntity) {
             return thisDiameter == ShaftDiameter.LIGHT;
         }
-
         return true;
     }
 
-    // --- СИНХРОНИЗАЦИЯ И СКОРОСТЬ ---
+    @Override
+    public void setNetworkSign(int sign) { this.networkSign = sign; }
 
     @Override
-    public void setNetworkSign(int sign) {
-        this.networkSign = sign;
-    }
-
-    @Override
-    public int getNetworkSign() {
-        return this.networkSign;
-    }
+    public int getNetworkSign() { return this.networkSign; }
 
     @Override
     public void setSpeed(long speed) {
-        // ВАЖНО: Умножаем базовую скорость сети на наш знак инверсии!
         long actualSpeed = speed * this.networkSign;
-
         if (this.speed != actualSpeed) {
             this.speed = actualSpeed;
             setChanged();
             if (shouldSyncSpeed()) {
                 this.lastSyncedSpeed = this.speed;
                 if (level != null && !level.isClientSide) {
-                    level.sendBlockUpdated(getBlockPos(), getBlockState(), getBlockState(), 3);
+                    // Флаг 2!
+                    level.sendBlockUpdated(getBlockPos(), getBlockState(), getBlockState(), 2);
                 }
             }
         }
@@ -136,14 +104,11 @@ public class ShaftBlockEntity extends BlockEntity implements Rotational {
         return diff >= threshold;
     }
 
-    // --- СОХРАНЕНИЕ ДАННЫХ (NBT) ---
-
     @Override
     protected void saveAdditional(CompoundTag tag) {
         super.saveAdditional(tag);
         tag.putLong("Speed", this.speed);
         tag.putLong("LastSyncedSpeed", this.lastSyncedSpeed);
-
         if (!attachedGear.isEmpty()) {
             tag.put("AttachedGear", attachedGear.save(new CompoundTag()));
         }
@@ -154,7 +119,6 @@ public class ShaftBlockEntity extends BlockEntity implements Rotational {
         super.load(tag);
         this.speed = tag.getLong("Speed");
         this.lastSyncedSpeed = tag.getLong("LastSyncedSpeed");
-
         if (tag.contains("AttachedGear")) {
             this.attachedGear = ItemStack.of(tag.getCompound("AttachedGear"));
         } else {
@@ -163,20 +127,9 @@ public class ShaftBlockEntity extends BlockEntity implements Rotational {
     }
 
     @Override
-    public void handleUpdateTag(CompoundTag tag) {
-        super.handleUpdateTag(tag);
-        // Как только клиент получил информацию о шестерне - принудительно просим игру перерисовать блок (Flywheel это подхватит)
-        if (level != null && level.isClientSide) {
-            requestModelDataUpdate();
-            level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), 8);
-        }
-    }
-
-    @Override
     public CompoundTag getUpdateTag() {
         CompoundTag tag = super.getUpdateTag();
         tag.putLong("Speed", this.speed);
-        // Важно передать предмет на клиент для рендера Flywheel
         if (!attachedGear.isEmpty()) {
             tag.put("AttachedGear", attachedGear.save(new CompoundTag()));
         }
@@ -197,10 +150,14 @@ public class ShaftBlockEntity extends BlockEntity implements Rotational {
             if (net != null) {
                 this.speed = net.getSpeed();
                 this.lastSyncedSpeed = this.speed;
-                level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), 3);
                 net.requestRecalculation();
             }
         }
+    }
+
+    @Override
+    public net.minecraft.world.phys.AABB getRenderBoundingBox() {
+        return new net.minecraft.world.phys.AABB(worldPosition).inflate(1.2D);
     }
 
     @Override
@@ -208,7 +165,7 @@ public class ShaftBlockEntity extends BlockEntity implements Rotational {
     @Override
     public long getTorque() { return 0; }
     @Override
-    public long getMaxSpeed() { return 256; } // Можно динамически брать из материала
+    public long getMaxSpeed() { return 256; }
     @Override
     public long getMaxTorque() { return 1024; }
     @Override

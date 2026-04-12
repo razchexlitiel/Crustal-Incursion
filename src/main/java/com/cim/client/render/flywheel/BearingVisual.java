@@ -13,6 +13,7 @@ import dev.engine_room.flywheel.lib.model.baked.PartialModel;
 import dev.engine_room.flywheel.lib.visual.AbstractBlockEntityVisual;
 import dev.engine_room.flywheel.lib.visual.SimpleDynamicVisual;
 import net.minecraft.core.Direction;
+import net.minecraft.core.Vec3i;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.function.Consumer;
@@ -27,21 +28,28 @@ public class BearingVisual extends AbstractBlockEntityVisual<BearingBlockEntity>
     private TransformedInstance shaft;
 
     private final Direction facing;
-
-    // Сохраняем последние известные данные для отслеживания десинка
     private ShaftMaterial currentMaterial;
     private ShaftDiameter currentDiameter;
+
+    // Локальные координаты
+    private final float localX;
+    private final float localY;
+    private final float localZ;
 
     public BearingVisual(VisualizationContext ctx, BearingBlockEntity blockEntity, float partialTick) {
         super(ctx, blockEntity, partialTick);
         this.facing = blockState.getValue(BearingBlock.FACING);
+
+        Vec3i origin = ctx.renderOrigin();
+        this.localX = pos.getX() - origin.getX();
+        this.localY = pos.getY() - origin.getY();
+        this.localZ = pos.getZ() - origin.getZ();
 
         this.innerRing = instancerProvider().instancer(
                 InstanceTypes.TRANSFORMED,
                 Models.partial(ModModels.BEARING_INNER_RING)
         ).createInstance();
 
-        // При инициализации данные могут быть еще null! Запоминаем это.
         this.currentMaterial = blockEntity.getShaftMaterial();
         this.currentDiameter = blockEntity.getShaftDiameter();
 
@@ -51,12 +59,7 @@ public class BearingVisual extends AbstractBlockEntityVisual<BearingBlockEntity>
 
     private void createShaftInstance() {
         if (blockState.getValue(BearingBlock.HAS_SHAFT) && currentMaterial != null && currentDiameter != null) {
-
-            // 1. Формируем строковый ключ (например "shaft_light_steel")
-            // У Record метод называется name(), а у твоего Enum переменная называется name.
             String shaftName = "shaft_" + currentDiameter.name + "_" + currentMaterial.name();
-
-            // 2. Берем модель из нашей статической мапы (или ставим заглушку, если не нашли)
             PartialModel shaftModel = ModModels.SHAFT_MODELS.getOrDefault(shaftName, ModModels.HALF_SHAFT);
 
             this.shaft = instancerProvider().instancer(
@@ -75,7 +78,8 @@ public class BearingVisual extends AbstractBlockEntityVisual<BearingBlockEntity>
 
     private void applyStaticTransform(TransformedInstance instance) {
         instance.setIdentityTransform()
-                .translate(pos)
+                // Используем локальные координаты
+                .translate(localX, localY, localZ)
                 .translate(0.5f, 0.5f, 0.5f);
 
         Direction.Axis axis = facing.getAxis();
@@ -91,21 +95,19 @@ public class BearingVisual extends AbstractBlockEntityVisual<BearingBlockEntity>
         instance.setChanged();
     }
 
-    // 1. ПЕРЕСТРОЕНИЕ В ГЛАВНОМ ПОТОКЕ (БЕЗОПАСНО)
     @Override
     public void update(float pt) {
         super.update(pt);
-
         if (blockEntity.getShaftMaterial() != currentMaterial || blockEntity.getShaftDiameter() != currentDiameter) {
             this.currentMaterial = blockEntity.getShaftMaterial();
             this.currentDiameter = blockEntity.getShaftDiameter();
 
             if (this.shaft != null) {
-                this.shaft.delete(); // БЕЗОПАСНОЕ УДАЛЕНИЕ
+                this.shaft.delete();
                 this.shaft = null;
             }
 
-            createShaftInstance(); // БЕЗОПАСНОЕ СОЗДАНИЕ
+            createShaftInstance();
 
             if (this.shaft != null) {
                 applyStaticTransform(this.shaft);
@@ -114,7 +116,6 @@ public class BearingVisual extends AbstractBlockEntityVisual<BearingBlockEntity>
         }
     }
 
-    // 2. ТОЛЬКО ВРАЩЕНИЕ В ФОНОВЫХ ПОТОКАХ
     @Override
     public void beginFrame(Context ctx) {
         long speed = blockEntity.getVisualSpeed();
@@ -131,7 +132,8 @@ public class BearingVisual extends AbstractBlockEntityVisual<BearingBlockEntity>
 
     private void applyRotation(TransformedInstance instance, float angle) {
         instance.setIdentityTransform()
-                .translate(pos)
+                // Используем локальные координаты
+                .translate(localX, localY, localZ)
                 .translate(0.5f, 0.5f, 0.5f);
 
         Direction.Axis axis = facing.getAxis();
