@@ -17,6 +17,7 @@ import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.client.Minecraft;
 
 public class BearingBlockEntity extends BlockEntity implements Rotational {
 
@@ -154,8 +155,15 @@ public class BearingBlockEntity extends BlockEntity implements Rotational {
             return 0;
         }
 
+        BlockState state = getBlockState();
+
+        // ЗАЩИТА: Если блок превратился в воздух при выгрузке
+        if (!state.hasProperty(BearingBlock.FACING)) {
+            return 0;
+        }
+
         // 2. Синхронизируем направление вращения с мировой осью мотора и валов
-        Direction facing = getBlockState().getValue(BearingBlock.FACING);
+        Direction facing = state.getValue(BearingBlock.FACING);
         if (facing == Direction.SOUTH || facing == Direction.EAST || facing == Direction.UP) {
             return -this.speed;
         }
@@ -234,6 +242,33 @@ public class BearingBlockEntity extends BlockEntity implements Rotational {
                 syncToClient();
                 net.requestRecalculation();
             }
+        }
+    }
+
+    @Override
+    public void handleUpdateTag(net.minecraft.nbt.CompoundTag tag) {
+        super.handleUpdateTag(tag);
+        if (level != null && level.isClientSide) {
+            // Коротко и ясно, IDE это съест:
+            Minecraft.getInstance().execute(() -> {
+                if (!this.isRemoved()) {
+                    requestModelDataUpdate();
+                    level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), 8);
+                }
+            });
+        }
+    }
+
+    @Override
+    public void onDataPacket(net.minecraft.network.Connection net, net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket pkt) {
+        super.onDataPacket(net, pkt);
+        if (level != null && level.isClientSide) {
+            Minecraft.getInstance().execute(() -> {
+                if (!this.isRemoved()) {
+                    requestModelDataUpdate();
+                    level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), 8);
+                }
+            });
         }
     }
 }

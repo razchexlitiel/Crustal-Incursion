@@ -4,7 +4,6 @@ import com.cim.block.basic.industrial.rotation.ShaftBlock;
 import com.cim.block.entity.industrial.rotation.ShaftBlockEntity;
 import dev.engine_room.flywheel.api.instance.Instance;
 import dev.engine_room.flywheel.api.visualization.VisualizationContext;
-import dev.engine_room.flywheel.api.instance.Instancer;
 import dev.engine_room.flywheel.lib.instance.InstanceTypes;
 import dev.engine_room.flywheel.lib.instance.TransformedInstance;
 import dev.engine_room.flywheel.lib.model.Models;
@@ -18,30 +17,59 @@ import java.util.function.Consumer;
 
 public class ShaftVisual extends AbstractBlockEntityVisual<ShaftBlockEntity> implements SimpleDynamicVisual {
 
-    private final TransformedInstance instance;
+    private final TransformedInstance shaftInstance;
+    @Nullable
+    private TransformedInstance gearInstance;
     private final Direction facing;
+
+    private float phaseOffset = 0f; // Убрали final
+    private net.minecraft.world.item.Item currentGearItem; // Трекер для десинка
 
     public ShaftVisual(VisualizationContext ctx, ShaftBlockEntity blockEntity, float partialTick) {
         super(ctx, blockEntity, partialTick);
-
         this.facing = blockState.getValue(ShaftBlock.FACING);
-        PartialModel dynamicModel = ModModels.SHAFT_MODELS.get(blockState.getBlock());
 
-        Instancer<TransformedInstance> instancer = instancerProvider().instancer(
-                InstanceTypes.TRANSFORMED,
-                Models.partial(dynamicModel)
-        );
+        // 1. ИНИЦИАЛИЗАЦИЯ ВАЛА
+        net.minecraft.resources.ResourceLocation shaftId = net.minecraftforge.registries.ForgeRegistries.BLOCKS.getKey(blockState.getBlock());
+        String shaftName = shaftId != null ? shaftId.getPath() : "";
+        PartialModel shaftModel = ModModels.SHAFT_MODELS.getOrDefault(shaftName, ModModels.HALF_SHAFT);
+        this.shaftInstance = instancerProvider().instancer(InstanceTypes.TRANSFORMED, Models.partial(shaftModel)).createInstance();
 
-        this.instance = instancer.createInstance();
-        setupStatic();
+        // 2. Инициализация шестерни
+        this.currentGearItem = blockEntity.getAttachedGear().getItem();
+        rebuildGear();
+
+        setupStatic(shaftInstance, 0);
     }
 
-    private void setupStatic() {
+    // Метод, который безопасно строит или удаляет шестерню
+    private void rebuildGear() {
+        if (this.gearInstance != null) {
+            this.gearInstance.delete();
+            this.gearInstance = null;
+        }
+
+        net.minecraft.world.item.ItemStack gearStack = blockEntity.getAttachedGear();
+        if (blockState.getValue(ShaftBlock.GEAR_SIZE) > 0 && !gearStack.isEmpty() && gearStack.getItem() instanceof com.cim.item.rotation.GearItem) {
+            net.minecraft.resources.ResourceLocation gearId = net.minecraftforge.registries.ForgeRegistries.ITEMS.getKey(gearStack.getItem());
+            String gearName = gearId != null ? gearId.getPath() : "";
+            PartialModel gearModel = ModModels.GEAR_MODELS.get(gearName);
+
+            if (gearModel != null) {
+                this.gearInstance = instancerProvider().instancer(InstanceTypes.TRANSFORMED, Models.partial(gearModel)).createInstance();
+                int parity = (pos.getX() + pos.getY() + pos.getZ()) % 2;
+                this.phaseOffset = (float) Math.toRadians(parity == 0 ? 22.5 : 0);
+
+                setupStatic(this.gearInstance, this.phaseOffset);
+            }
+        }
+    }
+
+    private void setupStatic(TransformedInstance instance, float initialRotationZ) {
         instance.setIdentityTransform()
                 .translate(pos)
-                .translate(0.5f, 0.5f, 0.5f); // 1. Кидаем точку вращения в центр блока
+                .translate(0.5f, 0.5f, 0.5f);
 
-        // 2. Ставим вал по направлению блока
         Direction.Axis axis = facing.getAxis();
         if (axis == Direction.Axis.X) {
             instance.rotateY((float) Math.toRadians(90));
@@ -49,10 +77,27 @@ public class ShaftVisual extends AbstractBlockEntityVisual<ShaftBlockEntity> imp
             instance.rotateX((float) Math.toRadians(90));
         }
 
-        instance.translate(-0.5f, -0.5f, -0.5f); // 3. Возвращаем сетку координат на место
+        if (initialRotationZ != 0) {
+            instance.rotateZ(initialRotationZ);
+        }
+
+        instance.translate(-0.5f, -0.5f, -0.5f);
         instance.setChanged();
     }
 
+    @Override
+    public void update(float pt) {
+        super.update(pt); // Обязательно вызываем super
+
+        // Защита от десинка теперь живет здесь!
+        if (blockEntity.getAttachedGear().getItem() != this.currentGearItem) {
+            this.currentGearItem = blockEntity.getAttachedGear().getItem();
+            rebuildGear(); // Безопасно создаем/удаляем шестерню
+            updateLight(pt); // Безопасно обновляем свет
+        }
+    }
+
+    // 2. ТОЛЬКО ВРАЩЕНИЕ В ФОНОВЫХ ПОТОКАХ
     @Override
     public void beginFrame(Context ctx) {
         float speed = blockEntity.getSpeed();
@@ -61,35 +106,30 @@ public class ShaftVisual extends AbstractBlockEntityVisual<ShaftBlockEntity> imp
         float time = (float) (System.currentTimeMillis() % 100000) / 50f;
         float angle = time * speed * 0.1f;
 
-        instance.setIdentityTransform()
-                .translate(pos)
-                .translate(0.5f, 0.5f, 0.5f); // 1. Снова кидаем точку вращения в центр
+        // Вращаем вал
+        setupStatic(shaftInstance, angle);
 
-        Direction.Axis axis = facing.getAxis();
-        if (axis == Direction.Axis.X) {
-            instance.rotateY((float) Math.toRadians(90));
-        } else if (axis == Direction.Axis.Y) {
-            instance.rotateX((float) Math.toRadians(90));
+        // Вращаем шестерню
+        if (gearInstance != null) {
+            setupStatic(gearInstance, angle + phaseOffset);
         }
-
-        instance.rotateZ(angle); // 2. Вращаем саму деталь вокруг своей оси
-
-        instance.translate(-0.5f, -0.5f, -0.5f); // 3. Возвращаем геометрию обратно
-        instance.setChanged();
     }
 
     @Override
     public void updateLight(float partialTick) {
-        relight(pos, instance);
+        relight(pos, shaftInstance);
+        if (gearInstance != null) relight(pos, gearInstance);
     }
 
     @Override
     protected void _delete() {
-        instance.delete();
+        shaftInstance.delete();
+        if (gearInstance != null) gearInstance.delete();
     }
 
     @Override
     public void collectCrumblingInstances(Consumer<@Nullable Instance> consumer) {
-        consumer.accept(instance);
+        consumer.accept(shaftInstance);
+        if (gearInstance != null) consumer.accept(gearInstance);
     }
 }

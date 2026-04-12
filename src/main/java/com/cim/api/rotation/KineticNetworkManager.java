@@ -1,5 +1,6 @@
 package com.cim.api.rotation;
 
+import com.cim.block.basic.industrial.rotation.ShaftBlock;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
@@ -233,6 +234,9 @@ public class KineticNetworkManager extends SavedData {
         java.util.Queue<BlockPos> queue = new java.util.LinkedList<>();
         queue.add(start);
 
+        java.util.Map<BlockPos, Integer> signs = new java.util.HashMap<>();
+        signs.put(start, 1);
+
         while (!queue.isEmpty()) {
             BlockPos current = queue.poll();
             if (blockToNetwork.containsKey(current)) continue;
@@ -240,15 +244,33 @@ public class KineticNetworkManager extends SavedData {
             if (level.getBlockEntity(current) instanceof Rotational node) {
                 registerBlockToNetwork(current, newNet);
 
+                // Применяем вычисленный знак к блоку
+                int currentSign = signs.getOrDefault(current, 1);
+                node.setNetworkSign(currentSign);
+
                 for (Direction dir : node.getPropagationDirections()) {
                     BlockPos neighborPos = current.relative(dir);
                     if (level.getBlockEntity(neighborPos) instanceof Rotational neighborNode) {
                         for (Direction neighborDir : neighborNode.getPropagationDirections()) {
                             if (neighborDir == dir.getOpposite()) {
-                                // ПРОВЕРЯЕМ ФИЗИЧЕСКУЮ СОВМЕСТИМОСТЬ ПЕРЕД ДОБАВЛЕНИЕМ В СЕТЬ
                                 if (node.canConnectMechanically(dir, neighborNode) &&
                                         neighborNode.canConnectMechanically(dir.getOpposite(), node)) {
-                                    queue.add(neighborPos);
+
+                                    // ПРОВЕРКА НА БОКОВОЕ СОЕДИНЕНИЕ (ШЕСТЕРНЯ)
+                                    boolean isGearMesh = false;
+                                    if (level.getBlockState(current).hasProperty(ShaftBlock.FACING)) {
+                                        Direction nodeFacing = level.getBlockState(current).getValue(ShaftBlock.FACING);
+                                        // Если мы соединяемся не по оси вращения вала — значит это шестерня
+                                        if (dir.getAxis() != nodeFacing.getAxis()) {
+                                            isGearMesh = true;
+                                        }
+                                    }
+
+                                    // Если это шестерня, инвертируем знак соседа. Иначе передаем свой же.
+                                    if (!signs.containsKey(neighborPos)) {
+                                        signs.put(neighborPos, isGearMesh ? -currentSign : currentSign);
+                                        queue.add(neighborPos);
+                                    }
                                 }
                                 break;
                             }

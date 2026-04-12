@@ -49,4 +49,7 @@ public interface Rotational {
     default boolean canConnectMechanically(Direction direction, Rotational neighbor) {
         return true; // По умолчанию все Rotational блоки совместимы друг с другом
     }
+
+    default void setNetworkSign(int sign) {}
+    default int getNetworkSign() { return 1; }
 }

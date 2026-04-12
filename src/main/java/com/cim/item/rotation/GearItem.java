@@ -1,0 +1,74 @@
+package com.cim.item.rotation;
+
+import com.cim.api.rotation.ShaftDiameter;
+import com.cim.api.rotation.ShaftMaterial;
+import com.cim.block.basic.industrial.rotation.ShaftBlock;
+import com.cim.block.entity.industrial.rotation.ShaftBlockEntity;
+import net.minecraft.core.BlockPos;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.context.UseOnContext;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.state.BlockState;
+
+public class GearItem extends Item {
+    private final int gearSize;
+    private final ShaftMaterial material;
+
+    public GearItem(Properties properties, int gearSize, ShaftMaterial material) {
+        super(properties);
+        this.gearSize = gearSize;
+        this.material = material;
+    }
+
+    @Override
+    public InteractionResult useOn(UseOnContext context) {
+        Level level = context.getLevel();
+        BlockPos pos = context.getClickedPos();
+        BlockState state = level.getBlockState(pos);
+
+        if (state.getBlock() instanceof ShaftBlock shaftBlock) {
+            // Если на валу уже есть шестерня - отмена
+            if (state.getValue(ShaftBlock.GEAR_SIZE) != 0) {
+                return InteractionResult.PASS;
+            }
+
+            ShaftDiameter shaftDiameter = shaftBlock.getDiameter();
+
+            // Логика совместимости:
+            // gear1 -> LIGHT
+            // gear2 -> LIGHT, MEDIUM
+            // gear3 -> MEDIUM, HEAVY
+            boolean canAttach = false;
+            if (gearSize == 1 && shaftDiameter == ShaftDiameter.LIGHT) canAttach = true;
+            else if (gearSize == 2 && (shaftDiameter == ShaftDiameter.LIGHT || shaftDiameter == ShaftDiameter.MEDIUM)) canAttach = true;
+            else if (gearSize == 3 && (shaftDiameter == ShaftDiameter.MEDIUM || shaftDiameter == ShaftDiameter.HEAVY)) canAttach = true;
+
+            if (canAttach) {
+                if (!level.isClientSide) {
+
+                    if (level.getBlockEntity(pos) instanceof ShaftBlockEntity shaftBE) {
+                        ItemStack gearStack = context.getItemInHand().copy();
+                        gearStack.setCount(1);
+                        shaftBE.setAttachedGear(gearStack);
+                    }
+
+                    // 2. ПОТОМ обновляем BlockState (это вызовет рендер на клиенте с уже готовыми данными)
+                    level.setBlock(pos, state.setValue(ShaftBlock.GEAR_SIZE, gearSize), 3);
+
+                    // 3. Тратим предмет
+                    context.getItemInHand().shrink(1);
+                    level.playSound(null, pos, SoundEvents.METAL_PLACE, SoundSource.BLOCKS, 1.0F, 1.0F);
+                }
+                return InteractionResult.sidedSuccess(level.isClientSide);
+            }
+        }
+        return InteractionResult.PASS;
+    }
+
+    public int getGearSize() { return gearSize; }
+    public ShaftMaterial getMaterial() { return material; }
+}

@@ -51,7 +51,14 @@ public class BearingVisual extends AbstractBlockEntityVisual<BearingBlockEntity>
 
     private void createShaftInstance() {
         if (blockState.getValue(BearingBlock.HAS_SHAFT) && currentMaterial != null && currentDiameter != null) {
-            PartialModel shaftModel = ModModels.getShaftModelFor(currentMaterial, currentDiameter);
+
+            // 1. Формируем строковый ключ (например "shaft_light_steel")
+            // У Record метод называется name(), а у твоего Enum переменная называется name.
+            String shaftName = "shaft_" + currentDiameter.name + "_" + currentMaterial.name();
+
+            // 2. Берем модель из нашей статической мапы (или ставим заглушку, если не нашли)
+            PartialModel shaftModel = ModModels.SHAFT_MODELS.getOrDefault(shaftName, ModModels.HALF_SHAFT);
+
             this.shaft = instancerProvider().instancer(
                     InstanceTypes.TRANSFORMED,
                     Models.partial(shaftModel)
@@ -84,29 +91,32 @@ public class BearingVisual extends AbstractBlockEntityVisual<BearingBlockEntity>
         instance.setChanged();
     }
 
+    // 1. ПЕРЕСТРОЕНИЕ В ГЛАВНОМ ПОТОКЕ (БЕЗОПАСНО)
     @Override
-    public void beginFrame(Context ctx) {
-        // 1. ЗАЩИТА ОТ ДЕСИНКА
-        // Если NBT пакет долетел, и материал изменился (например, с null на IRON)
+    public void update(float pt) {
+        super.update(pt);
+
         if (blockEntity.getShaftMaterial() != currentMaterial || blockEntity.getShaftDiameter() != currentDiameter) {
             this.currentMaterial = blockEntity.getShaftMaterial();
             this.currentDiameter = blockEntity.getShaftDiameter();
 
-            // Удаляем старый инстанс (если был фолбек)
             if (this.shaft != null) {
-                this.shaft.delete();
+                this.shaft.delete(); // БЕЗОПАСНОЕ УДАЛЕНИЕ
                 this.shaft = null;
             }
 
-            // Пересоздаем вал с правильной моделью!
-            createShaftInstance();
+            createShaftInstance(); // БЕЗОПАСНОЕ СОЗДАНИЕ
+
             if (this.shaft != null) {
                 applyStaticTransform(this.shaft);
-                updateLight(ctx.partialTick());
+                updateLight(pt);
             }
         }
+    }
 
-        // 2. ОБЫЧНОЕ ВРАЩЕНИЕ
+    // 2. ТОЛЬКО ВРАЩЕНИЕ В ФОНОВЫХ ПОТОКАХ
+    @Override
+    public void beginFrame(Context ctx) {
         long speed = blockEntity.getVisualSpeed();
         if (speed == 0) return;
 

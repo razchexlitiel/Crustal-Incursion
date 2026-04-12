@@ -1,62 +1,48 @@
 package com.cim.client.render.flywheel;
 
-import com.cim.api.rotation.ShaftDiameter;
-import com.cim.api.rotation.ShaftMaterial;
-import com.cim.block.basic.ModBlocks;
-import com.cim.block.basic.industrial.rotation.ShaftBlock;
 import dev.engine_room.flywheel.lib.model.baked.PartialModel;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.level.block.Block;
-import net.minecraftforge.registries.RegistryObject;
 
 import java.util.HashMap;
 import java.util.Map;
 
 public class ModModels {
-    // Храним связи: Блок Вала -> Его PartialModel
-    public static final Map<Block, PartialModel> SHAFT_MODELS = new HashMap<>();
+    // Теперь мы используем String ключи (например "gear1_steel" или "shaft_iron")
+    public static final Map<String, PartialModel> GEAR_MODELS = new HashMap<>();
+    public static final Map<String, PartialModel> SHAFT_MODELS = new HashMap<>();
 
-    // Оставляем твои старые модели мотора
     public static final PartialModel MOTOR_BASE = PartialModel.of(new ResourceLocation("cim", "block/electro_motor"));
     public static final PartialModel HALF_SHAFT = PartialModel.of(new ResourceLocation("cim", "block/half_shaft"));
     public static final PartialModel BEARING_INNER_RING = PartialModel.of(new ResourceLocation("cim", "block/bearing_shaft"));
     public static final PartialModel BEARING = PartialModel.of(new ResourceLocation("cim", "block/bearing"));
 
+    // Статический блок вызывается самым первым, как только Java видит этот класс!
+    // Flywheel 100% получит эти модели вовремя.
+    static {
+        String[] materials = {"iron", "duralumin", "steel", "titanium", "tungsten_carbide"};
 
+        // 1. Загружаем все 15 шестерней
+        int[] gearSizes = {1, 2, 3};
+        for (int size : gearSizes) {
+            for (String mat : materials) {
+                String name = "gear" + size + "_" + mat; // Получится "gear1_steel"
+                GEAR_MODELS.put(name, PartialModel.of(new ResourceLocation("cim", "block/" + name)));
+            }
+        }
 
-    public static void init() {
-        // Динамически регистрируем модели для всех валов в игре
-        for (RegistryObject<Block> blockObj : ModBlocks.BLOCKS.getEntries()) {
-            if (blockObj.get() instanceof ShaftBlock) {
-                ResourceLocation id = blockObj.getId();
-                // Создаем PartialModel, ссылаясь на JSON, который сгенерирует DataGen
-                SHAFT_MODELS.put(blockObj.get(), PartialModel.of(new ResourceLocation(id.getNamespace(), "block/" + id.getPath())));
+        // 2. Загружаем все валы
+        // ВНИМАНИЕ: Проверь, как именно у тебя называются ID валов в регистрации.
+        // Если они называются "shaft_light_iron", оставь так. Если "iron_shaft" - поменяй логику склейки строки.
+        String[] diameters = {"light", "medium", "heavy"};
+        for (String dia : diameters) {
+            for (String mat : materials) {
+                String name = "shaft_" + dia + "_" + mat; // Проверь правильность названия!
+                SHAFT_MODELS.put(name, PartialModel.of(new ResourceLocation("cim", "block/" + name)));
             }
         }
     }
 
-    public static PartialModel getShaftModelFor(ShaftMaterial material, ShaftDiameter diameter) {
-        if (material == null || diameter == null) {
-            return HALF_SHAFT;
-        }
-
-        // Комбинация 1: например, "shaft_light_iron"
-        ResourceLocation id1 = new ResourceLocation("cim", "shaft_" + diameter.name + "_" + material.name());
-        Block block1 = net.minecraftforge.registries.ForgeRegistries.BLOCKS.getValue(id1);
-        if (block1 != null && SHAFT_MODELS.containsKey(block1)) {
-            return SHAFT_MODELS.get(block1);
-        }
-
-        // Комбинация 2: например, "iron_shaft_light" или "shaft_iron_light"
-        ResourceLocation id2 = new ResourceLocation("cim", "shaft_" + material.name() + "_" + diameter.name);
-        Block block2 = net.minecraftforge.registries.ForgeRegistries.BLOCKS.getValue(id2);
-        if (block2 != null && SHAFT_MODELS.containsKey(block2)) {
-            return SHAFT_MODELS.get(block2);
-        }
-
-        // Если все равно не нашел, выводим в консоль, чтобы точно узнать, какое имя мы ищем
-        com.cim.main.CrustalIncursionMod.LOGGER.error("[Flywheel] Не найдена модель вала для ID: {} или {}", id1, id2);
-
-        return HALF_SHAFT;
-    }
+    // Оставляем пустым. Этот метод просто служит "спусковым крючком",
+    // чтобы заставить игру прочитать класс ModModels при запуске.
+    public static void init() {}
 }
