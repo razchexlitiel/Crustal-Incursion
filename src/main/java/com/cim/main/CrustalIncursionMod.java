@@ -28,6 +28,7 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
+import net.minecraftforge.api.distmarker.Dist;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraftforge.common.MinecraftForge;
@@ -42,6 +43,8 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
+import net.minecraftforge.fml.loading.FMLEnvironment;
+import net.minecraftforge.fml.loading.FMLLoader;
 import net.minecraftforge.registries.ForgeRegistries;
 import net.minecraftforge.registries.RegistryObject;
 import org.slf4j.Logger;
@@ -123,6 +126,10 @@ public class CrustalIncursionMod {
                     LOGGER.warn("🛡️ [CIM] Обнаружен сторонний графический фикс. Встроенная оптимизация CIM отключена для стабильности.");
                 }
             }
+        }
+
+        if (FMLEnvironment.dist == Dist.CLIENT) {
+            com.cim.client.render.flywheel.ModModels.init();
         }
 
     }
@@ -227,6 +234,7 @@ public class CrustalIncursionMod {
             event.accept(ModBlocks.SHAFT_HEAVY_TUNGSTEN_CARBIDE);
 
             event.accept(ModBlocks.MOTOR_ELECTRO);
+            event.accept(ModBlocks.BEARING_BLOCK);
 
 
             event.accept(ModItems.WIRE_COIL);
@@ -268,6 +276,7 @@ public class CrustalIncursionMod {
             event.accept(ModItems.MOLD_INGOT.get());
             event.accept(ModItems.MOLD_BLOCK.get());
             event.accept(ModItems.POKER.get());
+            event.accept(ModItems.GEAR1_STEEL.get());
         }
 
 

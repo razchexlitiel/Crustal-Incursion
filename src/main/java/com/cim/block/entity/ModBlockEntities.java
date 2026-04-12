@@ -6,6 +6,7 @@ import com.cim.block.entity.fluids.FluidBarrelBlockEntity;
 
 import com.cim.block.entity.fluids.FluidPipeBlockEntity;
 
+import com.cim.block.entity.industrial.rotation.BearingBlockEntity;
 import com.cim.block.entity.industrial.rotation.MotorElectroBlockEntity;
 import com.cim.block.entity.industrial.rotation.ShaftBlockEntity;
 import com.cim.multiblock.industrial.HeaterBlockEntity;
@@ -126,6 +127,10 @@ public class ModBlockEntities {
                     ModBlocks.SHAFT_MEDIUM_TUNGSTEN_CARBIDE.get(),
                     ModBlocks.SHAFT_HEAVY_TUNGSTEN_CARBIDE.get()
             ).build(null));
+
+    public static final RegistryObject<BlockEntityType<BearingBlockEntity>> BEARING_BE = BLOCK_ENTITIES.register("bearing_be",
+            () -> BlockEntityType.Builder.of(BearingBlockEntity::new, ModBlocks.BEARING_BLOCK.get())
+                    .build(null));
 
     public static final RegistryObject<BlockEntityType<MotorElectroBlockEntity>> MOTOR_ELECTRO_BE =
             BLOCK_ENTITIES.register("motor_electro",

@@ -1,6 +1,8 @@
 package com.cim.block.entity.industrial.rotation;
 
 import com.cim.api.rotation.Rotational;
+import com.cim.api.rotation.ShaftDiameter;
+import com.cim.block.basic.industrial.rotation.ShaftBlock;
 import com.cim.block.entity.ModBlockEntities;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -10,19 +12,18 @@ import com.cim.block.basic.industrial.rotation.MotorElectroBlock;
 
 public class MotorElectroBlockEntity extends BlockEntity implements Rotational {
 
-    private final long speedConstant = 10;
+    private final long speedConstant = 2;
     private final long torqueConstant = 100;
     private boolean reversed = false;
 
-    // НОВЫЕ ПЕРЕМЕННЫЕ ДЛЯ ФИЗИКИ И ВЫЗУАЛА
     private long currentSpeed = 0;
     private long lastSyncedSpeed = 0;
 
     @Override
-    public long getInertiaContribution() { return 50; } // Мотор потяжелее вала
+    public long getInertiaContribution() { return 50; }
 
     @Override
-    public long getFrictionContribution() { return 5; } // Внутреннее сопротивление мотора
+    public long getFrictionContribution() { return 5; }
 
     @Override
     public long getMaxTorqueTolerance() { return getMaxTorque(); }
@@ -43,17 +44,27 @@ public class MotorElectroBlockEntity extends BlockEntity implements Rotational {
 
     @Override
     public long getVisualSpeed() {
-        // Получаем направление мотора
+        BlockState state = getBlockState();
+        if (!state.hasProperty(MotorElectroBlock.FACING)) {
+            return 0;
+        }
         Direction facing = getBlockState().getValue(MotorElectroBlock.FACING);
-
-        // Если Flywheel перевернул модель (Юг, Восток, Верх), мы инвертируем скорость обратно!
         if (facing == Direction.SOUTH || facing == Direction.EAST || facing == Direction.UP) {
             return -this.currentSpeed;
         }
         return this.currentSpeed;
     }
 
-    // Метод для получения текущей визуальной скорости (понадобится для Flywheel)
+    @Override
+    public boolean canConnectMechanically(Direction direction, Rotational neighbor) {
+        if (neighbor instanceof ShaftBlockEntity shaftBE) {
+            if (shaftBE.getBlockState().getBlock() instanceof ShaftBlock shaftBlock) {
+                return shaftBlock.getDiameter() == ShaftDiameter.LIGHT;
+            }
+        }
+        return true;
+    }
+
     public long getCurrentVisualSpeed() {
         return this.currentSpeed;
     }
@@ -62,12 +73,13 @@ public class MotorElectroBlockEntity extends BlockEntity implements Rotational {
     public void setSpeed(long speed) {
         if (this.currentSpeed != speed) {
             this.currentSpeed = speed;
-            setChanged();
+            super.setChanged(); // ИСПОЛЬЗУЕМ ВАНИЛЬНЫЙ МЕТОД
 
             if (shouldSyncSpeed()) {
                 this.lastSyncedSpeed = this.currentSpeed;
                 if (level != null && !level.isClientSide) {
-                    level.sendBlockUpdated(getBlockPos(), getBlockState(), getBlockState(), 3);
+                    // ФЛАГ 2 ВМЕСТО ФЛАГА 3!
+                    level.sendBlockUpdated(getBlockPos(), getBlockState(), getBlockState(), 2);
                 }
             }
         }
@@ -83,12 +95,12 @@ public class MotorElectroBlockEntity extends BlockEntity implements Rotational {
         return diff >= threshold;
     }
 
-    // Добавь метод переключения
     public void toggleDirection() {
         this.reversed = !this.reversed;
-        setChanged();
+        super.setChanged(); // ИСПОЛЬЗУЕМ ВАНИЛЬНЫЙ МЕТОД
         if (level != null && !level.isClientSide) {
-            level.sendBlockUpdated(getBlockPos(), getBlockState(), getBlockState(), 3);
+            // ФЛАГ 2 ВМЕСТО ФЛАГА 3!
+            level.sendBlockUpdated(getBlockPos(), getBlockState(), getBlockState(), 2);
         }
     }
 
@@ -109,14 +121,6 @@ public class MotorElectroBlockEntity extends BlockEntity implements Rotational {
     }
 
     @Override
-    public void setChanged() {
-        super.setChanged();
-        if (level != null && !level.isClientSide) {
-            level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), 3);
-        }
-    }
-
-    @Override
     public net.minecraft.nbt.CompoundTag getUpdateTag() {
         net.minecraft.nbt.CompoundTag tag = super.getUpdateTag();
         saveAdditional(tag);
@@ -128,18 +132,14 @@ public class MotorElectroBlockEntity extends BlockEntity implements Rotational {
         return net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket.create(this);
     }
 
-
-
     @Override
     public long getTorque() { return torqueConstant; }
 
-
     @Override
-    public boolean isSource() { return true; } // Это источник! [cite: 16]
+    public boolean isSource() { return true; }
 
     @Override
     public Direction[] getPropagationDirections() {
-        // Энергия выходит только с той стороны, куда смотрит вал (FACING)
         return new Direction[]{ getBlockState().getValue(MotorElectroBlock.FACING) };
     }
 
@@ -153,14 +153,21 @@ public class MotorElectroBlockEntity extends BlockEntity implements Rotational {
             if (net != null) {
                 this.currentSpeed = net.getSpeed();
                 this.lastSyncedSpeed = this.currentSpeed;
-                level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), 3);
+                // НИКАКОГО level.sendBlockUpdated здесь нет!
                 net.requestRecalculation();
             }
         }
     }
 
+    // --- ЗАЩИТА ВАНИЛЬНОЙ КАМЕРЫ ---
+    @Override
+    public net.minecraft.world.phys.AABB getRenderBoundingBox() {
+        return new net.minecraft.world.phys.AABB(worldPosition).inflate(1.2D);
+    }
+
     @Override
     public long getMaxSpeed() { return 256; }
+
     @Override
     public long getMaxTorque() { return 1024; }
 }

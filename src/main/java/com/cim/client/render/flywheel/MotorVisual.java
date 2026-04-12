@@ -10,6 +10,7 @@ import dev.engine_room.flywheel.lib.model.Models;
 import dev.engine_room.flywheel.lib.visual.AbstractBlockEntityVisual;
 import dev.engine_room.flywheel.lib.visual.SimpleDynamicVisual;
 import net.minecraft.core.Direction;
+import net.minecraft.core.Vec3i;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.function.Consumer;
@@ -20,20 +21,37 @@ public class MotorVisual extends AbstractBlockEntityVisual<MotorElectroBlockEnti
     private final TransformedInstance shaft;
     private final Direction facing;
 
+    // Локальные координаты относительно матрицы Engine Room
+    private final float localX;
+    private final float localY;
+    private final float localZ;
+
     public MotorVisual(VisualizationContext ctx, MotorElectroBlockEntity blockEntity, float partialTick) {
         super(ctx, blockEntity, partialTick);
 
-        this.facing = blockState.getValue(MotorElectroBlock.FACING);
+        if (blockState.hasProperty(MotorElectroBlock.FACING)) {
+            this.facing = blockState.getValue(MotorElectroBlock.FACING);
+        } else {
+            this.facing = Direction.NORTH;
+        }
+
+        // === САМОЕ ВАЖНОЕ: ВЫЧИСЛЯЕМ ЛОКАЛЬНУЮ ПОЗИЦИЮ ===
+        Vec3i origin = ctx.renderOrigin();
+        this.localX = pos.getX() - origin.getX();
+        this.localY = pos.getY() - origin.getY();
+        this.localZ = pos.getZ() - origin.getZ();
 
         this.base = instancerProvider().instancer(InstanceTypes.TRANSFORMED, Models.partial(ModModels.MOTOR_BASE)).createInstance();
         this.shaft = instancerProvider().instancer(InstanceTypes.TRANSFORMED, Models.partial(ModModels.HALF_SHAFT)).createInstance();
 
         setupStaticBase();
+        updateLight(partialTick);
     }
 
     private void setupStaticBase() {
         base.setIdentityTransform()
-                .translate(pos)
+                // Используем localX, Y, Z вместо pos!
+                .translate(localX, localY, localZ)
                 .translate(0.5f, 0.5f, 0.5f);
 
         Direction.Axis axis = facing.getAxis();
@@ -56,7 +74,8 @@ public class MotorVisual extends AbstractBlockEntityVisual<MotorElectroBlockEnti
         float angle = time * speed * 0.1f;
 
         shaft.setIdentityTransform()
-                .translate(pos)
+                // Используем localX, Y, Z вместо pos!
+                .translate(localX, localY, localZ)
                 .translate(0.5f, 0.5f, 0.5f);
 
         Direction.Axis axis = facing.getAxis();
@@ -68,8 +87,6 @@ public class MotorVisual extends AbstractBlockEntityVisual<MotorElectroBlockEnti
             shaft.rotateY((float) Math.toRadians(180));
         }
 
-        // Если мотор смотрит вверх, крутим вал в обратную сторону (-angle),
-        // чтобы визуально он совпадал с основной линией валов!
         if (facing == Direction.UP) {
             shaft.rotateZ(-angle);
         } else {
@@ -82,6 +99,7 @@ public class MotorVisual extends AbstractBlockEntityVisual<MotorElectroBlockEnti
 
     @Override
     public void updateLight(float partialTick) {
+        // relight всегда требует АБСОЛЮТНЫЙ pos для проверки света в мире, здесь всё правильно
         relight(pos, base, shaft);
     }
 

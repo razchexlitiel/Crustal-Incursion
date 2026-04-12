@@ -4,6 +4,7 @@ import com.cim.main.ResourceRegistry;
 import com.cim.block.basic.necrosis.hive.HiveRootsBlock;
 import net.minecraft.data.PackOutput;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.level.block.*;
 import net.minecraftforge.client.model.generators.BlockStateProvider;
 import net.minecraftforge.client.model.generators.ConfiguredModel;
@@ -148,6 +149,8 @@ public class ModBlockStateProvider extends BlockStateProvider {
 
         //генерация моделей для валов
         generateAllShafts();
+        //генерация моделей для шестеренок
+        generateGearBlockModels();
 
 
 
@@ -342,6 +345,26 @@ public class ModBlockStateProvider extends BlockStateProvider {
                         .end()
                         .texture("shaft_texture", texture)
                         .texture("particle", texture);
+            }
+        }
+    }
+
+    public void generateGearBlockModels() {
+        for (RegistryObject<Item> itemObj : com.cim.item.ModItems.ITEMS.getEntries()) {
+            if (itemObj.get() instanceof com.cim.item.rotation.GearItem gear) {
+                String name = itemObj.getId().getPath();
+                int size = gear.getGearSize();
+
+                ResourceLocation objModel = modLoc("models/block/gear" + size + ".obj");
+                ResourceLocation texture = modLoc("block/" + name);
+
+                // Генерируем "блочную" модель (без блокстейта), просто чтобы файл существовал
+                models().getBuilder(name) // создаст assets/cim/models/block/gear1_steel.json
+                        .customLoader(net.minecraftforge.client.model.generators.loaders.ObjModelBuilder::begin)
+                        .modelLocation(objModel)
+                        .flipV(true)
+                        .end()
+                        .texture("gear_texture", texture);
             }
         }
     }

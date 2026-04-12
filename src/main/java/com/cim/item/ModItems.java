@@ -1,5 +1,6 @@
 package com.cim.item;
 
+import com.cim.api.rotation.ShaftMaterial;
 import com.cim.entity.ModEntities;
 import com.cim.entity.weapons.grenades.GrenadeIfType;
 import com.cim.entity.weapons.grenades.GrenadeType;
@@ -11,6 +12,7 @@ import com.cim.item.food.FoodZamaz;
 import com.cim.event.SlagItem;
 import com.cim.item.mobs.MoryLahItem;
 import com.cim.item.energy.WireCoilItem;
+import com.cim.item.rotation.GearItem;
 import com.cim.item.tools.*;
 import com.cim.item.tools.cast_pickaxes.materials.CastPickaxeIronItem;
 import com.cim.item.tools.cast_pickaxes.materials.CastPickaxeSteelItem;
@@ -276,4 +278,60 @@ public class ModItems {
 
     public static final RegistryObject<Item> BATTERY_TRIXITE = ITEMS.register("battery_trixite",
             () -> new ModBatteryItem(new Item.Properties(), 5000000, 40000, 200000));
+
+    //ШЕСТЕРНИ
+
+    // =========================================
+    // КИНЕТИЧЕСКИЕ ШЕСТЕРНИ (Размер 1 - Малые)
+    // =========================================
+//    public static final RegistryObject<Item> GEAR1_IRON = ITEMS.register("gear1_iron",
+//            () -> new GearItem(new Item.Properties(), 1, ShaftMaterial.IRON));
+//
+//    public static final RegistryObject<Item> GEAR1_DURALUMIN = ITEMS.register("gear1_duralumin",
+//            () -> new GearItem(new Item.Properties(), 1, ShaftMaterial.DURALUMIN));
+
+    public static final RegistryObject<Item> GEAR1_STEEL = ITEMS.register("gear1_steel",
+            () -> new GearItem(new Item.Properties(), 1, ShaftMaterial.STEEL));
+
+//    public static final RegistryObject<Item> GEAR1_TITANIUM = ITEMS.register("gear1_titanium",
+//            () -> new GearItem(new Item.Properties(), 1, ShaftMaterial.TITANIUM));
+//
+//    public static final RegistryObject<Item> GEAR1_TUNGSTEN_CARBIDE = ITEMS.register("gear1_tungsten_carbide",
+//            () -> new GearItem(new Item.Properties(), 1, ShaftMaterial.TUNGSTEN_CARBIDE));
+
+    // =========================================
+    // КИНЕТИЧЕСКИЕ ШЕСТЕРНИ (Размер 2 - Средние)
+    // =========================================
+//    public static final RegistryObject<Item> GEAR2_IRON = ITEMS.register("gear2_iron",
+//            () -> new GearItem(new Item.Properties(), 2, ShaftMaterial.IRON));
+//
+//    public static final RegistryObject<Item> GEAR2_DURALUMIN = ITEMS.register("gear2_duralumin",
+//            () -> new GearItem(new Item.Properties(), 2, ShaftMaterial.DURALUMIN));
+//
+//    public static final RegistryObject<Item> GEAR2_STEEL = ITEMS.register("gear2_steel",
+//            () -> new GearItem(new Item.Properties(), 2, ShaftMaterial.STEEL));
+//
+//    public static final RegistryObject<Item> GEAR2_TITANIUM = ITEMS.register("gear2_titanium",
+//            () -> new GearItem(new Item.Properties(), 2, ShaftMaterial.TITANIUM));
+//
+//    public static final RegistryObject<Item> GEAR2_TUNGSTEN_CARBIDE = ITEMS.register("gear2_tungsten_carbide",
+//            () -> new GearItem(new Item.Properties(), 2, ShaftMaterial.TUNGSTEN_CARBIDE));
+//
+//    // =========================================
+//    // КИНЕТИЧЕСКИЕ ШЕСТЕРНИ (Размер 3 - Большие)
+//    // =========================================
+//    public static final RegistryObject<Item> GEAR3_IRON = ITEMS.register("gear3_iron",
+//            () -> new GearItem(new Item.Properties(), 3, ShaftMaterial.IRON));
+//
+//    public static final RegistryObject<Item> GEAR3_DURALUMIN = ITEMS.register("gear3_duralumin",
+//            () -> new GearItem(new Item.Properties(), 3, ShaftMaterial.DURALUMIN));
+//
+//    public static final RegistryObject<Item> GEAR3_STEEL = ITEMS.register("gear3_steel",
+//            () -> new GearItem(new Item.Properties(), 3, ShaftMaterial.STEEL));
+//
+//    public static final RegistryObject<Item> GEAR3_TITANIUM = ITEMS.register("gear3_titanium",
+//            () -> new GearItem(new Item.Properties(), 3, ShaftMaterial.TITANIUM));
+//
+//    public static final RegistryObject<Item> GEAR3_TUNGSTEN_CARBIDE = ITEMS.register("gear3_tungsten_carbide",
+//            () -> new GearItem(new Item.Properties(), 3, ShaftMaterial.TUNGSTEN_CARBIDE));
 }

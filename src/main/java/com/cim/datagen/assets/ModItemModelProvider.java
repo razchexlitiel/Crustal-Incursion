@@ -96,12 +96,40 @@ public class ModItemModelProvider extends ItemModelProvider {
         simpleBlockItem(ModBlocks.LARGE_CONNECTOR);
         simpleItem(ModItems.FUEL_ASH);
         complexBlockItem(ModBlocks.FLUID_BARREL);
+        complexBlockItem(ModBlocks.BEARING_BLOCK);
+
+        generateAllGears();
 
         // Пример регистрации блоков как предметов (если это обычный куб)
         // complexBlockItem(ModBlocks.NECROTIC_ORE);
 
         // Для дверей (плоские иконки как в ванилле)
         // doorItem(ModBlocks.METAL_DOOR);
+    }
+
+    public void generateAllGears() {
+        for (RegistryObject<Item> itemObj : com.cim.item.ModItems.ITEMS.getEntries()) {
+            // Проверяем, что это именно шестерня
+            if (itemObj.get() instanceof com.cim.item.rotation.GearItem gear) {
+                String name = itemObj.getId().getPath(); // например, gear1_steel
+                int size = gear.getGearSize();
+
+                // Путь к OBJ модели зависит только от РАЗМЕРА
+                ResourceLocation objModel = modLoc("models/block/gear" + size + ".obj");
+                // Путь к текстуре совпадает с именем регистрации
+                ResourceLocation texture = modLoc("block/" + name);
+
+                // ГЕНЕРАЦИЯ МОДЕЛИ ПРЕДМЕТА
+                getBuilder(name)
+                        .parent(new net.minecraftforge.client.model.generators.ModelFile.UncheckedModelFile(modLoc("item/gear_template")))
+                        .customLoader(net.minecraftforge.client.model.generators.loaders.ObjModelBuilder::begin)
+                        .modelLocation(objModel)
+                        .flipV(true)
+                        .end()
+                        .texture("gear_texture", texture)
+                        .texture("particle", texture);
+            }
+        }
     }
 
     private ItemModelBuilder simpleItem(RegistryObject<Item> item) {

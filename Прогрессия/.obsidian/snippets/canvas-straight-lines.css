@@ -1,0 +1,9 @@
+
+.canvas-path {
+    transition: none !important;
+}
+
+
+.markdown-rendered svg path.canvas-path {
+    d: path(attr(d)); 
+}

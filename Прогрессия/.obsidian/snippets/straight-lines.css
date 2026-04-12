@@ -1,0 +1,4 @@
+
+.canvas-path {
+    d: path(attr(data-straight-path)) !important;
+}
