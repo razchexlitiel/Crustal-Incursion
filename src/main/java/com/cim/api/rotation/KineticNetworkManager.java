@@ -84,31 +84,22 @@ public class KineticNetworkManager extends SavedData {
 
         Set<KineticNetwork> neighborNetworks = new HashSet<>();
 
-        for (Direction dir : node.getPropagationDirections()) {
-            BlockPos neighborPos = pos.relative(dir);
+        for (BlockPos neighborPos : node.getPotentialConnections(level, pos)) {
             BlockEntity neighborBE = level.getBlockEntity(neighborPos);
 
             if (neighborBE instanceof Rotational neighborNode) {
-                Direction sideFromNeighbor = dir.getOpposite();
-                boolean neighborCanConnect = false;
+                // 1. Взаимная проверка: сосед тоже должен считать нас потенциальной парой
+                if (neighborNode.getPotentialConnections(level, neighborPos).contains(pos)) {
+                    // 2. Физическая проверка: диаметры валов подходят?
+                    if (node.canConnectMechanically(pos, neighborPos, neighborNode) &&
+                            neighborNode.canConnectMechanically(neighborPos, pos, node)) {
 
-                for (Direction neighborDir : neighborNode.getPropagationDirections()) {
-                    if (neighborDir == sideFromNeighbor) {
-                        // ОСИ СОВПАДАЮТ! Теперь спрашиваем блоки, совместимы ли они физически
-                        if (node.canConnectMechanically(dir, neighborNode) &&
-                                neighborNode.canConnectMechanically(sideFromNeighbor, node)) {
-                            neighborCanConnect = true;
+                        KineticNetwork net = blockToNetwork.get(neighborPos);
+                        if (net == null) {
+                            net = createNewNetworkFrom(neighborPos);
                         }
-                        break; // Выходим из цикла направлений соседа
+                        if (net != null) neighborNetworks.add(net);
                     }
-                }
-
-                if (neighborCanConnect) {
-                    KineticNetwork net = blockToNetwork.get(neighborPos);
-                    if (net == null) {
-                        net = createNewNetworkFrom(neighborPos);
-                    }
-                    if (net != null) neighborNetworks.add(net);
                 }
             }
         }
@@ -150,6 +141,8 @@ public class KineticNetworkManager extends SavedData {
         } else if (neighborNetworks.size() == 1) {
             KineticNetwork existingNet = neighborNetworks.iterator().next();
             registerBlockToNetwork(pos, existingNet);
+
+            recalculateNetworkSigns(existingNet);
 
             // ПРОВЕРКА КОНФЛИКТА
             if (existingNet.checkConflict(level)) {
@@ -232,55 +225,85 @@ public class KineticNetworkManager extends SavedData {
         }
 
         java.util.Queue<BlockPos> queue = new java.util.LinkedList<>();
+        java.util.Set<BlockPos> visited = new java.util.HashSet<>();
         queue.add(start);
-
-        java.util.Map<BlockPos, Integer> signs = new java.util.HashMap<>();
-        signs.put(start, 1);
 
         while (!queue.isEmpty()) {
             BlockPos current = queue.poll();
+            if (visited.contains(current)) continue;
+            visited.add(current);
+
             if (blockToNetwork.containsKey(current)) continue;
 
             if (level.getBlockEntity(current) instanceof Rotational node) {
                 registerBlockToNetwork(current, newNet);
 
-                // Применяем вычисленный знак к блоку
-                int currentSign = signs.getOrDefault(current, 1);
-                node.setNetworkSign(currentSign);
+                // ИСПОЛЬЗУЕМ НОВЫЙ ПОИСК
+                for (BlockPos neighborPos : node.getPotentialConnections(level, current)) {
+                    if (visited.contains(neighborPos)) continue;
 
-                for (Direction dir : node.getPropagationDirections()) {
-                    BlockPos neighborPos = current.relative(dir);
-                    if (level.getBlockEntity(neighborPos) instanceof Rotational neighborNode) {
-                        for (Direction neighborDir : neighborNode.getPropagationDirections()) {
-                            if (neighborDir == dir.getOpposite()) {
-                                if (node.canConnectMechanically(dir, neighborNode) &&
-                                        neighborNode.canConnectMechanically(dir.getOpposite(), node)) {
+                    BlockEntity neighborBE = level.getBlockEntity(neighborPos);
+                    if (neighborBE instanceof Rotational neighborNode) {
+                        if (neighborNode.getPotentialConnections(level, neighborPos).contains(current) &&
+                                node.canConnectMechanically(current, neighborPos, neighborNode) &&
+                                neighborNode.canConnectMechanically(neighborPos, current, node)) {
 
-                                    // ПРОВЕРКА НА БОКОВОЕ СОЕДИНЕНИЕ (ШЕСТЕРНЯ)
-                                    boolean isGearMesh = false;
-                                    if (level.getBlockState(current).hasProperty(ShaftBlock.FACING)) {
-                                        Direction nodeFacing = level.getBlockState(current).getValue(ShaftBlock.FACING);
-                                        // Если мы соединяемся не по оси вращения вала — значит это шестерня
-                                        if (dir.getAxis() != nodeFacing.getAxis()) {
-                                            isGearMesh = true;
-                                        }
-                                    }
+                            queue.add(neighborPos);
+                        }
+                    }
+                }
+            }
+        }
 
-                                    // Если это шестерня, инвертируем знак соседа. Иначе передаем свой же.
-                                    if (!signs.containsKey(neighborPos)) {
-                                        signs.put(neighborPos, isGearMesh ? -currentSign : currentSign);
-                                        queue.add(neighborPos);
-                                    }
-                                }
-                                break;
+        // ВАЖНО: Вызываем метод с множителями, который мы писали в прошлый раз!
+        recalculateNetworkSigns(newNet);
+        newNet.recalculate(level);
+        return newNet;
+    }
+
+    private void recalculateNetworkSigns(KineticNetwork net) {
+        if (net.getMembers().isEmpty()) return;
+
+        java.util.Queue<BlockPos> queue = new java.util.LinkedList<>();
+        java.util.Map<BlockPos, Float> scales = new java.util.HashMap<>();
+        java.util.Set<BlockPos> visited = new java.util.HashSet<>();
+
+        BlockPos root = net.getGenerators().isEmpty() ?
+                net.getMembers().iterator().next() :
+                net.getGenerators().iterator().next();
+
+        queue.add(root);
+        scales.put(root, 1.0f); // Источник всегда 1.0
+
+        while (!queue.isEmpty()) {
+            BlockPos current = queue.poll();
+            if (visited.contains(current)) continue;
+            visited.add(current);
+
+            BlockEntity currentBE = level.getBlockEntity(current);
+            if (currentBE instanceof Rotational node) {
+                float currentScale = scales.getOrDefault(current, 1.0f);
+                node.setNetworkScale(currentScale); // Сохраняем множитель в блок
+
+                // ИСПОЛЬЗУЕМ НОВЫЙ МЕТОД ПОИСКА
+                for (BlockPos neighborPos : node.getPotentialConnections(level, current)) {
+                    if (net.getMembers().contains(neighborPos) && !visited.contains(neighborPos)) {
+                        BlockEntity neighborBE = level.getBlockEntity(neighborPos);
+
+                        if (neighborBE instanceof Rotational neighborNode) {
+                            // Спрашиваем сам блок, с каким коэффициентом он передает вращение
+                            float ratio = node.calculateTransmissionRatio(current, neighborPos, neighborNode);
+                            float nextScale = currentScale * ratio;
+
+                            if (!scales.containsKey(neighborPos)) {
+                                scales.put(neighborPos, nextScale);
+                                queue.add(neighborPos);
                             }
                         }
                     }
                 }
             }
         }
-        newNet.recalculate(level);
-        return newNet;
     }
 
     private void mergeNetworks(Set<KineticNetwork> networks, BlockPos connectorPos) {
@@ -299,6 +322,7 @@ public class KineticNetworkManager extends SavedData {
         }
 
         registerBlockToNetwork(connectorPos, mainNet);
+        recalculateNetworkSigns(mainNet);
         mainNet.recalculate(level);
     }
 

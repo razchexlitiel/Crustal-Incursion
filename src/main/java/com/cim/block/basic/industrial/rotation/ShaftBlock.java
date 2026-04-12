@@ -62,7 +62,7 @@ public class ShaftBlock extends BaseEntityBlock {
     // ДИНАМИЧЕСКИЙ ХИТБОКС (зависит от диаметра)
     @Override
     public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
-        // 1. Сначала всегда создаем хитбокс самого вала
+        // 1. Хитбокс вала (остается как был)
         double p = diameter.pixels / 2.0;
         double min = 8.0 - p;
         double max = 8.0 + p;
@@ -73,25 +73,30 @@ public class ShaftBlock extends BaseEntityBlock {
             case Z -> Block.box(min, min, 0.0, max, max, 16.0);
         };
 
-        // 2. Если есть шестерня, создаем её хитбокс и ОБЪЕДИНЯЕМ с валом
+        // 2. Хитбокс шестерни
         int gearSize = state.getValue(GEAR_SIZE);
-        if (gearSize > 0) {
-            // Размеры для малой шестерни (позже можешь добавить switch по gearSize)
-            double gMin = 0.0;
-            double gMax = 16.0;
-            double tMin = 6.0; // Толщина шестерни
-            double tMax = 10.0;
-
+        if (gearSize == 1) { // МАЛАЯ ШЕСТЕРНЯ
+            double gMin = 0.0, gMax = 16.0;
+            double tMin = 6.0, tMax = 10.0;
             VoxelShape gearShape = switch (state.getValue(FACING).getAxis()) {
                 case X -> Block.box(tMin, gMin, gMin, tMax, gMax, gMax);
                 case Y -> Block.box(gMin, tMin, gMin, gMax, tMax, gMax);
                 case Z -> Block.box(gMin, gMin, tMin, gMax, gMax, tMax);
             };
-            // Возвращаем комбинированный хитбокс!
+            return Shapes.or(shaftShape, gearShape);
+        }
+        else if (gearSize == 2) { // БОЛЬШАЯ ШЕСТЕРНЯ 2x2
+            // Выходим на полблока (-8.0) в минус и (+24.0) в плюс
+            double gMin = -8.0, gMax = 24.0;
+            double tMin = 6.0, tMax = 10.0;
+            VoxelShape gearShape = switch (state.getValue(FACING).getAxis()) {
+                case X -> Block.box(tMin, gMin, gMin, tMax, gMax, gMax);
+                case Y -> Block.box(gMin, tMin, gMin, gMax, tMax, gMax);
+                case Z -> Block.box(gMin, gMin, tMin, gMax, gMax, tMax);
+            };
             return Shapes.or(shaftShape, gearShape);
         }
 
-        // Если шестерни нет, возвращаем только вал
         return shaftShape;
     }
 
@@ -117,7 +122,11 @@ public class ShaftBlock extends BaseEntityBlock {
 
                         // 4. Проигрываем приятный механический звук снятия
                         level.playSound(null, pos, SoundEvents.ITEM_FRAME_REMOVE_ITEM, SoundSource.BLOCKS, 1.0f, 1.0f);
-                    }
+
+                        // 5. ПЕРЕСОБИРАЕМ СЕТЬ (ОБЯЗАТЕЛЬНО!)
+                        KineticNetworkManager manager = KineticNetworkManager.get((ServerLevel) level);
+                        manager.updateNetworkAfterRemove(pos);
+                        manager.updateNetworkAfterPlace(pos);                    }
                 }
                 // Возвращаем success, чтобы рука игрока взмахнула и действие засчиталось
                 return InteractionResult.sidedSuccess(level.isClientSide);

@@ -13,6 +13,7 @@ import dev.engine_room.flywheel.lib.model.baked.PartialModel;
 import dev.engine_room.flywheel.lib.visual.AbstractBlockEntityVisual;
 import dev.engine_room.flywheel.lib.visual.SimpleDynamicVisual;
 import net.minecraft.core.Direction;
+import net.minecraft.core.Vec3i;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.function.Consumer;
@@ -27,21 +28,28 @@ public class BearingVisual extends AbstractBlockEntityVisual<BearingBlockEntity>
     private TransformedInstance shaft;
 
     private final Direction facing;
-
-    // Сохраняем последние известные данные для отслеживания десинка
     private ShaftMaterial currentMaterial;
     private ShaftDiameter currentDiameter;
+
+    // Локальные координаты
+    private final float localX;
+    private final float localY;
+    private final float localZ;
 
     public BearingVisual(VisualizationContext ctx, BearingBlockEntity blockEntity, float partialTick) {
         super(ctx, blockEntity, partialTick);
         this.facing = blockState.getValue(BearingBlock.FACING);
+
+        Vec3i origin = ctx.renderOrigin();
+        this.localX = pos.getX() - origin.getX();
+        this.localY = pos.getY() - origin.getY();
+        this.localZ = pos.getZ() - origin.getZ();
 
         this.innerRing = instancerProvider().instancer(
                 InstanceTypes.TRANSFORMED,
                 Models.partial(ModModels.BEARING_INNER_RING)
         ).createInstance();
 
-        // При инициализации данные могут быть еще null! Запоминаем это.
         this.currentMaterial = blockEntity.getShaftMaterial();
         this.currentDiameter = blockEntity.getShaftDiameter();
 
@@ -50,14 +58,18 @@ public class BearingVisual extends AbstractBlockEntityVisual<BearingBlockEntity>
     }
 
     private void createShaftInstance() {
-        if (blockState.getValue(BearingBlock.HAS_SHAFT) && currentMaterial != null && currentDiameter != null) {
+        if (blockEntity.hasShaft() && currentMaterial != null && currentDiameter != null) {
+            // ИСПОЛЬЗУЕМ .name(), чтобы избежать багов с переопределенным toString()
+            String matName = currentMaterial.name().toLowerCase();
+            String diaName = currentDiameter.name().toLowerCase();
+            String shaftName = "shaft_" + diaName + "_" + matName;
 
-            // 1. Формируем строковый ключ (например "shaft_light_steel")
-            // У Record метод называется name(), а у твоего Enum переменная называется name.
-            String shaftName = "shaft_" + currentDiameter.name + "_" + currentMaterial.name();
-
-            // 2. Берем модель из нашей статической мапы (или ставим заглушку, если не нашли)
-            PartialModel shaftModel = ModModels.SHAFT_MODELS.getOrDefault(shaftName, ModModels.HALF_SHAFT);
+            PartialModel shaftModel = ModModels.SHAFT_MODELS.get(shaftName);
+            if (shaftModel == null) {
+                // Если модель не зарегистрирована, логируем это, а не просто крашимся
+                System.out.println("[CIM-Debug] ВНИМАНИЕ: Модель " + shaftName + " не найдена в ModModels! Используем HALF_SHAFT.");
+                shaftModel = ModModels.HALF_SHAFT;
+            }
 
             this.shaft = instancerProvider().instancer(
                     InstanceTypes.TRANSFORMED,
@@ -75,7 +87,7 @@ public class BearingVisual extends AbstractBlockEntityVisual<BearingBlockEntity>
 
     private void applyStaticTransform(TransformedInstance instance) {
         instance.setIdentityTransform()
-                .translate(pos)
+                .translate(localX, localY, localZ)
                 .translate(0.5f, 0.5f, 0.5f);
 
         Direction.Axis axis = facing.getAxis();
@@ -91,37 +103,37 @@ public class BearingVisual extends AbstractBlockEntityVisual<BearingBlockEntity>
         instance.setChanged();
     }
 
-    // 1. ПЕРЕСТРОЕНИЕ В ГЛАВНОМ ПОТОКЕ (БЕЗОПАСНО)
     @Override
-    public void update(float pt) {
-        super.update(pt);
+    public void beginFrame(Context ctx) {
+        // 1. АБСОЛЮТНАЯ ЗАЩИТА ОТ ДЕСИНКА
+        // Проверяем актуальное состояние NBT каждый кадр
+        boolean shaftStateChanged = blockEntity.hasShaft() != (this.shaft != null);
+        boolean materialChanged = blockEntity.getShaftMaterial() != currentMaterial;
+        boolean diameterChanged = blockEntity.getShaftDiameter() != currentDiameter;
 
-        if (blockEntity.getShaftMaterial() != currentMaterial || blockEntity.getShaftDiameter() != currentDiameter) {
+        // Если что-то изменилось (например, мы вставили вал) — мгновенно пересобираем
+        if (shaftStateChanged || materialChanged || diameterChanged) {
             this.currentMaterial = blockEntity.getShaftMaterial();
             this.currentDiameter = blockEntity.getShaftDiameter();
 
             if (this.shaft != null) {
-                this.shaft.delete(); // БЕЗОПАСНОЕ УДАЛЕНИЕ
+                this.shaft.delete();
                 this.shaft = null;
             }
 
-            createShaftInstance(); // БЕЗОПАСНОЕ СОЗДАНИЕ
+            createShaftInstance();
 
             if (this.shaft != null) {
                 applyStaticTransform(this.shaft);
-                updateLight(pt);
+                relight(pos, this.shaft); // Считаем свет для нового вала
             }
         }
-    }
 
-    // 2. ТОЛЬКО ВРАЩЕНИЕ В ФОНОВЫХ ПОТОКАХ
-    @Override
-    public void beginFrame(Context ctx) {
+        // 2. ВРАЩЕНИЕ
         long speed = blockEntity.getVisualSpeed();
-        if (speed == 0) return;
-
         float time = (float) (System.currentTimeMillis() % 100000) / 50f;
-        float angle = time * speed * 0.1f;
+        // Даже если скорость 0, вызываем пересчет позиций, чтобы модель не исчезла!
+        float angle = speed == 0 ? 0 : time * speed * 0.1f;
 
         applyRotation(this.innerRing, angle);
         if (this.shaft != null) {
@@ -131,7 +143,7 @@ public class BearingVisual extends AbstractBlockEntityVisual<BearingBlockEntity>
 
     private void applyRotation(TransformedInstance instance, float angle) {
         instance.setIdentityTransform()
-                .translate(pos)
+                .translate(localX, localY, localZ)
                 .translate(0.5f, 0.5f, 0.5f);
 
         Direction.Axis axis = facing.getAxis();

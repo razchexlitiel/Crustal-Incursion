@@ -11,6 +11,7 @@ import dev.engine_room.flywheel.lib.model.baked.PartialModel;
 import dev.engine_room.flywheel.lib.visual.AbstractBlockEntityVisual;
 import dev.engine_room.flywheel.lib.visual.SimpleDynamicVisual;
 import net.minecraft.core.Direction;
+import net.minecraft.core.Vec3i;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.function.Consumer;
@@ -22,12 +23,23 @@ public class ShaftVisual extends AbstractBlockEntityVisual<ShaftBlockEntity> imp
     private TransformedInstance gearInstance;
     private final Direction facing;
 
-    private float phaseOffset = 0f; // Убрали final
-    private net.minecraft.world.item.Item currentGearItem; // Трекер для десинка
+    private float phaseOffset = 0f;
+    private net.minecraft.world.item.Item currentGearItem;
+
+    // Локальные координаты
+    private final float localX;
+    private final float localY;
+    private final float localZ;
 
     public ShaftVisual(VisualizationContext ctx, ShaftBlockEntity blockEntity, float partialTick) {
         super(ctx, blockEntity, partialTick);
         this.facing = blockState.getValue(ShaftBlock.FACING);
+
+        // Вычисляем локальную позицию
+        Vec3i origin = ctx.renderOrigin();
+        this.localX = pos.getX() - origin.getX();
+        this.localY = pos.getY() - origin.getY();
+        this.localZ = pos.getZ() - origin.getZ();
 
         // 1. ИНИЦИАЛИЗАЦИЯ ВАЛА
         net.minecraft.resources.ResourceLocation shaftId = net.minecraftforge.registries.ForgeRegistries.BLOCKS.getKey(blockState.getBlock());
@@ -42,7 +54,6 @@ public class ShaftVisual extends AbstractBlockEntityVisual<ShaftBlockEntity> imp
         setupStatic(shaftInstance, 0);
     }
 
-    // Метод, который безопасно строит или удаляет шестерню
     private void rebuildGear() {
         if (this.gearInstance != null) {
             this.gearInstance.delete();
@@ -50,15 +61,37 @@ public class ShaftVisual extends AbstractBlockEntityVisual<ShaftBlockEntity> imp
         }
 
         net.minecraft.world.item.ItemStack gearStack = blockEntity.getAttachedGear();
-        if (blockState.getValue(ShaftBlock.GEAR_SIZE) > 0 && !gearStack.isEmpty() && gearStack.getItem() instanceof com.cim.item.rotation.GearItem) {
+        int gearSize = blockState.getValue(ShaftBlock.GEAR_SIZE);
+
+        if (gearSize > 0 && !gearStack.isEmpty() && gearStack.getItem() instanceof com.cim.item.rotation.GearItem) {
             net.minecraft.resources.ResourceLocation gearId = net.minecraftforge.registries.ForgeRegistries.ITEMS.getKey(gearStack.getItem());
             String gearName = gearId != null ? gearId.getPath() : "";
             PartialModel gearModel = ModModels.GEAR_MODELS.get(gearName);
 
             if (gearModel != null) {
                 this.gearInstance = instancerProvider().instancer(InstanceTypes.TRANSFORMED, Models.partial(gearModel)).createInstance();
-                int parity = (pos.getX() + pos.getY() + pos.getZ()) % 2;
-                this.phaseOffset = (float) Math.toRadians(parity == 0 ? 22.5 : 0);
+
+                // 1. Берем координаты
+                int x = pos.getX();
+                int y = pos.getY();
+                int z = pos.getZ();
+
+                // 2. ИСКУССТВЕННОЕ СЖАТИЕ СЕТКИ ДЛЯ БОЛЬШИХ ШЕСТЕРНЕЙ
+                // Так как они стоят через 2 блока, мы делим координаты на 2.
+                // Теперь шестерни на x=0 и x=2 будут иметь разную четность!
+                // Используем floorDiv для защиты от багов в отрицательных координатах мира.
+                if (gearSize == 2) {
+                    x = Math.floorDiv(x, 2);
+                    y = Math.floorDiv(y, 2);
+                    z = Math.floorDiv(z, 2);
+                }
+
+                // 3. Высчитываем шахматный порядок
+                int parity = Math.abs(x + y + z) % 2;
+
+                // 4. Выбираем угол смещения: 22.5 для малой, 11.25 для большой
+                float halfToothAngle = gearSize == 2 ? 11.25f : 22.5f;
+                this.phaseOffset = (float) Math.toRadians(parity == 0 ? halfToothAngle : 0);
 
                 setupStatic(this.gearInstance, this.phaseOffset);
             }
@@ -67,14 +100,17 @@ public class ShaftVisual extends AbstractBlockEntityVisual<ShaftBlockEntity> imp
 
     private void setupStatic(TransformedInstance instance, float initialRotationZ) {
         instance.setIdentityTransform()
-                .translate(pos)
+                // Используем локальные координаты!
+                .translate(localX, localY, localZ)
                 .translate(0.5f, 0.5f, 0.5f);
 
         Direction.Axis axis = facing.getAxis();
         if (axis == Direction.Axis.X) {
-            instance.rotateY((float) Math.toRadians(90));
+            instance.rotateY((float) Math.toRadians(facing == Direction.EAST ? 270 : 90));
         } else if (axis == Direction.Axis.Y) {
-            instance.rotateX((float) Math.toRadians(90));
+            instance.rotateX((float) Math.toRadians(facing == Direction.UP ? 90 : -90));
+        } else if (facing == Direction.SOUTH) {
+            instance.rotateY((float) Math.toRadians(180));
         }
 
         if (initialRotationZ != 0) {
@@ -87,29 +123,33 @@ public class ShaftVisual extends AbstractBlockEntityVisual<ShaftBlockEntity> imp
 
     @Override
     public void update(float pt) {
-        super.update(pt); // Обязательно вызываем super
-
-        // Защита от десинка теперь живет здесь!
+        super.update(pt);
         if (blockEntity.getAttachedGear().getItem() != this.currentGearItem) {
             this.currentGearItem = blockEntity.getAttachedGear().getItem();
-            rebuildGear(); // Безопасно создаем/удаляем шестерню
-            updateLight(pt); // Безопасно обновляем свет
+            rebuildGear();
+            updateLight(pt);
         }
     }
 
-    // 2. ТОЛЬКО ВРАЩЕНИЕ В ФОНОВЫХ ПОТОКАХ
     @Override
     public void beginFrame(Context ctx) {
-        float speed = blockEntity.getSpeed();
-        if (speed == 0) return;
+        // Мгновенно замечаем установку или снятие шестерни!
+        if (blockEntity.getAttachedGear().getItem() != this.currentGearItem) {
+            this.currentGearItem = blockEntity.getAttachedGear().getItem();
+            rebuildGear();
+            if (this.gearInstance != null) {
+                relight(pos, this.gearInstance);
+            }
+        }
 
+        // БЫЛО: float speed = blockEntity.getSpeed();
+// СТАЛО: берем адаптированную скорость
+        float speed = blockEntity.getVisualSpeed();
         float time = (float) (System.currentTimeMillis() % 100000) / 50f;
-        float angle = time * speed * 0.1f;
+        float angle = speed == 0 ? 0 : time * speed * 0.1f;
 
-        // Вращаем вал
         setupStatic(shaftInstance, angle);
 
-        // Вращаем шестерню
         if (gearInstance != null) {
             setupStatic(gearInstance, angle + phaseOffset);
         }
@@ -117,6 +157,7 @@ public class ShaftVisual extends AbstractBlockEntityVisual<ShaftBlockEntity> imp
 
     @Override
     public void updateLight(float partialTick) {
+        // Свет всегда считается от абсолютных координат (pos)
         relight(pos, shaftInstance);
         if (gearInstance != null) relight(pos, gearInstance);
     }
