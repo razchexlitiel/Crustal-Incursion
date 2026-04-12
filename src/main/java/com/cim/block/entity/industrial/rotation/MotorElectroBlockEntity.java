@@ -56,7 +56,7 @@ public class MotorElectroBlockEntity extends BlockEntity implements Rotational {
     }
 
     @Override
-    public boolean canConnectMechanically(Direction direction, Rotational neighbor) {
+    public boolean canConnectMechanically(BlockPos myPos, BlockPos neighborPos, Rotational neighbor) {
         if (neighbor instanceof ShaftBlockEntity shaftBE) {
             if (shaftBE.getBlockState().getBlock() instanceof ShaftBlock shaftBlock) {
                 return shaftBlock.getDiameter() == ShaftDiameter.LIGHT;
@@ -157,6 +157,13 @@ public class MotorElectroBlockEntity extends BlockEntity implements Rotational {
                 net.requestRecalculation();
             }
         }
+    }
+
+    @Override
+    public java.util.List<BlockPos> getPotentialConnections(net.minecraft.world.level.Level level, BlockPos myPos) {
+        Direction facing = getBlockState().getValue(MotorElectroBlock.FACING);
+        // Мотор отдает энергию только в ту сторону, куда смотрит его вал
+        return java.util.List.of(myPos.relative(facing));
     }
 
     // --- ЗАЩИТА ВАНИЛЬНОЙ КАМЕРЫ ---

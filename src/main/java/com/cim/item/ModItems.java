@@ -308,8 +308,8 @@ public class ModItems {
 //    public static final RegistryObject<Item> GEAR2_DURALUMIN = ITEMS.register("gear2_duralumin",
 //            () -> new GearItem(new Item.Properties(), 2, ShaftMaterial.DURALUMIN));
 //
-//    public static final RegistryObject<Item> GEAR2_STEEL = ITEMS.register("gear2_steel",
-//            () -> new GearItem(new Item.Properties(), 2, ShaftMaterial.STEEL));
+    public static final RegistryObject<Item> GEAR2_STEEL = ITEMS.register("gear2_steel",
+            () -> new GearItem(new Item.Properties(), 2, ShaftMaterial.STEEL));
 //
 //    public static final RegistryObject<Item> GEAR2_TITANIUM = ITEMS.register("gear2_titanium",
 //            () -> new GearItem(new Item.Properties(), 2, ShaftMaterial.TITANIUM));

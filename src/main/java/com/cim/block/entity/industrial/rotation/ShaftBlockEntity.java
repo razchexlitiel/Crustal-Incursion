@@ -16,7 +16,7 @@ public class ShaftBlockEntity extends BlockEntity implements Rotational {
 
     private long speed = 0;
     private long lastSyncedSpeed = 0;
-    private int networkSign = 1;
+    private float networkScale = 1.0f;
 
     private ItemStack attachedGear = ItemStack.EMPTY;
 
@@ -47,10 +47,88 @@ public class ShaftBlockEntity extends BlockEntity implements Rotational {
     }
 
     @Override
-    public boolean canConnectMechanically(Direction direction, Rotational neighbor) {
+    public java.util.List<BlockPos> getPotentialConnections(net.minecraft.world.level.Level level, BlockPos myPos) {
+        java.util.List<BlockPos> list = new java.util.ArrayList<>();
+        BlockState state = getBlockState();
+        if (!state.hasProperty(ShaftBlock.FACING)) return list;
+
+        Direction facing = state.getValue(ShaftBlock.FACING);
+        Direction.Axis axis = facing.getAxis();
+        int gearSize = state.getValue(ShaftBlock.GEAR_SIZE);
+
+        // 1. Осевые соединения (Вал-к-Валу). Всегда добавляем перед и зад.
+        list.add(myPos.relative(facing));
+        list.add(myPos.relative(facing.getOpposite()));
+
+        // 2. Если есть шестерня, ищем соседей в плоскости
+        if (gearSize > 0) {
+            // Проверяем квадрат 5x5 вокруг шестерни
+            for (BlockPos pos : BlockPos.betweenClosed(myPos.offset(-2, -2, -2), myPos.offset(2, 2, 2))) {
+                if (pos.equals(myPos)) continue;
+
+                // Отсекаем блоки не в нашей плоскости
+                if (axis == Direction.Axis.X && pos.getX() != myPos.getX()) continue;
+                if (axis == Direction.Axis.Y && pos.getY() != myPos.getY()) continue;
+                if (axis == Direction.Axis.Z && pos.getZ() != myPos.getZ()) continue;
+
+                // Считаем дистанцию по осям плоскости
+                int d1 = 0, d2 = 0;
+                if (axis == Direction.Axis.X) { d1 = Math.abs(pos.getY() - myPos.getY()); d2 = Math.abs(pos.getZ() - myPos.getZ()); }
+                if (axis == Direction.Axis.Y) { d1 = Math.abs(pos.getX() - myPos.getX()); d2 = Math.abs(pos.getZ() - myPos.getZ()); }
+                if (axis == Direction.Axis.Z) { d1 = Math.abs(pos.getX() - myPos.getX()); d2 = Math.abs(pos.getY() - myPos.getY()); }
+
+                // Логика зацепления зубьев
+                if (gearSize == 1) {
+                    // Малая с Малой (крестом, дистанция 1)
+                    if ((d1 == 1 && d2 == 0) || (d1 == 0 && d2 == 1)) list.add(pos.immutable());
+                    // Малая с Большой (по диагонали, дистанция 1-1)
+                    if (d1 == 1 && d2 == 1) list.add(pos.immutable());
+                } else if (gearSize == 2) {
+                    // Большая с Большой (крестом через блок, дистанция 2)
+                    if ((d1 == 2 && d2 == 0) || (d1 == 0 && d2 == 2)) list.add(pos.immutable());
+                    // Большая с Малой (по диагонали, дистанция 1-1)
+                    if (d1 == 1 && d2 == 1) list.add(pos.immutable());
+                }
+            }
+        }
+        return list;
+    }
+
+    @Override
+    public float calculateTransmissionRatio(BlockPos myPos, BlockPos neighborPos, Rotational neighbor) {
+        if (!(neighbor instanceof ShaftBlockEntity neighborShaft)) return 1.0f;
+
+        int mySize = this.getBlockState().getValue(ShaftBlock.GEAR_SIZE);
+        int neighborSize = neighborShaft.getBlockState().getValue(ShaftBlock.GEAR_SIZE);
+
+        Direction myFacing = getBlockState().getValue(ShaftBlock.FACING);
+
+        // Если соединение по оси (вал-вал) - передача 1:1, знак не меняется
+        if (myPos.relative(myFacing).equals(neighborPos) || myPos.relative(myFacing.getOpposite()).equals(neighborPos)) {
+            return 1.0f;
+        }
+
+        // Если соединение боковое (через зубья шестерней) - ЗНАК ВСЕГДА ИНВЕРТИРУЕТСЯ
+        float ratio = -1.0f;
+
+        // Считаем передаточное число
+        if (mySize == 1 && neighborSize == 2) {
+            ratio = -0.5f; // От малой к большой скорость падает в 2 раза
+        } else if (mySize == 2 && neighborSize == 1) {
+            ratio = -2.0f; // От большой к малой скорость возрастает в 2 раза
+        }
+
+        return ratio;
+    }
+
+    @Override
+    public boolean canConnectMechanically(BlockPos myPos, BlockPos neighborPos, Rotational neighbor) {
         ShaftDiameter thisDiameter = ((ShaftBlock)this.getBlockState().getBlock()).getDiameter();
         Direction thisFacing = getBlockState().getValue(ShaftBlock.FACING);
-        boolean isEndToEnd = (direction.getAxis() == thisFacing.getAxis());
+
+        // Проверяем, находятся ли валы на одной прямой линии (торец к торцу)
+        boolean isEndToEnd = myPos.relative(thisFacing).equals(neighborPos) ||
+                myPos.relative(thisFacing.getOpposite()).equals(neighborPos);
 
         if (neighbor instanceof ShaftBlockEntity otherShaft) {
             Direction otherFacing = otherShaft.getBlockState().getValue(ShaftBlock.FACING);
@@ -59,10 +137,8 @@ public class ShaftBlockEntity extends BlockEntity implements Rotational {
             if (isEndToEnd) {
                 return thisDiameter == otherDiameter && otherFacing.getAxis() == thisFacing.getAxis();
             } else {
-                if (thisFacing.getAxis() == otherFacing.getAxis() && this.hasGear() && otherShaft.hasGear()) {
-                    return true;
-                }
-                return false;
+                // Боковое или диагональное соединение шестерней
+                return thisFacing.getAxis() == otherFacing.getAxis() && this.hasGear() && otherShaft.hasGear();
             }
         }
         if (neighbor instanceof BearingBlockEntity bearing) {
@@ -75,21 +151,20 @@ public class ShaftBlockEntity extends BlockEntity implements Rotational {
     }
 
     @Override
-    public void setNetworkSign(int sign) { this.networkSign = sign; }
+    public void setNetworkScale(float scale) { this.networkScale = scale; }
 
     @Override
-    public int getNetworkSign() { return this.networkSign; }
+    public float getNetworkScale() { return this.networkScale; }
 
     @Override
     public void setSpeed(long speed) {
-        long actualSpeed = speed * this.networkSign;
+        long actualSpeed = (long) (speed * this.networkScale);
         if (this.speed != actualSpeed) {
             this.speed = actualSpeed;
             setChanged();
             if (shouldSyncSpeed()) {
                 this.lastSyncedSpeed = this.speed;
                 if (level != null && !level.isClientSide) {
-                    // Флаг 2!
                     level.sendBlockUpdated(getBlockPos(), getBlockState(), getBlockState(), 2);
                 }
             }
@@ -109,7 +184,7 @@ public class ShaftBlockEntity extends BlockEntity implements Rotational {
         super.saveAdditional(tag);
         tag.putLong("Speed", this.speed);
         tag.putLong("LastSyncedSpeed", this.lastSyncedSpeed);
-        tag.putInt("NetworkSign", this.networkSign);
+        tag.putFloat("NetworkScale", this.networkScale);
         if (!attachedGear.isEmpty()) {
             tag.put("AttachedGear", attachedGear.save(new CompoundTag()));
         }
@@ -120,7 +195,7 @@ public class ShaftBlockEntity extends BlockEntity implements Rotational {
         super.load(tag);
         this.speed = tag.getLong("Speed");
         this.lastSyncedSpeed = tag.getLong("LastSyncedSpeed");
-        this.networkSign = tag.contains("NetworkSign") ? tag.getInt("NetworkSign") : 1;
+        this.networkScale = tag.contains("NetworkScale") ? tag.getInt("NetworkScale") : 1;
         if (tag.contains("AttachedGear")) {
             this.attachedGear = ItemStack.of(tag.getCompound("AttachedGear"));
         } else {

@@ -62,6 +62,11 @@ public class GearItem extends Item {
                     // 3. Тратим предмет
                     context.getItemInHand().shrink(1);
                     level.playSound(null, pos, SoundEvents.METAL_PLACE, SoundSource.BLOCKS, 1.0F, 1.0F);
+
+                    // 4. ПЕРЕСОБИРАЕМ СЕТЬ (ОБЯЗАТЕЛЬНО!)
+                    com.cim.api.rotation.KineticNetworkManager manager = com.cim.api.rotation.KineticNetworkManager.get((net.minecraft.server.level.ServerLevel) level);
+                    manager.updateNetworkAfterRemove(pos);
+                    manager.updateNetworkAfterPlace(pos);
                 }
                 return InteractionResult.sidedSuccess(level.isClientSide);
             }

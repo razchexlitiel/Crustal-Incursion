@@ -277,6 +277,7 @@ public class CrustalIncursionMod {
             event.accept(ModItems.MOLD_BLOCK.get());
             event.accept(ModItems.POKER.get());
             event.accept(ModItems.GEAR1_STEEL.get());
+            event.accept(ModItems.GEAR2_STEEL.get());
         }
 
 

@@ -46,12 +46,24 @@ public interface Rotational {
      * Вызывается сетью перед соединением блоков.
      * Позволяет блокам отказать в соединении (например, из-за разных диаметров валов).
      */
-    default boolean canConnectMechanically(Direction direction, Rotational neighbor) {
-        return true; // По умолчанию все Rotational блоки совместимы друг с другом
+    // БЫЛО: default boolean canConnectMechanically(Direction direction, Rotational neighbor)
+// СТАЛО:
+    default boolean canConnectMechanically(net.minecraft.core.BlockPos myPos, net.minecraft.core.BlockPos neighborPos, Rotational neighbor) {
+        return true;
     }
 
-    default void setNetworkSign(int sign) {}
-    default int getNetworkSign() { return 1; }
+    default void setNetworkScale(float scale) {}
+    default float getNetworkScale() { return 1.0f; }
+
+    // НОВЫЙ МЕТОД: возвращает список позиций, с которыми блок МОЖЕТ соединиться
+    default java.util.List<net.minecraft.core.BlockPos> getPotentialConnections(net.minecraft.world.level.Level level, net.minecraft.core.BlockPos myPos) {
+        return java.util.Collections.emptyList();
+    }
+
+    // НОВЫЙ МЕТОД: рассчитывает коэффициент передачи на соседа
+    default float calculateTransmissionRatio(net.minecraft.core.BlockPos myPos, net.minecraft.core.BlockPos neighborPos, Rotational neighbor) {
+        return 1.0f; // По умолчанию передаем 1 к 1
+    }
 
     default void forceSyncVisuals(net.minecraft.world.level.Level level, net.minecraft.core.BlockPos pos) {
         if (!level.isClientSide && this instanceof net.minecraft.world.level.block.entity.BlockEntity be) {

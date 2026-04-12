@@ -61,15 +61,37 @@ public class ShaftVisual extends AbstractBlockEntityVisual<ShaftBlockEntity> imp
         }
 
         net.minecraft.world.item.ItemStack gearStack = blockEntity.getAttachedGear();
-        if (blockState.getValue(ShaftBlock.GEAR_SIZE) > 0 && !gearStack.isEmpty() && gearStack.getItem() instanceof com.cim.item.rotation.GearItem) {
+        int gearSize = blockState.getValue(ShaftBlock.GEAR_SIZE);
+
+        if (gearSize > 0 && !gearStack.isEmpty() && gearStack.getItem() instanceof com.cim.item.rotation.GearItem) {
             net.minecraft.resources.ResourceLocation gearId = net.minecraftforge.registries.ForgeRegistries.ITEMS.getKey(gearStack.getItem());
             String gearName = gearId != null ? gearId.getPath() : "";
             PartialModel gearModel = ModModels.GEAR_MODELS.get(gearName);
 
             if (gearModel != null) {
                 this.gearInstance = instancerProvider().instancer(InstanceTypes.TRANSFORMED, Models.partial(gearModel)).createInstance();
-                int parity = (pos.getX() + pos.getY() + pos.getZ()) % 2;
-                this.phaseOffset = (float) Math.toRadians(parity == 0 ? 22.5 : 0);
+
+                // 1. Берем координаты
+                int x = pos.getX();
+                int y = pos.getY();
+                int z = pos.getZ();
+
+                // 2. ИСКУССТВЕННОЕ СЖАТИЕ СЕТКИ ДЛЯ БОЛЬШИХ ШЕСТЕРНЕЙ
+                // Так как они стоят через 2 блока, мы делим координаты на 2.
+                // Теперь шестерни на x=0 и x=2 будут иметь разную четность!
+                // Используем floorDiv для защиты от багов в отрицательных координатах мира.
+                if (gearSize == 2) {
+                    x = Math.floorDiv(x, 2);
+                    y = Math.floorDiv(y, 2);
+                    z = Math.floorDiv(z, 2);
+                }
+
+                // 3. Высчитываем шахматный порядок
+                int parity = Math.abs(x + y + z) % 2;
+
+                // 4. Выбираем угол смещения: 22.5 для малой, 11.25 для большой
+                float halfToothAngle = gearSize == 2 ? 11.25f : 22.5f;
+                this.phaseOffset = (float) Math.toRadians(parity == 0 ? halfToothAngle : 0);
 
                 setupStatic(this.gearInstance, this.phaseOffset);
             }

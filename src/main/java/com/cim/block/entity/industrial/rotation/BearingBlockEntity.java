@@ -22,7 +22,7 @@ public class BearingBlockEntity extends BlockEntity implements Rotational {
 
     private long speed = 0;
     private long lastSyncedSpeed = 0;
-    private int networkSign = 1;
+    private float networkScale = 1.0f;
 
     private boolean hasShaft = false;
     private ShaftMaterial shaftMaterial = null;
@@ -53,7 +53,7 @@ public class BearingBlockEntity extends BlockEntity implements Rotational {
     }
 
     @Override
-    public boolean canConnectMechanically(Direction direction, Rotational neighbor) {
+    public boolean canConnectMechanically(BlockPos myPos, BlockPos neighborPos, Rotational neighbor) {
         if (!this.hasShaft()) return false;
 
         if (neighbor instanceof ShaftBlockEntity shaftBE) {
@@ -69,7 +69,8 @@ public class BearingBlockEntity extends BlockEntity implements Rotational {
 
     @Override
     public void setSpeed(long speed) {
-        long actualSpeed = speed * this.networkSign; // ВАЖНО: Применяем знак!
+        // ВАЖНО: Кастуем к long после умножения на float!
+        long actualSpeed = (long) (speed * this.networkScale);
 
         if (this.speed != actualSpeed) {
             this.speed = actualSpeed;
@@ -155,7 +156,7 @@ public class BearingBlockEntity extends BlockEntity implements Rotational {
         tag.putLong("LastSyncedSpeed", this.lastSyncedSpeed);
         tag.putBoolean("HasShaft", this.hasShaft);
         tag.putLong("LastSyncedSpeed", this.lastSyncedSpeed);
-        tag.putInt("NetworkSign", this.networkSign); // Сохраняем знак
+        tag.putFloat("NetworkScale", this.networkScale); // Сохраняем знак
 
         if (this.hasShaft && this.shaftMaterial != null && this.shaftDiameter != null) {
             tag.putString("ShaftMaterial", this.shaftMaterial.name());
@@ -170,7 +171,7 @@ public class BearingBlockEntity extends BlockEntity implements Rotational {
         this.lastSyncedSpeed = tag.getLong("LastSyncedSpeed");
         this.hasShaft = tag.getBoolean("HasShaft");
         this.lastSyncedSpeed = tag.getLong("LastSyncedSpeed");
-        this.networkSign = tag.contains("NetworkSign") ? tag.getInt("NetworkSign") : 1; // Загружаем знак
+        this.networkScale = tag.contains("NetworkScale") ? tag.getInt("NetworkScale") : 1; // Загружаем знак
 
         if (this.hasShaft) {
             // ИСПРАВЛЕНИЕ: Опускаем регистр в lowercase, чтобы switch находил совпадения
@@ -192,6 +193,18 @@ public class BearingBlockEntity extends BlockEntity implements Rotational {
             }
         }
     }
+
+    @Override
+    public java.util.List<BlockPos> getPotentialConnections(net.minecraft.world.level.Level level, BlockPos myPos) {
+        // Если вала нет, подшипник ни с чем не соединяется
+        if (!hasShaft) return java.util.Collections.emptyList();
+
+        Direction facing = getBlockState().getValue(BearingBlock.FACING);
+        // Передает вращение только вперед и назад по своей оси
+        return java.util.List.of(myPos.relative(facing), myPos.relative(facing.getOpposite()));
+    }
+
+
 
     @Override
     public CompoundTag getUpdateTag() {
@@ -224,8 +237,8 @@ public class BearingBlockEntity extends BlockEntity implements Rotational {
     }
 
     @Override
-    public void setNetworkSign(int sign) { this.networkSign = sign; }
+    public void setNetworkScale(float scale) { this.networkScale = scale; }
 
     @Override
-    public int getNetworkSign() { return this.networkSign; }
+    public float getNetworkScale() { return this.networkScale; }
 }
