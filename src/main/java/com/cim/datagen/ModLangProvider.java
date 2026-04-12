@@ -189,24 +189,22 @@ public class ModLangProvider extends LanguageProvider {
         add("entity.cim.grenade_if_he_projectile", "HE Impact grenade");
         add("entity.cim.grenade_nuc_projectile", "Nuclear grenade");
 
+        add(ModItems.GRENADIER_GOGGLES.get(), "Grenadier Goggles");
+
     }
 
 
     private void addRussian() {
         //Секвойя
-
-        // Литая кирка
         add("item.cim.cast_pickaxe_iron", "Литая железная кирка");
-        add("item.cim.cast_pickaxe_iron.desc.charge", "§6Зажмите ПКМ для мощного удара (2 сек)");
-        add("item.cim.cast_pickaxe_iron.desc.power", "§7Мощь: 6 секунд обычной добычи");
-        add("item.cim.cast_pickaxe_iron.desc.twohanded", "§8§oТребуется свободная вторая рука");
-        add("item.cim.cast_pickaxe_iron.warning.twohanded", "Требуется свободная вторая рука!");
-        add("item.cim.cast_pickaxe_iron.desc.hold", "§7Можно держать заряд сколько угодно");
-        add("item.cim.cast_pickaxe_iron.warning.range", "Слишком далеко!");
-        add("item.cim.cast_pickaxe_iron.desc.priority", "§7Приоритет: сначала мобы, потом блоки");
-        add("item.cim.cast_pickaxe_iron.warning.cooldown", "Перезарядка...");
+        add("item.cim.cast_pickaxe_steel", "Литая стальная кирка");
 
+        add("item.cim.cast_pickaxe.desc.charge", "§7Зажмите ПКМ для мощного удара");
+        add("item.cim.cast_pickaxe.desc.mining_power", "§6Мощность: %s");
+        add("item.cim.cast_pickaxe.desc.vein_miner_info", "Жилковый майнер: %s");
 
+        add(ModItems.GRENADIER_GOGGLES.get(), "Очки гренадёра");
+        add("item.cim.grenadier_goggles.desc.explosion_resist", "Защита от взрывов: +%s%%");
         // Металлы
         add("metal.cim.gold", "Золото");
         add("metal.cim.iron", "Железо");

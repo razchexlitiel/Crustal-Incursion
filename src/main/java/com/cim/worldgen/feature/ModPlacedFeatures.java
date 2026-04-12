@@ -1,15 +1,18 @@
-package com.cim.worldgen;
+package com.cim.worldgen.feature;
 
 import net.minecraft.core.Holder;
 import net.minecraft.core.HolderGetter;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.data.worldgen.BootstapContext;
+import net.minecraft.data.worldgen.features.FeatureUtils;
 import net.minecraft.data.worldgen.placement.PlacementUtils;
 import net.minecraft.data.worldgen.placement.VegetationPlacements;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.levelgen.VerticalAnchor;
 import net.minecraft.world.level.levelgen.feature.ConfiguredFeature;
+import net.minecraft.world.level.levelgen.feature.configurations.NoneFeatureConfiguration;
 import net.minecraft.world.level.levelgen.placement.*;
 import com.cim.main.CrustalIncursionMod;
 
@@ -22,13 +25,24 @@ public class ModPlacedFeatures {
     public static final ResourceKey<PlacedFeature> GIANT_SEQUOIA_PLACED_KEY = registerKey("giant_sequoia_placed");
     public static final ResourceKey<PlacedFeature> SMALL_SEQUOIA_PLACED_KEY = registerKey("small_sequoia_placed");
     public static final ResourceKey<PlacedFeature> MEDIUM_SEQUOIA_PLACED_KEY = registerKey("medium_sequoia_placed");
-
+    public static final ResourceKey<PlacedFeature> CONGLOMERATE_VEIN_PLACED_KEY = registerKey("conglomerate_vein_placed");
     // 2. Сборка (DataGen)
     public static void bootstrap(BootstapContext<PlacedFeature> context) {
         // Получаем доступ к реестру уже собранных "чертежей"
         HolderGetter<ConfiguredFeature<?, ?>> configuredFeatures = context.lookup(Registries.CONFIGURED_FEATURE);
         var smallSequoia = context.lookup(Registries.CONFIGURED_FEATURE).getOrThrow(ModConfiguredFeatures.SMALL_SEQUOIA_KEY);
         var mediumSequoia = context.lookup(Registries.CONFIGURED_FEATURE).getOrThrow(ModConfiguredFeatures.MEDIUM_SEQUOIA_KEY);
+        var conglomerateVein = configuredFeatures.getOrThrow(ModConfiguredFeatures.CONGLOMERATE_VEIN_KEY);
+        register(context, CONGLOMERATE_VEIN_PLACED_KEY, conglomerateVein,
+                List.of(
+                        RarityFilter.onAverageOnceEvery(2),
+                        InSquarePlacement.spread(),
+                        HeightRangePlacement.uniform(
+                                VerticalAnchor.absolute(-64),
+                                VerticalAnchor.absolute(16)
+                        ),
+                        BiomeFilter.biome()
+                ));
 
         // Регистрируем размещение нашей секвойи
         register(context, GIANT_SEQUOIA_PLACED_KEY, configuredFeatures.getOrThrow(ModConfiguredFeatures.GIANT_SEQUOIA_KEY),

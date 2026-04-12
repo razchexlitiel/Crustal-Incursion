@@ -1,5 +1,6 @@
 package com.cim.entity;
 
+import com.cim.entity.mobs.grenadier.GrenadierZombieEntity;
 import com.cim.entity.weapons.grenades.GrenadeIfProjectileEntity;
 import com.cim.entity.weapons.grenades.GrenadeNucProjectileEntity;
 import com.cim.entity.weapons.grenades.GrenadeProjectileEntity;
@@ -9,7 +10,7 @@ import net.minecraft.world.entity.MobCategory;
 import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.ForgeRegistries;
 import net.minecraftforge.registries.RegistryObject;
-import com.cim.entity.mobs.DepthWormEntity;
+import com.cim.entity.mobs.depth_worm.DepthWormEntity;
 import com.cim.entity.weapons.bullets.TurretBulletEntity;
 import com.cim.entity.weapons.turrets.TurretLightEntity;
 import com.cim.entity.weapons.turrets.TurretLightLinkedEntity;
@@ -38,6 +39,12 @@ public class ModEntities {
                             .updateInterval(1)
                             .setShouldReceiveVelocityUpdates(true)
                             .build("turret_bullet"));
+
+    public static final RegistryObject<EntityType<GrenadierZombieEntity>> GRENADIER_ZOMBIE =
+            ENTITY_TYPES.register("grenadier_zombie",
+                    () -> EntityType.Builder.of(GrenadierZombieEntity::new, MobCategory.MONSTER)
+                            .sized(0.6f, 1.95f) // Размеры как у обычного зомби
+                            .build("grenadier_zombie"));
 
     public static final RegistryObject<EntityType<DepthWormEntity>> DEPTH_WORM =
             ENTITY_TYPES.register("depth_worm",

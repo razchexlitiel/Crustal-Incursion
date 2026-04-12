@@ -58,7 +58,8 @@ public class ModBlockStateProvider extends BlockStateProvider {
         cubeAllWithItem(ModBlocks.SEQUOIA_BARK_LIGHT);
         cubeAllWithItem(ModBlocks.SEQUOIA_BARK_MOSSY);
         cubeAllWithItem(ModBlocks.SEQUOIA_BIOME_MOSS);
-
+        cubeAllWithItem(ModBlocks.CONGLOMERATE);
+        cubeAllWithItem(ModBlocks.DEPLETED_CONGLOMERATE);
         cubeAllWithItem(ModBlocks.DEPTH_WORM_NEST);
         cubeAllWithItem(ModBlocks.HIVE_SOIL);
         cubeAllWithItem(ModBlocks.HIVE_SOIL_DEAD);

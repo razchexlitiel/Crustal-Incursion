@@ -124,6 +124,7 @@
 		{
 			"name": "descent",
 			"origin": [7, 0, 14],
+			"scope": 0,
 			"color": 0,
 			"children": [0, 1, 2, 3, 4, 5]
 		}

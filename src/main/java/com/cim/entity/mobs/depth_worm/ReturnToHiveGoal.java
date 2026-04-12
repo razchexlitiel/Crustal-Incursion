@@ -1,4 +1,4 @@
-package com.cim.goal;
+package com.cim.entity.mobs.depth_worm;
 
 import com.cim.api.hive.HiveNetwork;
 import com.cim.api.hive.HiveNetworkManager;
@@ -6,7 +6,6 @@ import com.cim.api.hive.HiveNetworkMember;
 import com.cim.block.basic.ModBlocks;
 import com.cim.block.entity.hive.DepthWormNestBlockEntity;
 import com.cim.block.entity.hive.HiveSoilBlockEntity;
-import com.cim.entity.mobs.DepthWormEntity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.entity.LivingEntity;
@@ -22,8 +21,13 @@ public class ReturnToHiveGoal extends Goal {
     private BlockPos targetPos;
     private int nextSearchTick;
     private boolean targetIsSoil = false;
-    private int soilEntryAttempts = 0;
-    private static final int MAX_SOIL_ATTEMPTS = 20;
+    private int stuckTicks = 0;
+    private BlockPos lastPos = BlockPos.ZERO;
+    private static final int STUCK_THRESHOLD = 40;
+
+    // Фазы приближения
+    private enum ApproachPhase { NAVIGATING, SLIDING, ENTERING }
+    private ApproachPhase phase = ApproachPhase.NAVIGATING;
 
     public ReturnToHiveGoal(DepthWormEntity worm) {
         this.worm = worm;
@@ -137,42 +141,80 @@ public class ReturnToHiveGoal extends Goal {
     }
 
     @Override
+    public void start() {
+        this.phase = ApproachPhase.NAVIGATING;
+        this.stuckTicks = 0;
+        this.lastPos = worm.blockPosition();
+    }
+
+    @Override
     public void tick() {
         if (targetPos == null) return;
-
-        if (targetIsSoil && soilEntryAttempts > MAX_SOIL_ATTEMPTS) {
-            this.targetPos = null;
-            this.targetIsSoil = false;
-            this.soilEntryAttempts = 0;
-            return;
-        }
-
-        if (targetIsSoil) soilEntryAttempts++;
 
         double targetX = targetPos.getX() + 0.5;
         double targetY = targetPos.getY() + (targetIsSoil ? 0.5 : 0.8);
         double targetZ = targetPos.getZ() + 0.5;
-        double distSq = worm.distanceToSqr(targetX, targetY, targetZ);
 
-        if (targetIsSoil && distSq < 2.0D) {
-            Vec3 downPull = new Vec3(0, -0.3, 0);
-            worm.setDeltaMovement(worm.getDeltaMovement().add(downPull));
-            worm.getLookControl().setLookAt(targetX, targetY, targetZ, 30.0F, 30.0F);
-            if (worm.getY() < targetY - 1.0) enterNetwork(worm.blockPosition());
-            return;
-        }
+        Vec3 wormPos = worm.position();
+        double distSq = wormPos.distanceToSqr(targetX, targetY, targetZ);
+        BlockPos currentBlockPos = worm.blockPosition();
 
-        if (distSq < 4.0D) {
-            worm.getNavigation().stop();
-            Vec3 pull = new Vec3(targetX - worm.getX(), targetY - worm.getY(), targetZ - worm.getZ()).normalize().scale(0.15);
-            worm.setDeltaMovement(worm.getDeltaMovement().add(pull));
-            worm.getLookControl().setLookAt(targetX, targetY, targetZ, 30.0F, 30.0F);
+        // Проверка на застревание
+        if (currentBlockPos.equals(lastPos)) {
+            stuckTicks++;
         } else {
-            worm.getNavigation().moveTo(targetX, targetY, targetZ, 1.2D);
-            worm.getLookControl().setLookAt(targetX, targetY + 0.5, targetZ);
+            stuckTicks = 0;
+            lastPos = currentBlockPos;
         }
 
-        if (!targetIsSoil && distSq < 1.5D) enterNetwork(targetPos);
+        // Определяем фазу на основе расстояния
+        if (distSq < 1.5) {
+            phase = ApproachPhase.ENTERING;
+        } else if (distSq < 8.0) {
+            phase = ApproachPhase.SLIDING;
+        } else {
+            phase = ApproachPhase.NAVIGATING;
+        }
+
+        switch (phase) {
+            case NAVIGATING -> {
+                // Далеко - используем навигацию
+                worm.getNavigation().moveTo(targetX, targetY, targetZ, 1.2D);
+                worm.getLookControl().setLookAt(targetX, targetY + 0.5, targetZ);
+            }
+
+            case SLIDING -> {
+                // === КЛЮЧЕВОЕ ИСПРАВЛЕНИЕ: Полностью отключаем навигацию ===
+                worm.getNavigation().stop();
+
+                // Ручное скольжение без "магнита"
+                Vec3 toTarget = new Vec3(targetX - wormPos.x, targetY - wormPos.y, targetZ - wormPos.z);
+                double dist = Math.sqrt(distSq);
+
+                // Скорость зависит от расстояния: чем ближе, тем медленнее
+                double speed = Math.min(0.15, dist * 0.03);
+
+                // Нормализуем и масштабируем
+                Vec3 move = toTarget.normalize().scale(speed);
+
+                // Применяем движение напрямую, без физики (как у слайма)
+                worm.setPos(wormPos.x + move.x, wormPos.y + move.y, wormPos.z + move.z);
+                worm.setDeltaMovement(Vec3.ZERO); // Сбрасываем физику
+
+                worm.getLookControl().setLookAt(targetX, targetY, targetZ, 30.0F, 30.0F);
+            }
+
+            case ENTERING -> {
+                // Вход в улей
+                worm.getNavigation().stop();
+                worm.setDeltaMovement(Vec3.ZERO);
+
+                // Если застряли или очень близко - входим
+                if (stuckTicks > 15 || distSq < 0.8) {
+                    enterNetwork(targetPos);
+                }
+            }
+        }
     }
 
     private void enterNetwork(BlockPos entryPos) {
@@ -181,6 +223,15 @@ public class ReturnToHiveGoal extends Goal {
 
         BlockEntity be = worm.level().getBlockEntity(entryPos);
         UUID netId = (be instanceof HiveNetworkMember member) ? member.getNetworkId() : null;
+
+        // Если не нашли ID прямо в точке входа, пробуем текущую позицию червя
+        if (netId == null) {
+            BlockEntity be2 = worm.level().getBlockEntity(worm.blockPosition());
+            if (be2 instanceof HiveNetworkMember member2) {
+                netId = member2.getNetworkId();
+            }
+        }
+
         if (netId == null) return;
 
         HiveNetwork network = manager.getNetwork(netId);
@@ -200,30 +251,31 @@ public class ReturnToHiveGoal extends Goal {
         boolean success = manager.addWormToNetwork(netId, tag, entryPos, worm.level());
 
         if (success) {
-            // ⭐ ИСПРАВЛЕНО: Безопасно снимаем червя с глобального пула
             network.removeActiveWorm();
             worm.discard();
-            System.out.println("[Hive] Worm returned via " + (targetIsSoil ? "soil" : "nest") + ". Active remaining: " + network.activeWorms);
         } else {
             this.targetPos = null;
-            this.soilEntryAttempts = 0;
+            this.stuckTicks = 0;
+            this.phase = ApproachPhase.NAVIGATING;
         }
     }
 
     @Override
     public boolean canContinueToUse() {
         if (targetPos == null) return false;
-        if (targetIsSoil) {
-            if (soilEntryAttempts > MAX_SOIL_ATTEMPTS) return false;
-            return worm.getY() > targetPos.getY() - 2.0 && worm.getTarget() == null;
-        }
-        return isValidEntryPoint(targetPos) && worm.getTarget() == null;
+        if (worm.getTarget() != null && worm.getTarget().isAlive()) return false;
+        if (stuckTicks > STUCK_THRESHOLD * 3) return false;
+
+        return isValidEntryPoint(targetPos);
     }
 
     @Override
     public void stop() {
         this.targetPos = null;
         this.targetIsSoil = false;
+        this.stuckTicks = 0;
+        this.lastPos = BlockPos.ZERO;
+        this.phase = ApproachPhase.NAVIGATING;
         worm.getNavigation().stop();
     }
 }

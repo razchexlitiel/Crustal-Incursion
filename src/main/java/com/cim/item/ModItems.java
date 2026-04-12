@@ -4,6 +4,9 @@ import com.cim.api.rotation.ShaftMaterial;
 import com.cim.entity.ModEntities;
 import com.cim.entity.weapons.grenades.GrenadeIfType;
 import com.cim.entity.weapons.grenades.GrenadeType;
+import com.cim.item.armor.GrenadierArmorMaterial;
+import com.cim.item.armor.GrenadierGogglesItem;
+import com.cim.item.conglomerates.ConglomerateItem;
 import com.cim.item.energy.EnergyCellItem;
 import com.cim.item.food.FoodZamaz;
 import com.cim.event.SlagItem;
@@ -11,12 +14,18 @@ import com.cim.item.mobs.MoryLahItem;
 import com.cim.item.energy.WireCoilItem;
 import com.cim.item.rotation.GearItem;
 import com.cim.item.tools.*;
+import com.cim.item.tools.cast_pickaxes.materials.CastPickaxeIronItem;
+import com.cim.item.tools.cast_pickaxes.materials.CastPickaxeSteelItem;
 import com.cim.item.weapons.grenades.GrenadeIfItem;
 import com.cim.item.weapons.grenades.GrenadeItem;
 import com.cim.item.weapons.grenades.GrenadeNucItem;
 import com.cim.multiblock.system.MultiblockBlockItem;
 import net.minecraft.world.effect.MobEffects;
+import net.minecraft.world.item.ArmorItem;
+import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
+import net.minecraft.world.item.SpawnEggItem;
+import net.minecraftforge.common.ForgeSpawnEggItem;
 import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.ForgeRegistries;
 import net.minecraftforge.registries.RegistryObject;
@@ -76,8 +85,19 @@ public class ModItems {
     public static final RegistryObject<Item> CAST_PICKAXE_IRON = ITEMS.register("cast_pickaxe_iron",
             () -> new CastPickaxeIronItem(new Item.Properties()));
 
+    public static final RegistryObject<Item> CAST_PICKAXE_STEEL = ITEMS.register("cast_pickaxe_steel",
+            () -> new CastPickaxeSteelItem(new Item.Properties()));
+
     public static final RegistryObject<Item> MOLD_INGOT = ITEMS.register("mold_ingot",
             () -> new Item(new Item.Properties()));
+
+    public static final RegistryObject<GrenadierGogglesItem> GRENADIER_GOGGLES = ITEMS.register("grenadier_goggles",
+            () -> new GrenadierGogglesItem(GrenadierArmorMaterial.GRENADIER, ArmorItem.Type.HELMET,
+                    new Item.Properties().stacksTo(1)));
+
+    public static final RegistryObject<ForgeSpawnEggItem> GRENADIER_ZOMBIE_SPAWN_EGG = ITEMS.register("grenadier_zombie_spawn_egg",
+            () -> new ForgeSpawnEggItem(ModEntities.GRENADIER_ZOMBIE, 0x4C7F52, 0x8B0000,
+                    new Item.Properties()));
 
     public static final RegistryObject<Item> MOLD_NUGGET = ITEMS.register("mold_nugget",
             () -> new Item(new Item.Properties()));
@@ -123,7 +143,20 @@ public class ModItems {
             () -> new TurretLightPortativePlacer(new Item.Properties().stacksTo(1)));
 
 
+    // Conglomerate items
+    public static final RegistryObject<Item> CONGLOMERATE_CHUNK = ITEMS.register("conglomerate_chunk",
+            () -> new ConglomerateItem(new Item.Properties()));
 
+    public static final RegistryObject<Item> HARD_ROCK = ITEMS.register("hard_rock",
+            () -> new Item(new Item.Properties()));
+
+
+    // BlockItems
+    public static final RegistryObject<Item> CONGLOMERATE_BLOCK_ITEM = ITEMS.register("conglomerate",
+            () -> new BlockItem(ModBlocks.CONGLOMERATE.get(), new Item.Properties()));
+
+    public static final RegistryObject<Item> DEPLETED_CONGLOMERATE_BLOCK_ITEM = ITEMS.register("depleted_conglomerate",
+            () -> new BlockItem(ModBlocks.DEPLETED_CONGLOMERATE.get(), new Item.Properties()));
 
 
     //БЛОК-АЙТЕМЫ
