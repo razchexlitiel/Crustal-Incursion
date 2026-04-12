@@ -109,11 +109,18 @@ public class ShaftVisual extends AbstractBlockEntityVisual<ShaftBlockEntity> imp
 
     @Override
     public void beginFrame(Context ctx) {
-        float speed = blockEntity.getSpeed();
-        if (speed == 0) return;
+        // Мгновенно замечаем установку или снятие шестерни!
+        if (blockEntity.getAttachedGear().getItem() != this.currentGearItem) {
+            this.currentGearItem = blockEntity.getAttachedGear().getItem();
+            rebuildGear();
+            if (this.gearInstance != null) {
+                relight(pos, this.gearInstance);
+            }
+        }
 
+        float speed = blockEntity.getSpeed();
         float time = (float) (System.currentTimeMillis() % 100000) / 50f;
-        float angle = time * speed * 0.1f;
+        float angle = speed == 0 ? 0 : time * speed * 0.1f;
 
         setupStatic(shaftInstance, angle);
 

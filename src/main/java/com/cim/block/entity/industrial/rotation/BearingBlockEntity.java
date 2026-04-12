@@ -40,6 +40,7 @@ public class BearingBlockEntity extends BlockEntity implements Rotational {
         this.shaftMaterial = material;
         this.shaftDiameter = diameter;
         setChanged();
+        syncToClient(); // ИСПРАВЛЕНИЕ: Мгновенно сообщаем клиенту о новом вале!
     }
 
     public void removeShaft() {
@@ -47,6 +48,7 @@ public class BearingBlockEntity extends BlockEntity implements Rotational {
         this.shaftMaterial = null;
         this.shaftDiameter = null;
         setChanged();
+        syncToClient(); // ИСПРАВЛЕНИЕ: Мгновенно сообщаем клиенту, что вал убрали!
     }
 
     @Override
@@ -86,7 +88,6 @@ public class BearingBlockEntity extends BlockEntity implements Rotational {
 
     private void syncToClient() {
         if (level != null && !level.isClientSide) {
-            // Флаг 2
             level.sendBlockUpdated(getBlockPos(), getBlockState(), getBlockState(), 2);
         }
     }
@@ -165,7 +166,8 @@ public class BearingBlockEntity extends BlockEntity implements Rotational {
         this.hasShaft = tag.getBoolean("HasShaft");
 
         if (this.hasShaft) {
-            String matName = tag.getString("ShaftMaterial");
+            // ИСПРАВЛЕНИЕ: Опускаем регистр в lowercase, чтобы switch находил совпадения
+            String matName = tag.getString("ShaftMaterial").toLowerCase();
             String diaName = tag.getString("ShaftDiameter");
 
             this.shaftMaterial = switch (matName) {

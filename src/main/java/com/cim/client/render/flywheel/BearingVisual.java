@@ -58,9 +58,18 @@ public class BearingVisual extends AbstractBlockEntityVisual<BearingBlockEntity>
     }
 
     private void createShaftInstance() {
-        if (blockState.getValue(BearingBlock.HAS_SHAFT) && currentMaterial != null && currentDiameter != null) {
-            String shaftName = "shaft_" + currentDiameter.name + "_" + currentMaterial.name();
-            PartialModel shaftModel = ModModels.SHAFT_MODELS.getOrDefault(shaftName, ModModels.HALF_SHAFT);
+        if (blockEntity.hasShaft() && currentMaterial != null && currentDiameter != null) {
+            // ИСПОЛЬЗУЕМ .name(), чтобы избежать багов с переопределенным toString()
+            String matName = currentMaterial.name().toLowerCase();
+            String diaName = currentDiameter.name().toLowerCase();
+            String shaftName = "shaft_" + diaName + "_" + matName;
+
+            PartialModel shaftModel = ModModels.SHAFT_MODELS.get(shaftName);
+            if (shaftModel == null) {
+                // Если модель не зарегистрирована, логируем это, а не просто крашимся
+                System.out.println("[CIM-Debug] ВНИМАНИЕ: Модель " + shaftName + " не найдена в ModModels! Используем HALF_SHAFT.");
+                shaftModel = ModModels.HALF_SHAFT;
+            }
 
             this.shaft = instancerProvider().instancer(
                     InstanceTypes.TRANSFORMED,
@@ -78,7 +87,6 @@ public class BearingVisual extends AbstractBlockEntityVisual<BearingBlockEntity>
 
     private void applyStaticTransform(TransformedInstance instance) {
         instance.setIdentityTransform()
-                // Используем локальные координаты
                 .translate(localX, localY, localZ)
                 .translate(0.5f, 0.5f, 0.5f);
 
@@ -96,9 +104,15 @@ public class BearingVisual extends AbstractBlockEntityVisual<BearingBlockEntity>
     }
 
     @Override
-    public void update(float pt) {
-        super.update(pt);
-        if (blockEntity.getShaftMaterial() != currentMaterial || blockEntity.getShaftDiameter() != currentDiameter) {
+    public void beginFrame(Context ctx) {
+        // 1. АБСОЛЮТНАЯ ЗАЩИТА ОТ ДЕСИНКА
+        // Проверяем актуальное состояние NBT каждый кадр
+        boolean shaftStateChanged = blockEntity.hasShaft() != (this.shaft != null);
+        boolean materialChanged = blockEntity.getShaftMaterial() != currentMaterial;
+        boolean diameterChanged = blockEntity.getShaftDiameter() != currentDiameter;
+
+        // Если что-то изменилось (например, мы вставили вал) — мгновенно пересобираем
+        if (shaftStateChanged || materialChanged || diameterChanged) {
             this.currentMaterial = blockEntity.getShaftMaterial();
             this.currentDiameter = blockEntity.getShaftDiameter();
 
@@ -111,18 +125,15 @@ public class BearingVisual extends AbstractBlockEntityVisual<BearingBlockEntity>
 
             if (this.shaft != null) {
                 applyStaticTransform(this.shaft);
-                updateLight(pt);
+                relight(pos, this.shaft); // Считаем свет для нового вала
             }
         }
-    }
 
-    @Override
-    public void beginFrame(Context ctx) {
+        // 2. ВРАЩЕНИЕ
         long speed = blockEntity.getVisualSpeed();
-        if (speed == 0) return;
-
         float time = (float) (System.currentTimeMillis() % 100000) / 50f;
-        float angle = time * speed * 0.1f;
+        // Даже если скорость 0, вызываем пересчет позиций, чтобы модель не исчезла!
+        float angle = speed == 0 ? 0 : time * speed * 0.1f;
 
         applyRotation(this.innerRing, angle);
         if (this.shaft != null) {
@@ -132,7 +143,6 @@ public class BearingVisual extends AbstractBlockEntityVisual<BearingBlockEntity>
 
     private void applyRotation(TransformedInstance instance, float angle) {
         instance.setIdentityTransform()
-                // Используем локальные координаты
                 .translate(localX, localY, localZ)
                 .translate(0.5f, 0.5f, 0.5f);
 
