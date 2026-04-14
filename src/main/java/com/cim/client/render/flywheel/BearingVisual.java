@@ -55,6 +55,12 @@ public class BearingVisual extends AbstractBlockEntityVisual<BearingBlockEntity>
 
         createShaftInstance();
         setupStaticPositions();
+        updateLight(partialTick);
+
+        // DEBUG: Логируем создание визуала для отслеживания бага с прозрачностью
+        if (com.cim.main.CrustalIncursionMod.LOGGER.isInfoEnabled()) {
+            com.cim.main.CrustalIncursionMod.LOGGER.info("[CIM-Visual] BearingVisual CREATED at {} | hasShaft={}", pos, blockEntity.hasShaft());
+        }
     }
 
     private void createShaftInstance() {

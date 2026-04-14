@@ -52,6 +52,14 @@ public class ShaftVisual extends AbstractBlockEntityVisual<ShaftBlockEntity> imp
         rebuildGear();
 
         setupStatic(shaftInstance, 0);
+        updateLight(partialTick);
+
+        // INFO: Логируем создание визуала для отслеживания бага с прозрачностью
+        if (com.cim.main.CrustalIncursionMod.LOGGER.isInfoEnabled()) {
+            com.cim.main.CrustalIncursionMod.LOGGER.info("[CIM-Visual] ShaftVisual CREATED at {} | model={} | origin=({},{},{})",
+                    pos, shaftModel != null ? "OK" : "NULL",
+                    ctx.renderOrigin().getX(), ctx.renderOrigin().getY(), ctx.renderOrigin().getZ());
+        }
     }
 
     private void rebuildGear() {

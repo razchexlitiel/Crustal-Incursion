@@ -23,3 +23,4 @@ Thumbs.db
 src/generated
 *.log
 *.log.gz
+refs/

@@ -91,6 +91,14 @@ public class ClientModEvents {
 //        BlockEntityRenderers.register(ModBlockEntities.DRILL_HEAD_BE.get(), DrillHeadRenderer::new);
         BlockEntityRenderers.register(ModBlockEntities.MACHINE_BATTERY_BE.get(), MachineBatteryRenderer::new);
         BlockEntityRenderers.register(ModBlockEntities.CONNECTOR_BE.get(), ConnectorRenderer::new);
+
+        // ВАЖНЫЙ КОСТЫЛЬ ДЛЯ FLYWHEEL 1.0!
+        // Чтобы Flywheel перерисовал механизмы при F3+A (или смене прорисовки), ванильный Minecraft должен 
+        // добавить эти блоки в renderableBlockEntities при перестройке чанка.
+        // Это происходит только если для блока зарегистрирован ЛЮБОЙ BlockEntityRenderer.
+        BlockEntityRenderers.register(ModBlockEntities.SHAFT_BE.get(), com.cim.client.render.flywheel.DummyFlywheelRenderer::new);
+        BlockEntityRenderers.register(ModBlockEntities.BEARING_BE.get(), com.cim.client.render.flywheel.DummyFlywheelRenderer::new);
+        BlockEntityRenderers.register(ModBlockEntities.MOTOR_ELECTRO_BE.get(), com.cim.client.render.flywheel.DummyFlywheelRenderer::new);
         event.registerEntityRenderer(ModEntities.GRENADIER_ZOMBIE.get(), ZombieRenderer::new);
         event.registerBlockEntityRenderer(ModBlockEntities.CASTING_DESCENT.get(), CastingDescentRenderer::new);
         event.registerBlockEntityRenderer(ModBlockEntities.BEAM_COLLISION_BE.get(), BeamCollisionRenderer::new);
@@ -118,25 +126,10 @@ public class ClientModEvents {
                 EntityRenderers.register(entityType, ThrownItemRenderer::new));
     }
 
-    // ВАЖНО: Добавляем (priority = net.minecraftforge.eventbus.api.EventPriority.HIGHEST)
-    @SubscribeEvent(priority = net.minecraftforge.eventbus.api.EventPriority.HIGHEST)
-    public static void onRegisterAdditionalModels(net.minecraftforge.client.event.ModelEvent.RegisterAdditional event) {
-        // ModModels.init(); <--- УДАЛИ ЭТУ СТРОКУ ОТСЮДА! Она теперь в главном классе.
-
-        // 2. Статика
-        event.register(new net.minecraft.resources.ResourceLocation("cim", "block/half_shaft"));
-        event.register(new net.minecraft.resources.ResourceLocation("cim", "block/electro_motor"));
-        event.register(new net.minecraft.resources.ResourceLocation("cim", "block/bearing_shaft"));
-
-        // 3. Динамические модели
-        for (String name : ModModels.GEAR_MODELS.keySet()) {
-            event.register(new net.minecraft.resources.ResourceLocation("cim", "block/" + name));
-        }
-
-        for (String name : ModModels.SHAFT_MODELS.keySet()) {
-            event.register(new net.minecraft.resources.ResourceLocation("cim", "block/" + name));
-        }
-    }
+    // PartialModel.of() в ModModels уже автоматически регистрирует все модели через Flywheel.
+    // Дополнительная регистрация через Forge RegisterAdditional НЕ нужна и вызывает
+    // конфликт ссылок на BakedModel при resource reload (перезагрузка чанков).
+    // Create мод тоже НЕ делает эту двойную регистрацию — поэтому у него всё работает.
 
     @SubscribeEvent
     public static void onClientSetup(final FMLClientSetupEvent event) {
@@ -146,6 +139,9 @@ public class ClientModEvents {
 
                 @Override
                 public BlockEntityVisual<? super ShaftBlockEntity> createVisual(VisualizationContext ctx, ShaftBlockEntity be, float partialTick) {
+                    if (com.cim.main.CrustalIncursionMod.LOGGER.isInfoEnabled()) {
+                        com.cim.main.CrustalIncursionMod.LOGGER.info("[CIM-Visual] Flywheel requested ShaftVisual for BE at {}", be.getBlockPos());
+                    }
                     // Возвращаем наш визуал, передавая все нужные параметры
                     return new ShaftVisual(ctx, be, partialTick);
                 }
