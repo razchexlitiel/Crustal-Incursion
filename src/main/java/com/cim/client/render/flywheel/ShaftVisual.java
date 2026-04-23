@@ -84,20 +84,18 @@ public class ShaftVisual extends AbstractBlockEntityVisual<ShaftBlockEntity> imp
                 int y = pos.getY();
                 int z = pos.getZ();
 
-                // 2. ИСКУССТВЕННОЕ СЖАТИЕ СЕТКИ ДЛЯ БОЛЬШИХ ШЕСТЕРНЕЙ
-                // Так как они стоят через 2 блока, мы делим координаты на 2.
-                // Теперь шестерни на x=0 и x=2 будут иметь разную четность!
-                // Используем floorDiv для защиты от багов в отрицательных координатах мира.
-                if (gearSize == 2) {
-                    x = Math.floorDiv(x, 2);
-                    y = Math.floorDiv(y, 2);
-                    z = Math.floorDiv(z, 2);
-                }
+                // 2. Уникальный алгоритм четности для идеальной стыковки зубьев
+                // Учитываем координаты, ось вращения и размер шестерни.
+                // Это гарантирует, что зубья всегда будут входить в пазы (parity != parity)
+                // для ЛЮБОГО разрешенного соединения (Small-Small, Small-Large, Large-Large перпендикулярно).
+                int axisCoord = 0;
+                if (facing.getAxis() == Direction.Axis.X) axisCoord = x;
+                else if (facing.getAxis() == Direction.Axis.Y) axisCoord = y;
+                else if (facing.getAxis() == Direction.Axis.Z) axisCoord = z;
 
-                // 3. Высчитываем шахматный порядок
-                int parity = Math.abs(x + y + z) % 2;
+                int parity = Math.abs(x + y + z + axisCoord + (gearSize == 2 ? 1 : 0)) % 2;
 
-                // 4. Выбираем угол смещения: 22.5 для малой, 11.25 для большой
+                // 3. Выбираем угол смещения: 22.5 для малой, 11.25 для большой
                 float halfToothAngle = gearSize == 2 ? 11.25f : 22.5f;
                 this.phaseOffset = (float) Math.toRadians(parity == 0 ? halfToothAngle : 0);
 
@@ -143,6 +141,7 @@ public class ShaftVisual extends AbstractBlockEntityVisual<ShaftBlockEntity> imp
     private float currentAngle = 0f;
     private long lastFrameTime = -1;
     private float lastLoggedSpeed = Float.NaN;
+    private boolean phaseSynced = false;
 
     @Override
     public void beginFrame(Context ctx) {
@@ -171,23 +170,42 @@ public class ShaftVisual extends AbstractBlockEntityVisual<ShaftBlockEntity> imp
 
         // 1. Плавная визуальная инерция (догоняем targetSpeed)
         float speedDiff = targetSpeed - smoothedSpeed;
-        if (Math.abs(speedDiff) > 0.1f) {
+        if (Math.abs(speedDiff) > 0.001f) {
             smoothedSpeed += speedDiff * 3.0f * deltaSeconds; // Коэффициент 3.0 определяет резкость торможения
         } else {
             smoothedSpeed = targetSpeed;
         }
 
         // 2. Увеличиваем внутренний угол плавно
-        // Оригинальная формула: time = millis / 50, angle = time * speed * 0.1f
-        // deltaSeconds = deltaMillis / 1000. В тиках это deltaSeconds * 20.
-        // change = (deltaSeconds * 20) * smoothedSpeed * 0.1f = smoothedSpeed * deltaSeconds * 2.0f
         currentAngle += smoothedSpeed * 2.0f * deltaSeconds;
         
         float twoPi = (float) (2 * Math.PI);
         currentAngle = currentAngle % twoPi;
         if (currentAngle < 0) currentAngle += twoPi;
 
-
+        // 3. Синхронизация фазы при постоянной скорости
+        if (smoothedSpeed == targetSpeed && targetSpeed != 0) {
+            float time = (float) (now % 100000) / 50f;
+            float globalAngle = (time * targetSpeed * 0.1f) % twoPi;
+            if (globalAngle < 0) globalAngle += twoPi;
+            
+            if (!this.phaseSynced) {
+                // Мгновенный "щелчок" в правильную фазу после разгона
+                currentAngle = globalAngle;
+                this.phaseSynced = true;
+            } else {
+                float angleDiff = (globalAngle - currentAngle) % twoPi;
+                if (angleDiff > Math.PI) angleDiff -= twoPi;
+                if (angleDiff < -Math.PI) angleDiff += twoPi;
+                
+                // Очень плавная микро-подгонка
+                float maxCorrection = 0.5f * deltaSeconds;
+                float correction = Math.signum(angleDiff) * Math.min(Math.abs(angleDiff), maxCorrection);
+                currentAngle += correction;
+            }
+        } else {
+            this.phaseSynced = false;
+        }
 
         setupStatic(shaftInstance, currentAngle);
 

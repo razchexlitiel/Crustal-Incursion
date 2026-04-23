@@ -150,7 +150,7 @@ public class BearingVisual extends AbstractBlockEntityVisual<BearingBlockEntity>
 
         // 2.1 Плавное изменение скорости
         float speedDiff = targetSpeed - smoothedSpeed;
-        if (Math.abs(speedDiff) > 0.1f) {
+        if (Math.abs(speedDiff) > 0.001f) {
             smoothedSpeed += speedDiff * 3.0f * deltaSeconds;
         } else {
             smoothedSpeed = targetSpeed;

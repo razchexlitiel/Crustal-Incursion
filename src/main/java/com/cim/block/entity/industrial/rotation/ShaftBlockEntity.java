@@ -66,33 +66,48 @@ public class ShaftBlockEntity extends BlockEntity implements Rotational {
             for (BlockPos pos : BlockPos.betweenClosed(myPos.offset(-2, -2, -2), myPos.offset(2, 2, 2))) {
                 if (pos.equals(myPos)) continue;
 
-                // Отсекаем блоки не в нашей плоскости
-                if (axis == Direction.Axis.X && pos.getX() != myPos.getX()) continue;
-                if (axis == Direction.Axis.Y && pos.getY() != myPos.getY()) continue;
-                if (axis == Direction.Axis.Z && pos.getZ() != myPos.getZ()) continue;
-
-                // Считаем дистанцию по осям плоскости
-                int d1 = 0, d2 = 0;
-                if (axis == Direction.Axis.X) { d1 = Math.abs(pos.getY() - myPos.getY()); d2 = Math.abs(pos.getZ() - myPos.getZ()); }
-                if (axis == Direction.Axis.Y) { d1 = Math.abs(pos.getX() - myPos.getX()); d2 = Math.abs(pos.getZ() - myPos.getZ()); }
-                if (axis == Direction.Axis.Z) { d1 = Math.abs(pos.getX() - myPos.getX()); d2 = Math.abs(pos.getY() - myPos.getY()); }
-
                 BlockEntity be = level.getBlockEntity(pos);
                 if (be instanceof ShaftBlockEntity otherShaft) {
                     if (!otherShaft.hasGear()) continue;
                     int otherSize = otherShaft.getBlockState().getValue(ShaftBlock.GEAR_SIZE);
+                    Direction.Axis otherAxis = otherShaft.getBlockState().getValue(ShaftBlock.FACING).getAxis();
 
-                    // Логика зацепления зубьев
-                    if (gearSize == 1) {
-                        // Малая с Малой (крестом, дистанция 1)
-                        if (otherSize == 1 && ((d1 == 1 && d2 == 0) || (d1 == 0 && d2 == 1))) list.add(pos.immutable());
-                        // Малая с Большой (по диагонали, дистанция 1-1)
-                        if (otherSize == 2 && d1 == 1 && d2 == 1) list.add(pos.immutable());
-                    } else if (gearSize == 2) {
-                        // Большая с Большой (крестом через блок, дистанция 2)
-                        if (otherSize == 2 && ((d1 == 2 && d2 == 0) || (d1 == 0 && d2 == 2))) list.add(pos.immutable());
-                        // Большая с Малой (по диагонали, дистанция 1-1)
-                        if (otherSize == 1 && d1 == 1 && d2 == 1) list.add(pos.immutable());
+                    if (axis == otherAxis) {
+                        // Отсекаем блоки не в нашей плоскости
+                        if (axis == Direction.Axis.X && pos.getX() != myPos.getX()) continue;
+                        if (axis == Direction.Axis.Y && pos.getY() != myPos.getY()) continue;
+                        if (axis == Direction.Axis.Z && pos.getZ() != myPos.getZ()) continue;
+
+                        // Считаем дистанцию по осям плоскости
+                        int d1 = 0, d2 = 0;
+                        if (axis == Direction.Axis.X) { d1 = Math.abs(pos.getY() - myPos.getY()); d2 = Math.abs(pos.getZ() - myPos.getZ()); }
+                        if (axis == Direction.Axis.Y) { d1 = Math.abs(pos.getX() - myPos.getX()); d2 = Math.abs(pos.getZ() - myPos.getZ()); }
+                        if (axis == Direction.Axis.Z) { d1 = Math.abs(pos.getX() - myPos.getX()); d2 = Math.abs(pos.getY() - myPos.getY()); }
+
+                        if (gearSize == 1) {
+                            if (otherSize == 1 && ((d1 == 1 && d2 == 0) || (d1 == 0 && d2 == 1))) list.add(pos.immutable());
+                            if (otherSize == 2 && d1 == 1 && d2 == 1) list.add(pos.immutable());
+                        } else if (gearSize == 2) {
+                            if (otherSize == 1 && d1 == 1 && d2 == 1) list.add(pos.immutable());
+                        }
+                    } else {
+                        // Перпендикулярные оси (только для больших шестерней)
+                        if (gearSize == 2 && otherSize == 2) {
+                            int dx = Math.abs(pos.getX() - myPos.getX());
+                            int dy = Math.abs(pos.getY() - myPos.getY());
+                            int dz = Math.abs(pos.getZ() - myPos.getZ());
+
+                            // Для перпендикулярных 2x2 шестерней: смещение по двум осям шестерней должно быть 1, а по третьей 0
+                            if (axis != Direction.Axis.X && otherAxis != Direction.Axis.X && dx != 0) continue;
+                            if (axis != Direction.Axis.Y && otherAxis != Direction.Axis.Y && dy != 0) continue;
+                            if (axis != Direction.Axis.Z && otherAxis != Direction.Axis.Z && dz != 0) continue;
+
+                            if (axis == Direction.Axis.X || otherAxis == Direction.Axis.X) { if (dx != 1) continue; }
+                            if (axis == Direction.Axis.Y || otherAxis == Direction.Axis.Y) { if (dy != 1) continue; }
+                            if (axis == Direction.Axis.Z || otherAxis == Direction.Axis.Z) { if (dz != 1) continue; }
+
+                            list.add(pos.immutable());
+                        }
                     }
                 }
             }
@@ -108,6 +123,23 @@ public class ShaftBlockEntity extends BlockEntity implements Rotational {
         int neighborSize = neighborShaft.getBlockState().getValue(ShaftBlock.GEAR_SIZE);
 
         Direction myFacing = getBlockState().getValue(ShaftBlock.FACING);
+        Direction neighborFacing = neighborShaft.getBlockState().getValue(ShaftBlock.FACING);
+        Direction.Axis myAxis = myFacing.getAxis();
+        Direction.Axis neighborAxis = neighborFacing.getAxis();
+
+        if (myAxis != neighborAxis && mySize == 2 && neighborSize == 2) {
+            // Перпендикулярное соединение (конические шестерни)
+            int diff1 = 0, diff2 = 0;
+            if (myAxis == Direction.Axis.X) diff1 = neighborPos.getX() - myPos.getX();
+            if (myAxis == Direction.Axis.Y) diff1 = neighborPos.getY() - myPos.getY();
+            if (myAxis == Direction.Axis.Z) diff1 = neighborPos.getZ() - myPos.getZ();
+
+            if (neighborAxis == Direction.Axis.X) diff2 = neighborPos.getX() - myPos.getX();
+            if (neighborAxis == Direction.Axis.Y) diff2 = neighborPos.getY() - myPos.getY();
+            if (neighborAxis == Direction.Axis.Z) diff2 = neighborPos.getZ() - myPos.getZ();
+
+            return (float)(Math.signum(diff1) * Math.signum(diff2));
+        }
 
         // Если соединение по оси (вал-вал) - передача 1:1, знак не меняется
         if (myPos.relative(myFacing).equals(neighborPos) || myPos.relative(myFacing.getOpposite()).equals(neighborPos)) {
@@ -144,23 +176,47 @@ public class ShaftBlockEntity extends BlockEntity implements Rotational {
                 return thisDiameter == otherDiameter && otherFacing.getAxis() == thisFacing.getAxis();
             } else {
                 // Боковое или диагональное соединение шестерней
-                if (thisFacing.getAxis() != otherFacing.getAxis() || !this.hasGear() || !otherShaft.hasGear()) return false;
-                
-                int mySize = this.getBlockState().getValue(ShaftBlock.GEAR_SIZE);
-                int otherSize = otherShaft.getBlockState().getValue(ShaftBlock.GEAR_SIZE);
+                if (!this.hasGear() || !otherShaft.hasGear()) return false;
                 
                 Direction.Axis axis = thisFacing.getAxis();
-                int d1 = 0, d2 = 0;
-                if (axis == Direction.Axis.X) { d1 = Math.abs(neighborPos.getY() - myPos.getY()); d2 = Math.abs(neighborPos.getZ() - myPos.getZ()); }
-                if (axis == Direction.Axis.Y) { d1 = Math.abs(neighborPos.getX() - myPos.getX()); d2 = Math.abs(neighborPos.getZ() - myPos.getZ()); }
-                if (axis == Direction.Axis.Z) { d1 = Math.abs(neighborPos.getX() - myPos.getX()); d2 = Math.abs(neighborPos.getY() - myPos.getY()); }
-                
-                if (mySize == 1 && otherSize == 1) {
-                    return (d1 == 1 && d2 == 0) || (d1 == 0 && d2 == 1);
-                } else if (mySize == 2 && otherSize == 2) {
-                    return (d1 == 2 && d2 == 0) || (d1 == 0 && d2 == 2);
+                Direction.Axis otherAxis = otherFacing.getAxis();
+
+                if (axis == otherAxis) {
+                    int mySize = this.getBlockState().getValue(ShaftBlock.GEAR_SIZE);
+                    int otherSize = otherShaft.getBlockState().getValue(ShaftBlock.GEAR_SIZE);
+                    
+                    int d1 = 0, d2 = 0;
+                    if (axis == Direction.Axis.X) { d1 = Math.abs(neighborPos.getY() - myPos.getY()); d2 = Math.abs(neighborPos.getZ() - myPos.getZ()); }
+                    if (axis == Direction.Axis.Y) { d1 = Math.abs(neighborPos.getX() - myPos.getX()); d2 = Math.abs(neighborPos.getZ() - myPos.getZ()); }
+                    if (axis == Direction.Axis.Z) { d1 = Math.abs(neighborPos.getX() - myPos.getX()); d2 = Math.abs(neighborPos.getY() - myPos.getY()); }
+                    
+                    if (mySize == 1 && otherSize == 1) {
+                        return (d1 == 1 && d2 == 0) || (d1 == 0 && d2 == 1);
+                    } else if (mySize == 2 && otherSize == 2) {
+                        return false; // Отключено по запросу
+                    } else {
+                        return d1 == 1 && d2 == 1;
+                    }
                 } else {
-                    return d1 == 1 && d2 == 1;
+                    int mySize = this.getBlockState().getValue(ShaftBlock.GEAR_SIZE);
+                    int otherSize = otherShaft.getBlockState().getValue(ShaftBlock.GEAR_SIZE);
+
+                    if (mySize == 2 && otherSize == 2) {
+                        int dx = Math.abs(neighborPos.getX() - myPos.getX());
+                        int dy = Math.abs(neighborPos.getY() - myPos.getY());
+                        int dz = Math.abs(neighborPos.getZ() - myPos.getZ());
+
+                        if (axis != Direction.Axis.X && otherAxis != Direction.Axis.X && dx != 0) return false;
+                        if (axis != Direction.Axis.Y && otherAxis != Direction.Axis.Y && dy != 0) return false;
+                        if (axis != Direction.Axis.Z && otherAxis != Direction.Axis.Z && dz != 0) return false;
+
+                        if (axis == Direction.Axis.X || otherAxis == Direction.Axis.X) { if (dx != 1) return false; }
+                        if (axis == Direction.Axis.Y || otherAxis == Direction.Axis.Y) { if (dy != 1) return false; }
+                        if (axis == Direction.Axis.Z || otherAxis == Direction.Axis.Z) { if (dz != 1) return false; }
+
+                        return true;
+                    }
+                    return false;
                 }
             }
         }
