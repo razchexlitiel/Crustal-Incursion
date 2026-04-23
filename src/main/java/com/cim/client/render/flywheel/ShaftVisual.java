@@ -187,19 +187,7 @@ public class ShaftVisual extends AbstractBlockEntityVisual<ShaftBlockEntity> imp
         currentAngle = currentAngle % twoPi;
         if (currentAngle < 0) currentAngle += twoPi;
 
-        // 3. Синхронизация фазы шестерней при постоянной скорости
-        if (smoothedSpeed == targetSpeed && targetSpeed != 0) {
-            float time = (float) (now % 100000) / 50f;
-            float globalAngle = (time * targetSpeed * 0.1f) % twoPi;
-            if (globalAngle < 0) globalAngle += twoPi;
-            
-            float angleDiff = (globalAngle - currentAngle) % twoPi;
-            if (angleDiff > Math.PI) angleDiff -= twoPi;
-            if (angleDiff < -Math.PI) angleDiff += twoPi;
-            
-            // Плавно подгоняем фазу (2.0f радиан в секунду)
-            currentAngle += angleDiff * 5.0f * deltaSeconds;
-        }
+
 
         setupStatic(shaftInstance, currentAngle);
 

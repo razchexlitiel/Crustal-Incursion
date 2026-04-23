@@ -112,6 +112,7 @@ public class BearingVisual extends AbstractBlockEntityVisual<BearingBlockEntity>
     private float smoothedSpeed = 0f;
     private float currentAngle = 0f;
     private long lastFrameTime = -1;
+    private boolean phaseSynced = false;
 
     @Override
     public void beginFrame(Context ctx) {
@@ -168,14 +169,23 @@ public class BearingVisual extends AbstractBlockEntityVisual<BearingBlockEntity>
             float globalAngle = (time * targetSpeed * 0.1f) % twoPi;
             if (globalAngle < 0) globalAngle += twoPi;
             
-            float angleDiff = (globalAngle - currentAngle) % twoPi;
-            if (angleDiff > Math.PI) angleDiff -= twoPi;
-            if (angleDiff < -Math.PI) angleDiff += twoPi;
-            
-            currentAngle += angleDiff * 5.0f * deltaSeconds;
-        }
-
-        applyRotation(this.innerRing, currentAngle);
+            if (!this.phaseSynced) {
+                // Мгновенный "щелчок" в правильную фазу после разгона
+                currentAngle = globalAngle;
+                this.phaseSynced = true;
+            } else {
+                float angleDiff = (globalAngle - currentAngle) % twoPi;
+                if (angleDiff > Math.PI) angleDiff -= twoPi;
+                if (angleDiff < -Math.PI) angleDiff += twoPi;
+                
+                // Очень плавная микро-подгонка
+                float maxCorrection = 0.5f * deltaSeconds;
+                float correction = Math.signum(angleDiff) * Math.min(Math.abs(angleDiff), maxCorrection);
+                currentAngle += correction;
+            }
+        } else {
+            this.phaseSynced = false;
+        }        applyRotation(this.innerRing, currentAngle);
         if (this.shaft != null) {
             applyRotation(this.shaft, currentAngle);
         }

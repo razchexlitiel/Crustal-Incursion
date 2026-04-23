@@ -142,10 +142,10 @@ public class KineticNetworkManager extends SavedData {
             KineticNetwork existingNet = neighborNetworks.iterator().next();
             registerBlockToNetwork(pos, existingNet);
 
-            recalculateNetworkSigns(existingNet);
+            boolean valid = recalculateNetworkSigns(existingNet);
 
             // ПРОВЕРКА КОНФЛИКТА
-            if (existingNet.checkConflict(level)) {
+            if (!valid || existingNet.checkConflict(level)) {
                 LOGGER.info("[Kinetic] Direct motor placement conflict at {}!", pos.toShortString());
 
                 // 1. Откатываем добавление мотора в эту сеть
@@ -182,7 +182,13 @@ public class KineticNetworkManager extends SavedData {
 
             existingNet.recalculate(level);
         } else {
-            mergeNetworks(neighborNetworks, pos);
+            if (!mergeNetworks(neighborNetworks, pos)) {
+                LOGGER.info("[Kinetic] Conflict detected while merging networks at {}!", pos.toShortString());
+                updateNetworkAfterRemove(pos);
+                level.destroyBlock(pos, true);
+                this.setDirty();
+                return;
+            }
         }
 
         // 4. ИЗМЕНЕНИЕ: Сообщаем Майнкрафту, что данные изменились и их надо сохранить!
@@ -218,7 +224,9 @@ public class KineticNetworkManager extends SavedData {
         KineticNetwork newNet = new KineticNetwork();
 
         if (level.getBlockEntity(start) instanceof Rotational startNode) {
-            newNet.setCurrentSpeed(startNode.getSpeed());
+            float scale = startNode.getNetworkScale();
+            long baseSpeed = scale != 0 ? (long)(startNode.getSpeed() / scale) : startNode.getSpeed();
+            newNet.setCurrentSpeed(baseSpeed);
         }
 
         java.util.Queue<BlockPos> queue = new java.util.LinkedList<>();
@@ -267,8 +275,8 @@ public class KineticNetworkManager extends SavedData {
         return newNet;
     }
 
-    private void recalculateNetworkSigns(KineticNetwork net) {
-        if (net.getMembers().isEmpty()) return;
+    private boolean recalculateNetworkSigns(KineticNetwork net) {
+        if (net.getMembers().isEmpty()) return true;
 
         java.util.Queue<BlockPos> queue = new java.util.LinkedList<>();
         java.util.Map<BlockPos, Float> scales = new java.util.HashMap<>();
@@ -323,15 +331,22 @@ public class KineticNetworkManager extends SavedData {
                             if (!scales.containsKey(neighborPos)) {
                                 scales.put(neighborPos, nextScale);
                                 queue.add(neighborPos);
+                            } else {
+                                // ПРОВЕРКА КОНФЛИКТА
+                                float existingScale = scales.get(neighborPos);
+                                if (Math.abs(existingScale - nextScale) > 0.01f) {
+                                    return false; // КОНФЛИКТ НАПРАВЛЕНИЯ ИЛИ ПЕРЕДАТОЧНОГО ЧИСЛА
+                                }
                             }
                         }
                     }
                 }
             }
         }
+        return true;
     }
 
-    private void mergeNetworks(Set<KineticNetwork> networks, BlockPos connectorPos) {
+    private boolean mergeNetworks(Set<KineticNetwork> networks, BlockPos connectorPos) {
         KineticNetwork mainNet = networks.iterator().next();
         networks.remove(mainNet);
 
@@ -347,8 +362,12 @@ public class KineticNetworkManager extends SavedData {
         }
 
         registerBlockToNetwork(connectorPos, mainNet);
-        recalculateNetworkSigns(mainNet);
+        boolean valid = recalculateNetworkSigns(mainNet);
+        if (!valid || mainNet.checkConflict(level)) {
+            return false;
+        }
         mainNet.recalculate(level);
+        return true;
     }
 
     private void registerBlockToNetwork(BlockPos pos, KineticNetwork net) {
