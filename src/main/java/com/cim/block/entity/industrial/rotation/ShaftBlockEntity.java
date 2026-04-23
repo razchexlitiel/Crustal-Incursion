@@ -77,17 +77,23 @@ public class ShaftBlockEntity extends BlockEntity implements Rotational {
                 if (axis == Direction.Axis.Y) { d1 = Math.abs(pos.getX() - myPos.getX()); d2 = Math.abs(pos.getZ() - myPos.getZ()); }
                 if (axis == Direction.Axis.Z) { d1 = Math.abs(pos.getX() - myPos.getX()); d2 = Math.abs(pos.getY() - myPos.getY()); }
 
-                // Логика зацепления зубьев
-                if (gearSize == 1) {
-                    // Малая с Малой (крестом, дистанция 1)
-                    if ((d1 == 1 && d2 == 0) || (d1 == 0 && d2 == 1)) list.add(pos.immutable());
-                    // Малая с Большой (по диагонали, дистанция 1-1)
-                    if (d1 == 1 && d2 == 1) list.add(pos.immutable());
-                } else if (gearSize == 2) {
-                    // Большая с Большой (крестом через блок, дистанция 2)
-                    if ((d1 == 2 && d2 == 0) || (d1 == 0 && d2 == 2)) list.add(pos.immutable());
-                    // Большая с Малой (по диагонали, дистанция 1-1)
-                    if (d1 == 1 && d2 == 1) list.add(pos.immutable());
+                BlockEntity be = level.getBlockEntity(pos);
+                if (be instanceof ShaftBlockEntity otherShaft) {
+                    if (!otherShaft.hasGear()) continue;
+                    int otherSize = otherShaft.getBlockState().getValue(ShaftBlock.GEAR_SIZE);
+
+                    // Логика зацепления зубьев
+                    if (gearSize == 1) {
+                        // Малая с Малой (крестом, дистанция 1)
+                        if (otherSize == 1 && ((d1 == 1 && d2 == 0) || (d1 == 0 && d2 == 1))) list.add(pos.immutable());
+                        // Малая с Большой (по диагонали, дистанция 1-1)
+                        if (otherSize == 2 && d1 == 1 && d2 == 1) list.add(pos.immutable());
+                    } else if (gearSize == 2) {
+                        // Большая с Большой (крестом через блок, дистанция 2)
+                        if (otherSize == 2 && ((d1 == 2 && d2 == 0) || (d1 == 0 && d2 == 2))) list.add(pos.immutable());
+                        // Большая с Малой (по диагонали, дистанция 1-1)
+                        if (otherSize == 1 && d1 == 1 && d2 == 1) list.add(pos.immutable());
+                    }
                 }
             }
         }
@@ -138,7 +144,24 @@ public class ShaftBlockEntity extends BlockEntity implements Rotational {
                 return thisDiameter == otherDiameter && otherFacing.getAxis() == thisFacing.getAxis();
             } else {
                 // Боковое или диагональное соединение шестерней
-                return thisFacing.getAxis() == otherFacing.getAxis() && this.hasGear() && otherShaft.hasGear();
+                if (thisFacing.getAxis() != otherFacing.getAxis() || !this.hasGear() || !otherShaft.hasGear()) return false;
+                
+                int mySize = this.getBlockState().getValue(ShaftBlock.GEAR_SIZE);
+                int otherSize = otherShaft.getBlockState().getValue(ShaftBlock.GEAR_SIZE);
+                
+                Direction.Axis axis = thisFacing.getAxis();
+                int d1 = 0, d2 = 0;
+                if (axis == Direction.Axis.X) { d1 = Math.abs(neighborPos.getY() - myPos.getY()); d2 = Math.abs(neighborPos.getZ() - myPos.getZ()); }
+                if (axis == Direction.Axis.Y) { d1 = Math.abs(neighborPos.getX() - myPos.getX()); d2 = Math.abs(neighborPos.getZ() - myPos.getZ()); }
+                if (axis == Direction.Axis.Z) { d1 = Math.abs(neighborPos.getX() - myPos.getX()); d2 = Math.abs(neighborPos.getY() - myPos.getY()); }
+                
+                if (mySize == 1 && otherSize == 1) {
+                    return (d1 == 1 && d2 == 0) || (d1 == 0 && d2 == 1);
+                } else if (mySize == 2 && otherSize == 2) {
+                    return (d1 == 2 && d2 == 0) || (d1 == 0 && d2 == 2);
+                } else {
+                    return d1 == 1 && d2 == 1;
+                }
             }
         }
         if (neighbor instanceof BearingBlockEntity bearing) {

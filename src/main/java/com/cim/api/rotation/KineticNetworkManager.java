@@ -274,12 +274,31 @@ public class KineticNetworkManager extends SavedData {
         java.util.Map<BlockPos, Float> scales = new java.util.HashMap<>();
         java.util.Set<BlockPos> visited = new java.util.HashSet<>();
 
-        BlockPos root = net.getGenerators().isEmpty() ?
-                net.getMembers().iterator().next() :
-                net.getGenerators().iterator().next();
+        BlockPos root = null;
+        if (!net.getGenerators().isEmpty()) {
+            root = net.getGenerators().iterator().next();
+        } else {
+            // Ищем первый блок, который уже имеет масштаб (чтобы не перевернуть сеть по инерции)
+            for (BlockPos p : net.getMembers()) {
+                BlockEntity be = level.getBlockEntity(p);
+                if (be instanceof Rotational rot && Math.abs(rot.getNetworkScale()) > 0.1f) {
+                    root = p;
+                    break;
+                }
+            }
+            if (root == null) root = net.getMembers().iterator().next();
+        }
 
         queue.add(root);
-        scales.put(root, 1.0f); // Источник всегда 1.0
+        
+        float rootScale = 1.0f;
+        if (level.getBlockEntity(root) instanceof Rotational rootNode) {
+            if (Math.abs(rootNode.getNetworkScale()) > 0.1f) {
+                rootScale = Math.signum(rootNode.getNetworkScale());
+            }
+            rootNode.setNetworkScale(rootScale);
+        }
+        scales.put(root, rootScale);
 
         while (!queue.isEmpty()) {
             BlockPos current = queue.poll();
