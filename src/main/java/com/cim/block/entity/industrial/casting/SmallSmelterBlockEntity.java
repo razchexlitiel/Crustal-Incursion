@@ -41,7 +41,7 @@ import java.util.*;
 
 public class SmallSmelterBlockEntity extends BlockEntity implements MenuProvider, ISmelter {
     // ========== КОНСТАНТЫ ==========
-    public static final int MAX_TEMP = 110g0;      // Максимальная температура
+    public static final int MAX_TEMP = 1100;
     public static final int CAPACITY_UNITS = 81;   // 1 блок металла
     private static final int SLOT_FUEL = 0;
     private static final int SLOT_ASH = 1;
@@ -73,7 +73,7 @@ public class SmallSmelterBlockEntity extends BlockEntity implements MenuProvider
         public boolean isItemValid(int slot, ItemStack stack) {
             if (slot == SLOT_FUEL) return isFuel(stack);
             if (slot == SLOT_ASH) return false; // только извлечение
-            if (slot == SLOT_SMELT) return MetallurgyRegistry.getSmeltRecipe(stack.getItem()) != null;
+            if (slot == SLOT_SMELT) return MetallurgyRegistry.getSmeltRecipe(stack.getItem()) != null || stack.getItem() instanceof SlagItem;
             return false;
         }
     };
@@ -90,6 +90,11 @@ public class SmallSmelterBlockEntity extends BlockEntity implements MenuProvider
     private float smeltHeatPerTick = 0f;
     private int requiredTemp = 0;
     private boolean isSmelting = false;
+
+    // Шлак
+    private boolean isSlagRecipe = false;
+    private Metal slagMetal = null;
+    private int slagAmount = 0;
 
     // Резервуар металла
     private final Map<Metal, Integer> metalTank = new LinkedHashMap<>();
@@ -172,61 +177,92 @@ public class SmallSmelterBlockEntity extends BlockEntity implements MenuProvider
         ItemStack smeltItem = be.inventory.getStackInSlot(SLOT_SMELT);
         if (!smeltItem.isEmpty()) {
             SmeltRecipe recipe = MetallurgyRegistry.getSmeltRecipe(smeltItem.getItem());
-            if (recipe != null) {
-                // Проверка изменения рецепта
-                if (be.currentRecipe != recipe) {
-                    be.resetSmelting();
-                    be.currentRecipe = recipe;
-                    be.requiredTemp = recipe.minTemp();
-                    be.smeltMaxProgress = recipe.getTotalHeatConsumption();
-                    be.smeltHeatPerTick = recipe.heatConsumption();
-                }
+            boolean isSlag = smeltItem.getItem() instanceof SlagItem;
 
-                // Нагрев предмета до температуры плавления
-                float itemTemp = be.getItemTemperature(smeltItem);
-                int targetTemp = be.requiredTemp;
-                if (itemTemp < targetTemp - 1.0f) {
-                    // нагрев
-                    if (be.temperature > itemTemp) {
-                        float heatNeeded = (targetTemp - 1.0f) - itemTemp;
-                        float heatTransfer = Math.min(5f, heatNeeded);
-                        heatTransfer = Math.min(heatTransfer, be.temperature * 0.1f);
-                        float newTemp = itemTemp + heatTransfer;
-                        be.setItemTemperature(smeltItem, newTemp);
-                        be.temperature -= heatTransfer * 0.5f;
-                        changed = true;
+            if (recipe != null || isSlag) {
+                if (recipe != null) {
+                    // Обычный рецепт
+                    if (be.currentRecipe != recipe) {
+                        be.resetSmelting();
+                        be.currentRecipe = recipe;
+                        be.requiredTemp = recipe.minTemp();
+                        be.smeltMaxProgress = recipe.getTotalHeatConsumption();
+                        be.smeltHeatPerTick = recipe.heatConsumption();
                     }
-                    be.isSmelting = false;
                 } else {
-                    // достаточно нагрето – начинаем плавку
-                    if (be.hasSpaceFor(recipe.outputUnits()) && be.temperature >= be.requiredTemp * 0.9f) {
-                        be.isSmelting = true;
-                        // Применяем тепло к прогрессу
-                        float availableHeat = Math.min(be.smeltHeatPerTick, be.temperature);
-                        float heatToApply = Math.min(availableHeat, be.smeltMaxProgress - be.smeltProgress);
-                        be.smeltProgress += heatToApply;
-                        be.temperature -= heatToApply;
-                        changed = true;
-
-                        if (be.smeltProgress >= be.smeltMaxProgress * 0.999f) {
-                            be.completeSmelting(recipe);
+                    // Шлак
+                    Metal slagMetal = SlagItem.getMetal(smeltItem);
+                    int slagAmount = SlagItem.getAmount(smeltItem);
+                    if (slagMetal != null && slagAmount > 0) {
+                        if (be.currentRecipe != null || be.slagMetal != slagMetal || be.slagAmount != slagAmount) {
                             be.resetSmelting();
-                            smeltItem.shrink(1);
-                            if (smeltItem.isEmpty()) {
-                                be.inventory.setStackInSlot(SLOT_SMELT, ItemStack.EMPTY);
-                            }
-                            changed = true;
+                            be.isSlagRecipe = true;
+                            be.slagMetal = slagMetal;
+                            be.slagAmount = slagAmount;
+                            be.requiredTemp = slagMetal.getMeltingPoint();
+                            be.smeltMaxProgress = slagMetal.getHeatConsumptionPerTick() * slagMetal.calculateSmeltTimeForUnits(slagAmount);
+                            be.smeltHeatPerTick = slagMetal.getHeatConsumptionPerTick();
                         }
                     } else {
+                        if (be.currentRecipe != null || be.isSlagRecipe) be.resetSmelting();
+                    }
+                }
+
+                // Проверяем, что у нас есть активный рецепт или шлак
+                if (be.currentRecipe == null && !be.isSlagRecipe) {
+                    be.isSmelting = false;
+                } else {
+                    // Нагрев предмета до температуры плавления
+                    float itemTemp = be.getItemTemperature(smeltItem);
+                    int targetTemp = be.requiredTemp;
+                    if (itemTemp < targetTemp - 1.0f) {
+                        // нагрев
+                        if (be.temperature > itemTemp) {
+                            float heatNeeded = (targetTemp - 1.0f) - itemTemp;
+                            float heatTransfer = Math.min(5f, heatNeeded);
+                            heatTransfer = Math.min(heatTransfer, be.temperature * 0.1f);
+                            float newTemp = itemTemp + heatTransfer;
+                            be.setItemTemperature(smeltItem, newTemp);
+                            be.temperature -= heatTransfer * 0.5f;
+                            changed = true;
+                        }
                         be.isSmelting = false;
+                    } else {
+                        // достаточно нагрето – начинаем плавку
+                        int outputUnits = be.isSlagRecipe ? be.slagAmount : be.currentRecipe.outputUnits();
+                        if (be.hasSpaceFor(outputUnits) && be.temperature >= be.requiredTemp * 0.9f) {
+                            be.isSmelting = true;
+                            // Применяем тепло к прогрессу
+                            float availableHeat = Math.min(be.smeltHeatPerTick, be.temperature);
+                            float heatToApply = Math.min(availableHeat, be.smeltMaxProgress - be.smeltProgress);
+                            be.smeltProgress += heatToApply;
+                            be.temperature -= heatToApply;
+                            changed = true;
+
+                            if (be.smeltProgress >= be.smeltMaxProgress * 0.999f) {
+                                if (be.isSlagRecipe) {
+                                    be.addMetal(be.slagMetal, be.slagAmount);
+                                } else {
+                                    be.completeSmelting(be.currentRecipe);
+                                }
+                                be.resetSmelting();
+                                smeltItem.shrink(1);
+                                if (smeltItem.isEmpty()) {
+                                    be.inventory.setStackInSlot(SLOT_SMELT, ItemStack.EMPTY);
+                                }
+                                changed = true;
+                            }
+                        } else {
+                            be.isSmelting = false;
+                        }
                     }
                 }
             } else {
                 // Если предмет не плавится, сбрасываем прогресс
-                if (be.currentRecipe != null) be.resetSmelting();
+                if (be.currentRecipe != null || be.isSlagRecipe) be.resetSmelting();
             }
         } else {
-            if (be.currentRecipe != null) be.resetSmelting();
+            if (be.currentRecipe != null || be.isSlagRecipe) be.resetSmelting();
         }
 
         // 4. Обновление данных для GUI
@@ -237,7 +273,7 @@ public class SmallSmelterBlockEntity extends BlockEntity implements MenuProvider
         be.data.set(DATA_SMELT_PROGRESS, (int)be.smeltProgress);
         be.data.set(DATA_SMELT_MAX_PROGRESS, (int)be.smeltMaxProgress);
         be.data.set(DATA_IS_SMELTING, be.isSmelting ? 1 : 0);
-        be.data.set(DATA_HAS_RECIPE, be.currentRecipe != null ? 1 : 0);
+        be.data.set(DATA_HAS_RECIPE, (be.currentRecipe != null || be.isSlagRecipe) ? 1 : 0);
 
         if (changed) {
             be.setChanged();
@@ -252,6 +288,9 @@ public class SmallSmelterBlockEntity extends BlockEntity implements MenuProvider
         smeltHeatPerTick = 0;
         requiredTemp = 0;
         isSmelting = false;
+        isSlagRecipe = false;
+        slagMetal = null;
+        slagAmount = 0;
     }
 
     private void completeSmelting(SmeltRecipe recipe) {
@@ -403,12 +442,14 @@ public class SmallSmelterBlockEntity extends BlockEntity implements MenuProvider
     }
 
     private int getMeltingPointForItem(ItemStack stack) {
+        if (stack.getItem() instanceof SlagItem) {
+            return SlagItem.getMeltingPoint(stack);
+        }
         SmeltRecipe recipe = MetallurgyRegistry.getSmeltRecipe(stack.getItem());
         if (recipe != null) return recipe.minTemp();
         return 1000; // запасное значение
     }
 
-    // Исправить setItemTemperature
     private void setItemTemperature(ItemStack stack, float temp) {
         if (temp <= HotItemHandler.ROOM_TEMP) {
             if (HotItemHandler.isHot(stack)) {
@@ -446,6 +487,8 @@ public class SmallSmelterBlockEntity extends BlockEntity implements MenuProvider
     public float getSmeltMaxProgress() { return smeltMaxProgress; }
     public boolean isSmelting() { return isSmelting; }
     public int getRequiredTemp() { return requiredTemp; }
+    public boolean isSlagRecipe() { return isSlagRecipe; }
+    public float getSmeltHeatPerTick() { return smeltHeatPerTick; }
     public Map<Metal, Integer> getMetalTank() { return Collections.unmodifiableMap(metalTank); }
     public List<MetalStack> getMetalStacks() {
         List<MetalStack> list = new ArrayList<>();
@@ -481,6 +524,13 @@ public class SmallSmelterBlockEntity extends BlockEntity implements MenuProvider
         tag.putInt("RequiredTemp", requiredTemp);
         tag.putBoolean("IsSmelting", isSmelting);
 
+        // Шлак
+        tag.putBoolean("IsSlagRecipe", isSlagRecipe);
+        if (slagMetal != null) {
+            tag.putString("SlagMetal", slagMetal.getId().toString());
+            tag.putInt("SlagAmount", slagAmount);
+        }
+
         ListTag metals = new ListTag();
         metalTank.forEach((metal, amount) -> {
             CompoundTag mt = new CompoundTag();
@@ -510,6 +560,14 @@ public class SmallSmelterBlockEntity extends BlockEntity implements MenuProvider
         requiredTemp = tag.getInt("RequiredTemp");
         isSmelting = tag.getBoolean("IsSmelting");
 
+        // Шлак
+        isSlagRecipe = tag.getBoolean("IsSlagRecipe");
+        if (tag.contains("SlagMetal")) {
+            ResourceLocation slagId = new ResourceLocation(tag.getString("SlagMetal"));
+            MetallurgyRegistry.get(slagId).ifPresent(m -> slagMetal = m);
+            slagAmount = tag.getInt("SlagAmount");
+        }
+
         metalTank.clear();
         ListTag metals = tag.getList("Metals", Tag.TAG_COMPOUND);
         for (int i = 0; i < metals.size(); i++) {
@@ -528,7 +586,7 @@ public class SmallSmelterBlockEntity extends BlockEntity implements MenuProvider
         data.set(DATA_SMELT_PROGRESS, (int)smeltProgress);
         data.set(DATA_SMELT_MAX_PROGRESS, (int)smeltMaxProgress);
         data.set(DATA_IS_SMELTING, isSmelting ? 1 : 0);
-        data.set(DATA_HAS_RECIPE, currentRecipe != null ? 1 : 0);
+        data.set(DATA_HAS_RECIPE, (currentRecipe != null || isSlagRecipe) ? 1 : 0);
     }
 
     @Override

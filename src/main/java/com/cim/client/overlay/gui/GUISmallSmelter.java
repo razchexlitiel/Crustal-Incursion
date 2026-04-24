@@ -3,6 +3,7 @@ package com.cim.client.overlay.gui;
 
 import com.cim.api.metallurgy.system.MetalUnits2;
 import com.cim.block.entity.industrial.casting.SmallSmelterBlockEntity;
+import com.cim.item.ModItems;
 import com.cim.main.CrustalIncursionMod;
 import com.cim.menu.SmallSmelterMenu;
 import net.minecraft.client.gui.GuiGraphics;
@@ -12,8 +13,11 @@ import net.minecraft.network.chat.Style;
 import net.minecraft.network.chat.TextColor;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
@@ -36,6 +40,44 @@ public class GUISmallSmelter extends AbstractContainerScreen<SmallSmelterMenu> {
     private static final int PROGRESS_W = 16;
     private static final int PROGRESS_H = 3;
 
+    private static final List<ItemStack>[] TIER_ITEMS = new List[6];
+
+    static {
+        TIER_ITEMS[0] = Arrays.asList(
+                new ItemStack(Items.STICK), new ItemStack(Items.SCAFFOLDING),
+                new ItemStack(Items.OAK_PLANKS), new ItemStack(Items.SPRUCE_PLANKS),
+                new ItemStack(Items.BIRCH_PLANKS), new ItemStack(Items.JUNGLE_PLANKS),
+                new ItemStack(Items.ACACIA_PLANKS), new ItemStack(Items.DARK_OAK_PLANKS),
+                new ItemStack(Items.MANGROVE_PLANKS), new ItemStack(Items.CHERRY_PLANKS),
+                new ItemStack(Items.BAMBOO_PLANKS), new ItemStack(Items.BAMBOO_MOSAIC),
+                new ItemStack(Items.OAK_LOG), new ItemStack(Items.SPRUCE_LOG),
+                new ItemStack(Items.BIRCH_LOG), new ItemStack(Items.JUNGLE_LOG),
+                new ItemStack(Items.ACACIA_LOG), new ItemStack(Items.DARK_OAK_LOG),
+                new ItemStack(Items.MANGROVE_LOG), new ItemStack(Items.CHERRY_LOG),
+                new ItemStack(Items.BAMBOO_BLOCK)
+        );
+        TIER_ITEMS[1] = Arrays.asList(
+                new ItemStack(Items.COAL),
+                new ItemStack(Items.CHARCOAL),
+                new ItemStack(Items.BLAZE_POWDER)
+        );
+        TIER_ITEMS[2] = Arrays.asList(
+                new ItemStack(Items.BLAZE_ROD),
+                new ItemStack(Items.MAGMA_CREAM),
+                new ItemStack(Items.PORKCHOP)
+        );
+        TIER_ITEMS[3] = Arrays.asList(
+                new ItemStack(Items.COAL_BLOCK)
+        );
+        TIER_ITEMS[4] = Arrays.asList(
+                new ItemStack(Items.LAVA_BUCKET)
+        );
+        TIER_ITEMS[5] = Arrays.asList(
+                new ItemStack(ModItems.MORY_LAH.get()),
+                new ItemStack(Items.DRAGON_BREATH)
+        );
+    }
+
     public GUISmallSmelter(SmallSmelterMenu menu, Inventory inv, Component title) {
         super(menu, inv, title);
         this.imageWidth = 176;
@@ -57,16 +99,17 @@ public class GUISmallSmelter extends AbstractContainerScreen<SmallSmelterMenu> {
                     177, 19 + (TEMP_BAR_H - filledHeight), TEMP_BAR_W, filledHeight);
         }
 
-        // Индикатор горения
-        if (menu.isBurning()) {
+        // Индикатор горения — только если burnTime > 0
+        if (menu.isBurning() && menu.getBurnTime() > 0) {
             gui.blit(TEXTURE, x + FLAME_X, y + FLAME_Y, 179, 2, FLAME_W, FLAME_H);
         }
 
-        // Прогресс плавки
-        if (menu.hasRecipe()) {
-            int progress = menu.getSmeltProgress();
-            int maxProgress = menu.getSmeltMaxProgress();
-            int fillWidth = maxProgress > 0 ? (progress * PROGRESS_W) / maxProgress : 0;
+        // Прогресс плавки — читаем float напрямую из BlockEntity для плавности
+        SmallSmelterBlockEntity be = menu.getBlockEntity();
+        if (be != null && (menu.hasRecipe() || be.isSlagRecipe())) {
+            float progress = be.getSmeltProgress();
+            float maxProgress = be.getSmeltMaxProgress();
+            int fillWidth = maxProgress > 0 ? (int)((progress / maxProgress) * PROGRESS_W) : 0;
             if (fillWidth > 0) {
                 gui.blit(TEXTURE, x + PROGRESS_X, y + PROGRESS_Y, 215, 15, fillWidth, PROGRESS_H);
             }
@@ -109,7 +152,10 @@ public class GUISmallSmelter extends AbstractContainerScreen<SmallSmelterMenu> {
         int x = (this.width - this.imageWidth) / 2;
         int y = (this.height - this.imageHeight) / 2;
 
-        if (isHovering(TEMP_BAR_X, TEMP_BAR_Y, TEMP_BAR_W, TEMP_BAR_H, mouseX, mouseY)) {
+        // Слот топлива (61,12) — тултип с тирами
+        if (isHovering(61, 12, 16, 16, mouseX, mouseY)) {
+            renderFuelTooltip(gui, mouseX, mouseY);
+        } else if (isHovering(TEMP_BAR_X, TEMP_BAR_Y, TEMP_BAR_W, TEMP_BAR_H, mouseX, mouseY)) {
             renderTemperatureTooltip(gui, mouseX, mouseY);
         } else if (isHovering(FLAME_X, FLAME_Y, FLAME_W, FLAME_H, mouseX, mouseY)) {
             renderFlameTooltip(gui, mouseX, mouseY);
@@ -119,6 +165,72 @@ public class GUISmallSmelter extends AbstractContainerScreen<SmallSmelterMenu> {
             renderMetalTankTooltip(gui, mouseX, mouseY);
         } else {
             this.renderTooltip(gui, mouseX, mouseY);
+        }
+    }
+
+    private void renderFuelTooltip(GuiGraphics guiGraphics, int mouseX, int mouseY) {
+        String[] lines = {
+                "§6§lТопливные тиры:",
+                "§8Тир 0: §f1°C, §f6.25§7с.",
+                "§8Тир 1: §f2°C, §f12.5§7с.",
+                "§8Тир 2: §f3°C, §f25§7с.",
+                "§8Тир 3: §f4°C, §f40§7с.",
+                "§8Тир 4: §f6°C, §f60§7с.",
+                "§8Тир 5: §f8°C, §f120§7с."
+        };
+
+        int lineHeight = 11;
+        int padding = 4;
+        int iconSize = 12;
+        int iconTextGap = 2;
+
+        int maxTextWidth = 0;
+        for (String line : lines) {
+            maxTextWidth = Math.max(maxTextWidth, this.font.width(line));
+        }
+
+        int tooltipWidth = padding + iconSize + iconTextGap + maxTextWidth + padding;
+        int tooltipHeight = lines.length * lineHeight + padding * 2;
+
+        int tooltipX = mouseX + 8;
+        int tooltipY = mouseY - tooltipHeight / 2;
+
+        if (tooltipX + tooltipWidth > this.width) tooltipX = mouseX - tooltipWidth - 8;
+        if (tooltipY < 4) tooltipY = 4;
+        if (tooltipY + tooltipHeight > this.height) tooltipY = this.height - tooltipHeight - 4;
+
+        guiGraphics.fill(tooltipX, tooltipY, tooltipX + tooltipWidth, tooltipY + tooltipHeight, 0xF0100010);
+        guiGraphics.fill(tooltipX + 1, tooltipY, tooltipX + tooltipWidth - 1, tooltipY + 1, 0xF0500070);
+        guiGraphics.fill(tooltipX + 1, tooltipY + tooltipHeight - 1, tooltipX + tooltipWidth - 1, tooltipY + tooltipHeight, 0xF0500070);
+        guiGraphics.fill(tooltipX, tooltipY, tooltipX + 1, tooltipY + tooltipHeight, 0xF0500070);
+        guiGraphics.fill(tooltipX + tooltipWidth - 1, tooltipY, tooltipX + tooltipWidth, tooltipY + tooltipHeight, 0xF0500070);
+
+        long currentSecond = System.currentTimeMillis() / 1000;
+
+        for (int i = 0; i < lines.length; i++) {
+            int lineY = tooltipY + padding + i * lineHeight;
+
+            if (i == 0) {
+                guiGraphics.drawString(this.font, lines[i], tooltipX + padding, lineY + 2, 0xFFFFFF, true);
+            } else {
+                int tier = i - 1;
+
+                List<ItemStack> items = TIER_ITEMS[tier];
+                if (items != null && !items.isEmpty()) {
+                    int itemIndex = (int)((currentSecond + tier) % items.size());
+                    ItemStack stack = items.get(itemIndex);
+
+                    guiGraphics.pose().pushPose();
+                    guiGraphics.pose().translate(tooltipX + padding, lineY, 100);
+                    guiGraphics.pose().scale(0.75f, 0.75f, 1.0f);
+                    guiGraphics.renderItem(stack, 0, 0);
+                    guiGraphics.renderItemDecorations(this.font, stack, 0, 0);
+                    guiGraphics.pose().popPose();
+                }
+
+                int textX = tooltipX + padding + iconSize + iconTextGap;
+                guiGraphics.drawString(this.font, lines[i], textX, lineY + 2, 0xFFFFFF, true);
+            }
         }
     }
 
@@ -145,17 +257,22 @@ public class GUISmallSmelter extends AbstractContainerScreen<SmallSmelterMenu> {
     private void renderProgressTooltip(GuiGraphics gui, int mx, int my) {
         List<Component> lines = new ArrayList<>();
         int currentTemp = (int)(menu.getTemperature() / 10f);
-        int requiredTemp = menu.getBlockEntity().getRequiredTemp();
+        SmallSmelterBlockEntity be = menu.getBlockEntity();
+        int requiredTemp = be != null ? be.getRequiredTemp() : 0;
         boolean hasEnough = currentTemp >= requiredTemp;
         int tempColor = hasEnough ? 0x00FF00 : (System.currentTimeMillis() / 500 % 2 == 0 ? 0x910000 : 0x808080);
         lines.add(Component.literal(String.format("Температура: %d/%d °C", currentTemp, requiredTemp))
                 .withStyle(Style.EMPTY.withColor(TextColor.fromRgb(tempColor))));
-        if (menu.getSmeltMaxProgress() > 0) {
-            int remaining = menu.getSmeltMaxProgress() - menu.getSmeltProgress();
-            int heatPerTick = menu.getBlockEntity().getCurrentRecipe() != null ? (int)menu.getBlockEntity().getCurrentRecipe().heatConsumption() : 10;
-            float seconds = remaining / (heatPerTick * 20.0f);
-            lines.add(Component.literal(String.format("Осталось: %.1fс", Math.max(0, seconds)))
-                    .withStyle(Style.EMPTY.withColor(TextColor.fromRgb(0xAAAAAA))));
+
+        if (be != null && be.getSmeltMaxProgress() > 0) {
+            float remaining = be.getSmeltMaxProgress() - be.getSmeltProgress();
+            float heatPerTick = be.getCurrentRecipe() != null ? be.getCurrentRecipe().heatConsumption() :
+                    (be.isSlagRecipe() ? be.getSmeltHeatPerTick() : 10);
+            if (heatPerTick > 0) {
+                float seconds = remaining / (heatPerTick * 20.0f);
+                lines.add(Component.literal(String.format("Осталось: %.1fс", Math.max(0, seconds)))
+                        .withStyle(Style.EMPTY.withColor(TextColor.fromRgb(0xAAAAAA))));
+            }
         }
         gui.renderComponentTooltip(this.font, lines, mx, my);
     }

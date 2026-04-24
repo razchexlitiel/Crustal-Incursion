@@ -2,6 +2,7 @@ package com.cim.menu;
 
 import com.cim.block.basic.ModBlocks;
 import com.cim.block.entity.industrial.casting.SmallSmelterBlockEntity;
+import com.cim.event.SlagItem;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.world.entity.player.Inventory;
@@ -40,11 +41,12 @@ public class SmallSmelterMenu extends AbstractContainerMenu {
                 return false;
             }
         });
-        // Слот плавки (121,13)
+        // Слот плавки (121,13) — рецепт или шлак
         this.addSlot(new SlotItemHandler(entity.getInventory(), 2, 121, 13) {
             @Override
             public boolean mayPlace(ItemStack stack) {
-                return com.cim.api.metallurgy.system.MetallurgyRegistry.getSmeltRecipe(stack.getItem()) != null;
+                return com.cim.api.metallurgy.system.MetallurgyRegistry.getSmeltRecipe(stack.getItem()) != null
+                        || stack.getItem() instanceof SlagItem;
             }
         });
 
@@ -106,7 +108,8 @@ public class SmallSmelterMenu extends AbstractContainerMenu {
                     if (!this.moveItemStackTo(stack, 0, 1, false)) {
                         return ItemStack.EMPTY;
                     }
-                } else if (com.cim.api.metallurgy.system.MetallurgyRegistry.getSmeltRecipe(stack.getItem()) != null) {
+                } else if (com.cim.api.metallurgy.system.MetallurgyRegistry.getSmeltRecipe(stack.getItem()) != null
+                        || stack.getItem() instanceof SlagItem) {
                     if (!this.moveItemStackTo(stack, 2, 3, false)) {
                         return ItemStack.EMPTY;
                     }
