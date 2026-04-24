@@ -1,5 +1,6 @@
 package com.cim.block.entity.industrial.casting;
 
+import com.cim.api.metallurgy.system.ISmelter;
 import com.cim.api.metallurgy.system.Metal;
 import com.cim.api.metallurgy.system.MetallurgyRegistry;
 import com.cim.block.basic.industrial.casting.CastingDescentBlock;
@@ -47,20 +48,6 @@ public class CastingDescentBlockEntity extends BlockEntity {
         Direction back = facing.getOpposite();
         BlockPos smelterPos = pos.relative(back);
 
-        // Проверка подключения к плавильне
-        BlockEntity behind = level.getBlockEntity(smelterPos);
-        if (!(behind instanceof SmelterBlockEntity) && !(behind instanceof MultiblockPartEntity)) {
-            be.setPouring(false, null);
-            return;
-        }
-
-        if (behind instanceof MultiblockPartEntity part) {
-            BlockPos controllerPos = part.getControllerPos();
-            if (controllerPos == null || !(level.getBlockEntity(controllerPos) instanceof SmelterBlockEntity)) {
-                be.setPouring(false, null);
-                return;
-            }
-        }
 
         // Кулдаун для замедления передачи
         if (be.transferCooldown > 0) be.transferCooldown--;
@@ -77,7 +64,7 @@ public class CastingDescentBlockEntity extends BlockEntity {
         // Передача только когда кулдаун закончился
         if (be.transferCooldown > 0) return;
 
-        SmelterBlockEntity smelter = be.findSmelter(level, pos);
+        ISmelter smelter = be.findSmelter(level, pos);
         if (smelter == null) {
             be.setPouring(false, null);
             return;
@@ -165,15 +152,18 @@ public class CastingDescentBlockEntity extends BlockEntity {
         }
     }
 
-    private SmelterBlockEntity findSmelter(Level level, BlockPos pos) {
+    private ISmelter findSmelter(Level level, BlockPos pos) {
         for (Direction dir : Direction.Plane.HORIZONTAL) {
             BlockPos neighborPos = pos.relative(dir);
             BlockEntity be = level.getBlockEntity(neighborPos);
-            if (be instanceof SmelterBlockEntity smelter) return smelter;
+            if (be instanceof ISmelter smelter) {
+                return smelter;
+            }
             if (be instanceof MultiblockPartEntity part) {
                 BlockPos controllerPos = part.getControllerPos();
-                if (controllerPos != null && level.getBlockEntity(controllerPos) instanceof SmelterBlockEntity smelter)
+                if (controllerPos != null && level.getBlockEntity(controllerPos) instanceof ISmelter smelter) {
                     return smelter;
+                }
             }
         }
         return null;
