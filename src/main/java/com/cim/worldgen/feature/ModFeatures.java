@@ -14,4 +14,8 @@ public class ModFeatures {
     public static final RegistryObject<Feature<NoneFeatureConfiguration>> CONGLOMERATE_VEIN =
             FEATURES.register("conglomerate_vein",
                     () -> new ConglomerateVeinFeature(NoneFeatureConfiguration.CODEC));
+
+    public static final RegistryObject<Feature<SpecialVeinConfiguration>> SPECIAL_VEIN =
+            FEATURES.register("special_vein",
+                    () -> new SpecialVeinFeature(SpecialVeinConfiguration.CODEC));
 }
