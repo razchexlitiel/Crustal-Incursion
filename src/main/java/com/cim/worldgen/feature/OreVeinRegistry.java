@@ -51,16 +51,70 @@ public class OreVeinRegistry {
         }
     }
 
+    public static final List<SpecialOreEntry> SPECIAL_ORES = new ArrayList<>();
+
+    public static class SpecialOreEntry {
+        public final String name;
+        public final Block block;
+        public final int minY, maxY;
+        public final int minSize;      // размер на нижней границе
+        public final int maxSize;      // размер на верхней границе
+        public final int rarity;       // раз в N чанков (1 = каждый чанк)
+        public final boolean respectAir;
+        public final float density;    // 0.0 – 1.0
+
+        public final ResourceKey<ConfiguredFeature<?, ?>> configuredKey;
+        public final ResourceKey<PlacedFeature> placedKey;
+        public final ResourceKey<BiomeModifier> biomeModifierKey;
+
+        public SpecialOreEntry(String name, Block block, int minY, int maxY,
+                               int minSize, int maxSize, int rarity,
+                               boolean respectAir, float density) {
+            this.name = name;
+            this.block = block;
+            this.minY = minY;
+            this.maxY = maxY;
+            this.minSize = minSize;
+            this.maxSize = maxSize;
+            this.rarity = rarity;
+            this.respectAir = respectAir;
+            this.density = density;
+
+            this.configuredKey = ResourceKey.create(
+                    net.minecraft.core.registries.Registries.CONFIGURED_FEATURE,
+                    new ResourceLocation(CrustalIncursionMod.MOD_ID, "special_ore_" + name)
+            );
+            this.placedKey = ResourceKey.create(
+                    net.minecraft.core.registries.Registries.PLACED_FEATURE,
+                    new ResourceLocation(CrustalIncursionMod.MOD_ID, "special_ore_" + name + "_placed")
+            );
+            this.biomeModifierKey = ResourceKey.create(
+                    ForgeRegistries.Keys.BIOME_MODIFIERS,
+                    new ResourceLocation(CrustalIncursionMod.MOD_ID, "add_special_ore_" + name)
+            );
+        }
+    }
+
+    public static void registerSpecial(String name, Block block, int minY, int maxY,
+                                       int minSize, int maxSize, int rarity,
+                                       boolean respectAir, float density) {
+        SPECIAL_ORES.add(new SpecialOreEntry(name, block, minY, maxY, minSize, maxSize, rarity, respectAir, density));
+    }
+
     public static void register(String name, Block block, int veinSize, int minY, int maxY, int countPerChunk) {
         ORES.add(new OreEntry(name, block, veinSize, minY, maxY, countPerChunk));
     }
 
     static {
 
-        register("bauxite", ModBlocks.BAUXITE.get(), 50, 40, 150, 1);
+        register("mineral1", ModBlocks.MINERAL1.get(), 9, 40, 150, 3);
 
-        register("limestone", ModBlocks.LIMESTONE.get(), 33, -10, 150, 2);
+            // --- спец-залежи ---
+            registerSpecial("bauxite", ModBlocks.BAUXITE.get(), -64, 150, 15, 25, 5, true, 0.7f);
 
-        register("dolomite", ModBlocks.DOLOMITE.get(), 8, -30, 100, 2);
+            registerSpecial("limestone", ModBlocks.LIMESTONE.get(), -20, 150, 6, 10, 4, false, 0.9f);
+
+            registerSpecial("dolomite", ModBlocks.DOLOMITE.get(), -64, 70, 5, 8, 2, true, 0.6f);
+        }
+
     }
-}

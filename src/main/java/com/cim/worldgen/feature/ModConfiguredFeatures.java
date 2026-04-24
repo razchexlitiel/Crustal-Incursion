@@ -43,6 +43,18 @@ public class ModConfiguredFeatures {
             register(context, ore.configuredKey, Feature.ORE, new OreConfiguration(targets, ore.veinSize));
         }
 
+        // --- СПЕЦИАЛЬНЫЕ ЖИЛЫ ---
+        for (OreVeinRegistry.SpecialOreEntry ore : OreVeinRegistry.SPECIAL_ORES) {
+            List<OreConfiguration.TargetBlockState> targets = List.of(
+                    OreConfiguration.target(new TagMatchTest(BlockTags.STONE_ORE_REPLACEABLES), ore.block.defaultBlockState()),
+                    OreConfiguration.target(new TagMatchTest(BlockTags.DEEPSLATE_ORE_REPLACEABLES), ore.block.defaultBlockState())
+            );
+            register(context, ore.configuredKey, ModFeatures.SPECIAL_VEIN.get(),
+                    new SpecialVeinConfiguration(targets, ore.block.defaultBlockState(),
+                            ore.minSize, ore.maxSize, ore.minY, ore.maxY,
+                            ore.respectAir, ore.density, 0.1f));
+        }
+
         // Собираем нашу гигантскую Секвойю!
         register(context, GIANT_SEQUOIA_KEY, Feature.TREE, new TreeConfiguration.TreeConfigurationBuilder(
                 // Блок ствола (Пока юзаем тропическое дерево для тестов)

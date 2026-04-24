@@ -43,6 +43,21 @@ public class ModPlacedFeatures {
                     BiomeFilter.biome()
             ));
         }
+
+        // === СПЕЦ-ЖИЛЫ: шанс раз в N чанков ===
+        for (OreVeinRegistry.SpecialOreEntry ore : OreVeinRegistry.SPECIAL_ORES) {
+            Holder<ConfiguredFeature<?, ?>> configured = configuredFeatures.getOrThrow(ore.configuredKey);
+            register(context, ore.placedKey, configured, List.of(
+                    RarityFilter.onAverageOnceEvery(ore.rarity), // вот он — настраиваемый шанс!
+                    InSquarePlacement.spread(),
+                    HeightRangePlacement.uniform(
+                            VerticalAnchor.absolute(ore.minY),
+                            VerticalAnchor.absolute(ore.maxY)
+                    ),
+                    BiomeFilter.biome()
+            ));
+        }
+
         var smallSequoia = context.lookup(Registries.CONFIGURED_FEATURE).getOrThrow(ModConfiguredFeatures.SMALL_SEQUOIA_KEY);
         var mediumSequoia = context.lookup(Registries.CONFIGURED_FEATURE).getOrThrow(ModConfiguredFeatures.MEDIUM_SEQUOIA_KEY);
         var conglomerateVein = configuredFeatures.getOrThrow(ModConfiguredFeatures.CONGLOMERATE_VEIN_KEY);

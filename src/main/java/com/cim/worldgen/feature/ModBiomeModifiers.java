@@ -37,5 +37,15 @@ public class ModBiomeModifiers {
                             GenerationStep.Decoration.UNDERGROUND_ORES
                     ));
         }
+
+        // === СПЕЦ-ЖИЛЫ в биомы ===
+        for (OreVeinRegistry.SpecialOreEntry ore : OreVeinRegistry.SPECIAL_ORES) {
+            context.register(ore.biomeModifierKey,
+                    new ForgeBiomeModifiers.AddFeaturesBiomeModifier(
+                            biomes.getOrThrow(BiomeTags.IS_OVERWORLD),
+                            HolderSet.direct(placedFeatures.getOrThrow(ore.placedKey)),
+                            GenerationStep.Decoration.UNDERGROUND_ORES
+                    ));
+        }
     }
 }
