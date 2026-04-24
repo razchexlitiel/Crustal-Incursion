@@ -171,7 +171,7 @@ public class ShaftVisual extends AbstractBlockEntityVisual<ShaftBlockEntity> imp
         // 1. Плавная визуальная инерция (догоняем targetSpeed)
         float speedDiff = targetSpeed - smoothedSpeed;
         if (Math.abs(speedDiff) > 0.001f) {
-            smoothedSpeed += speedDiff * 3.0f * deltaSeconds; // Коэффициент 3.0 определяет резкость торможения
+            smoothedSpeed += speedDiff * 4.0f * deltaSeconds; // Увеличил с 3 до 4 для более четкой остановки
         } else {
             smoothedSpeed = targetSpeed;
         }
@@ -205,6 +205,24 @@ public class ShaftVisual extends AbstractBlockEntityVisual<ShaftBlockEntity> imp
             }
         } else {
             this.phaseSynced = false;
+        }
+
+        // 4. ДОКОВКА ЗУБЬЕВ ПРИ ОСТАНОВКЕ (МАГНИТНЫЙ ЭФФЕКТ)
+        // Когда скорость падает почти до нуля, притягиваем угол к ближайшему кратному 45 градусам (PI/4).
+        // Это ГАРАНТИРУЕТ, что все шестерни в мире будут идеально состыкованы в покое,
+        // так как 45 градусов — это ровно 1 зуб малой шестерни и 2 зуба большой.
+        if (targetSpeed == 0 && Math.abs(smoothedSpeed) < 5.0f) {
+            float PI_OVER_4 = (float) (Math.PI / 4.0);
+            float targetSnap = Math.round(currentAngle / PI_OVER_4) * PI_OVER_4;
+            float snapDiff = targetSnap - currentAngle;
+            
+            if (Math.abs(snapDiff) > 0.001f) {
+                // Чем медленнее крутимся, тем сильнее примагничиваемся к идеальной позиции
+                float pull = 8.0f * (1.0f - (Math.abs(smoothedSpeed) / 5.0f));
+                currentAngle += snapDiff * pull * deltaSeconds;
+            } else {
+                currentAngle = targetSnap;
+            }
         }
 
         setupStatic(shaftInstance, currentAngle);

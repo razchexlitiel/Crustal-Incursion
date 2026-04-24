@@ -151,7 +151,7 @@ public class BearingVisual extends AbstractBlockEntityVisual<BearingBlockEntity>
         // 2.1 Плавное изменение скорости
         float speedDiff = targetSpeed - smoothedSpeed;
         if (Math.abs(speedDiff) > 0.001f) {
-            smoothedSpeed += speedDiff * 3.0f * deltaSeconds;
+            smoothedSpeed += speedDiff * 4.0f * deltaSeconds; // Увеличил до 4
         } else {
             smoothedSpeed = targetSpeed;
         }
@@ -170,7 +170,6 @@ public class BearingVisual extends AbstractBlockEntityVisual<BearingBlockEntity>
             if (globalAngle < 0) globalAngle += twoPi;
             
             if (!this.phaseSynced) {
-                // Мгновенный "щелчок" в правильную фазу после разгона
                 currentAngle = globalAngle;
                 this.phaseSynced = true;
             } else {
@@ -178,14 +177,29 @@ public class BearingVisual extends AbstractBlockEntityVisual<BearingBlockEntity>
                 if (angleDiff > Math.PI) angleDiff -= twoPi;
                 if (angleDiff < -Math.PI) angleDiff += twoPi;
                 
-                // Очень плавная микро-подгонка
                 float maxCorrection = 0.5f * deltaSeconds;
                 float correction = Math.signum(angleDiff) * Math.min(Math.abs(angleDiff), maxCorrection);
                 currentAngle += correction;
             }
         } else {
             this.phaseSynced = false;
-        }        applyRotation(this.innerRing, currentAngle);
+        }
+
+        // 2.4 ДОКОВКА ПРИ ОСТАНОВКЕ (МАГНИТНЫЙ ЭФФЕКТ)
+        if (targetSpeed == 0 && Math.abs(smoothedSpeed) < 5.0f) {
+            float PI_OVER_4 = (float) (Math.PI / 4.0);
+            float targetSnap = Math.round(currentAngle / PI_OVER_4) * PI_OVER_4;
+            float snapDiff = targetSnap - currentAngle;
+            
+            if (Math.abs(snapDiff) > 0.001f) {
+                float pull = 8.0f * (1.0f - (Math.abs(smoothedSpeed) / 5.0f));
+                currentAngle += snapDiff * pull * deltaSeconds;
+            } else {
+                currentAngle = targetSnap;
+            }
+        }
+        
+        applyRotation(this.innerRing, currentAngle);
         if (this.shaft != null) {
             applyRotation(this.shaft, currentAngle);
         }
