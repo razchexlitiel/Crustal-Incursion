@@ -91,7 +91,7 @@ public class GUISmallSmelter extends AbstractContainerScreen<SmallSmelterMenu> {
         gui.blit(TEXTURE, x, y, 0, 0, this.imageWidth, this.imageHeight);
 
         // Температурная полоска
-        float temp = menu.getTemperature() / 10f; // в data хранится *10
+        float temp = menu.getTemperature() / 10f;
         float maxTemp = SmallSmelterBlockEntity.MAX_TEMP;
         int filledHeight = (int)((temp / maxTemp) * TEMP_BAR_H);
         if (filledHeight > 0) {
@@ -104,14 +104,17 @@ public class GUISmallSmelter extends AbstractContainerScreen<SmallSmelterMenu> {
             gui.blit(TEXTURE, x + FLAME_X, y + FLAME_Y, 179, 2, FLAME_W, FLAME_H);
         }
 
-        // Прогресс плавки — читаем float напрямую из BlockEntity для плавности
+        // === ПРОГРЕСС ПЛАВКИ — читаем напрямую из BlockEntity, а не ContainerData ===
         SmallSmelterBlockEntity be = menu.getBlockEntity();
-        if (be != null && (menu.hasRecipe() || be.isSlagRecipe())) {
+        if (be != null && be.getSmeltMaxProgress() > 0) {
             float progress = be.getSmeltProgress();
             float maxProgress = be.getSmeltMaxProgress();
-            int fillWidth = maxProgress > 0 ? (int)((progress / maxProgress) * PROGRESS_W) : 0;
-            if (fillWidth > 0) {
-                gui.blit(TEXTURE, x + PROGRESS_X, y + PROGRESS_Y, 215, 15, fillWidth, PROGRESS_H);
+            // Прогресс идёт всегда, если есть maxProgress (включая шлак и кастомные металлы)
+            if (progress > 0 || be.isSmelting() || be.isSlagRecipe() || be.getCurrentRecipe() != null) {
+                int fillWidth = (int)((progress / maxProgress) * PROGRESS_W);
+                if (fillWidth > 0) {
+                    gui.blit(TEXTURE, x + PROGRESS_X, y + PROGRESS_Y, 215, 15, fillWidth, PROGRESS_H);
+                }
             }
         }
 
@@ -192,10 +195,11 @@ public class GUISmallSmelter extends AbstractContainerScreen<SmallSmelterMenu> {
         int tooltipWidth = padding + iconSize + iconTextGap + maxTextWidth + padding;
         int tooltipHeight = lines.length * lineHeight + padding * 2;
 
-        int tooltipX = mouseX + 8;
+        // === ВСЕГДА СЛЕВА ===
+        int tooltipX = mouseX - tooltipWidth - 8;
         int tooltipY = mouseY - tooltipHeight / 2;
 
-        if (tooltipX + tooltipWidth > this.width) tooltipX = mouseX - tooltipWidth - 8;
+        // Только вертикальная коррекция, если вылезает за экран
         if (tooltipY < 4) tooltipY = 4;
         if (tooltipY + tooltipHeight > this.height) tooltipY = this.height - tooltipHeight - 4;
 
@@ -266,8 +270,12 @@ public class GUISmallSmelter extends AbstractContainerScreen<SmallSmelterMenu> {
 
         if (be != null && be.getSmeltMaxProgress() > 0) {
             float remaining = be.getSmeltMaxProgress() - be.getSmeltProgress();
-            float heatPerTick = be.getCurrentRecipe() != null ? be.getCurrentRecipe().heatConsumption() :
-                    (be.isSlagRecipe() ? be.getSmeltHeatPerTick() : 10);
+            float heatPerTick = 0;
+            if (be.getCurrentRecipe() != null) {
+                heatPerTick = be.getCurrentRecipe().heatConsumption();
+            } else if (be.isSlagRecipe()) {
+                heatPerTick = be.getSmeltHeatPerTick();
+            }
             if (heatPerTick > 0) {
                 float seconds = remaining / (heatPerTick * 20.0f);
                 lines.add(Component.literal(String.format("Осталось: %.1fс", Math.max(0, seconds)))
