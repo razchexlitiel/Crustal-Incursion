@@ -27,5 +27,15 @@ public class ModBiomeModifiers {
                         HolderSet.direct(placedFeatures.getOrThrow(ModPlacedFeatures.CONGLOMERATE_VEIN_PLACED_KEY)),
                         GenerationStep.Decoration.UNDERGROUND_ORES
                 ));
+
+        // === АВТО-ДОБАВЛЕНИЕ РУД В БИОМЫ ===
+        for (OreVeinRegistry.OreEntry ore : OreVeinRegistry.ORES) {
+            context.register(ore.biomeModifierKey,
+                    new ForgeBiomeModifiers.AddFeaturesBiomeModifier(
+                            biomes.getOrThrow(BiomeTags.IS_OVERWORLD),
+                            HolderSet.direct(placedFeatures.getOrThrow(ore.placedKey)),
+                            GenerationStep.Decoration.UNDERGROUND_ORES
+                    ));
+        }
     }
 }

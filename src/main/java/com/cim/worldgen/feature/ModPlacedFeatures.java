@@ -28,8 +28,21 @@ public class ModPlacedFeatures {
     public static final ResourceKey<PlacedFeature> CONGLOMERATE_VEIN_PLACED_KEY = registerKey("conglomerate_vein_placed");
     // 2. Сборка (DataGen)
     public static void bootstrap(BootstapContext<PlacedFeature> context) {
-        // Получаем доступ к реестру уже собранных "чертежей"
         HolderGetter<ConfiguredFeature<?, ?>> configuredFeatures = context.lookup(Registries.CONFIGURED_FEATURE);
+
+        // === АВТО-РАЗМЕЩЕНИЕ РУД (вставлять СЮДА) ===
+        for (OreVeinRegistry.OreEntry ore : OreVeinRegistry.ORES) {
+            Holder<ConfiguredFeature<?, ?>> configured = configuredFeatures.getOrThrow(ore.configuredKey);
+            register(context, ore.placedKey, configured, List.of(
+                    CountPlacement.of(ore.countPerChunk),
+                    InSquarePlacement.spread(),
+                    HeightRangePlacement.uniform(
+                            VerticalAnchor.absolute(ore.minY),
+                            VerticalAnchor.absolute(ore.maxY)
+                    ),
+                    BiomeFilter.biome()
+            ));
+        }
         var smallSequoia = context.lookup(Registries.CONFIGURED_FEATURE).getOrThrow(ModConfiguredFeatures.SMALL_SEQUOIA_KEY);
         var mediumSequoia = context.lookup(Registries.CONFIGURED_FEATURE).getOrThrow(ModConfiguredFeatures.MEDIUM_SEQUOIA_KEY);
         var conglomerateVein = configuredFeatures.getOrThrow(ModConfiguredFeatures.CONGLOMERATE_VEIN_KEY);
