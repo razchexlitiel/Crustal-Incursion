@@ -10,6 +10,7 @@ import dev.engine_room.flywheel.lib.model.Models;
 import dev.engine_room.flywheel.lib.model.baked.PartialModel;
 import dev.engine_room.flywheel.lib.visual.AbstractBlockEntityVisual;
 import dev.engine_room.flywheel.lib.visual.SimpleDynamicVisual;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.Vec3i;
 import org.jetbrains.annotations.Nullable;
@@ -19,47 +20,48 @@ import java.util.function.Consumer;
 public class ShaftVisual extends AbstractBlockEntityVisual<ShaftBlockEntity> implements SimpleDynamicVisual {
 
     private final TransformedInstance shaftInstance;
-    @Nullable
-    private TransformedInstance gearInstance;
+    @Nullable private TransformedInstance gearInstance;
+    @Nullable private TransformedInstance pulleyInstance; // ДОБАВЛЕНО: Инстанс для шкива!
+
     private final Direction facing;
+    private final java.util.List<TransformedInstance> beltSegments = new java.util.ArrayList<>();
+    private BlockPos lastConnectedPos = null;
 
     private float phaseOffset = 0f;
     private net.minecraft.world.item.Item currentGearItem;
+    private net.minecraft.world.item.Item currentPulleyItem; // ДОБАВЛЕНО
 
-    // Локальные координаты
     private final float localX;
     private final float localY;
     private final float localZ;
+
+    private float smoothedSpeed = 0f;
+    private float currentAngle = 0f;
+    private long lastFrameTime = -1;
+    private boolean phaseSynced = false; // <-- ВАЖНО: мы потеряли её в прошлом коде!
 
     public ShaftVisual(VisualizationContext ctx, ShaftBlockEntity blockEntity, float partialTick) {
         super(ctx, blockEntity, partialTick);
         this.facing = blockState.getValue(ShaftBlock.FACING);
 
-        // Вычисляем локальную позицию
         Vec3i origin = ctx.renderOrigin();
         this.localX = pos.getX() - origin.getX();
         this.localY = pos.getY() - origin.getY();
         this.localZ = pos.getZ() - origin.getZ();
 
-        // 1. ИНИЦИАЛИЗАЦИЯ ВАЛА
         net.minecraft.resources.ResourceLocation shaftId = net.minecraftforge.registries.ForgeRegistries.BLOCKS.getKey(blockState.getBlock());
         String shaftName = shaftId != null ? shaftId.getPath() : "";
         PartialModel shaftModel = ModModels.SHAFT_MODELS.getOrDefault(shaftName, ModModels.HALF_SHAFT);
         this.shaftInstance = instancerProvider().instancer(InstanceTypes.TRANSFORMED, Models.partial(shaftModel)).createInstance();
 
-        // 2. Инициализация шестерни
         this.currentGearItem = blockEntity.getAttachedGear().getItem();
+        this.currentPulleyItem = blockEntity.getAttachedPulley().getItem();
+
         rebuildGear();
+        rebuildPulley(); // ДОБАВЛЕНО
 
         setupStatic(shaftInstance, 0);
         updateLight(partialTick);
-
-        // INFO: Логируем создание визуала для отслеживания бага с прозрачностью
-        if (com.cim.main.CrustalIncursionMod.LOGGER.isInfoEnabled()) {
-            com.cim.main.CrustalIncursionMod.LOGGER.info("[CIM-Visual] ShaftVisual CREATED at {} | model={} | origin=({},{},{})",
-                    pos, shaftModel != null ? "OK" : "NULL",
-                    ctx.renderOrigin().getX(), ctx.renderOrigin().getY(), ctx.renderOrigin().getZ());
-        }
     }
 
     private void rebuildGear() {
@@ -79,15 +81,10 @@ public class ShaftVisual extends AbstractBlockEntityVisual<ShaftBlockEntity> imp
             if (gearModel != null) {
                 this.gearInstance = instancerProvider().instancer(InstanceTypes.TRANSFORMED, Models.partial(gearModel)).createInstance();
 
-                // 1. Берем координаты
                 int x = pos.getX();
                 int y = pos.getY();
                 int z = pos.getZ();
 
-                // 2. Уникальный алгоритм четности для идеальной стыковки зубьев
-                // Учитываем координаты, ось вращения и размер шестерни.
-                // Это гарантирует, что зубья всегда будут входить в пазы (parity != parity)
-                // для ЛЮБОГО разрешенного соединения (Small-Small, Small-Large, Large-Large перпендикулярно).
                 int axisCoord = 0;
                 if (facing.getAxis() == Direction.Axis.X) axisCoord = x;
                 else if (facing.getAxis() == Direction.Axis.Y) axisCoord = y;
@@ -95,7 +92,6 @@ public class ShaftVisual extends AbstractBlockEntityVisual<ShaftBlockEntity> imp
 
                 int parity = Math.abs(x + y + z + axisCoord + (gearSize == 2 ? 1 : 0)) % 2;
 
-                // 3. Выбираем угол смещения: 22.5 для малой, 11.25 для большой
                 float halfToothAngle = gearSize == 2 ? 11.25f : 22.5f;
                 this.phaseOffset = (float) Math.toRadians(parity == 0 ? halfToothAngle : 0);
 
@@ -104,9 +100,30 @@ public class ShaftVisual extends AbstractBlockEntityVisual<ShaftBlockEntity> imp
         }
     }
 
+    // ДОБАВЛЕНО: Генерация 3D модели шкива
+    private void rebuildPulley() {
+        if (this.pulleyInstance != null) {
+            this.pulleyInstance.delete();
+            this.pulleyInstance = null;
+        }
+
+        net.minecraft.world.item.ItemStack pulleyStack = blockEntity.getAttachedPulley();
+        int pulleySize = blockState.getValue(ShaftBlock.PULLEY_SIZE);
+
+        if (pulleySize > 0 && !pulleyStack.isEmpty() && pulleyStack.getItem() instanceof com.cim.item.rotation.PulleyItem) {
+            // Ищем модель в нашем реестре Flywheel (ключ "pulley", который ты регистрировал в ModModels)
+            PartialModel pulleyModel = ModModels.PULLEY_MODELS.get("pulley");
+
+            if (pulleyModel != null) {
+                this.pulleyInstance = instancerProvider().instancer(InstanceTypes.TRANSFORMED, Models.partial(pulleyModel)).createInstance();
+                // Шкив крутится 1 к 1 с валом, ему не нужен phaseOffset (зубьев нет)
+                setupStatic(this.pulleyInstance, 0);
+            }
+        }
+    }
+
     private void setupStatic(TransformedInstance instance, float initialRotationZ) {
         instance.setIdentityTransform()
-                // Используем локальные координаты!
                 .translate(localX, localY, localZ)
                 .translate(0.5f, 0.5f, 0.5f);
 
@@ -127,31 +144,28 @@ public class ShaftVisual extends AbstractBlockEntityVisual<ShaftBlockEntity> imp
         instance.setChanged();
     }
 
-    @Override
-    public void update(float pt) {
-        super.update(pt);
-        if (blockEntity.getAttachedGear().getItem() != this.currentGearItem) {
-            this.currentGearItem = blockEntity.getAttachedGear().getItem();
-            rebuildGear();
-            updateLight(pt);
-        }
-    }
-
-    private float smoothedSpeed = 0f;
-    private float currentAngle = 0f;
-    private long lastFrameTime = -1;
-    private float lastLoggedSpeed = Float.NaN;
-    private boolean phaseSynced = false;
 
     @Override
     public void beginFrame(Context ctx) {
-        // Мгновенно замечаем установку или снятие шестерни!
+        // Проверка смены шестерни
         if (blockEntity.getAttachedGear().getItem() != this.currentGearItem) {
             this.currentGearItem = blockEntity.getAttachedGear().getItem();
             rebuildGear();
-            if (this.gearInstance != null) {
-                relight(pos, this.gearInstance);
-            }
+            if (this.gearInstance != null) relight(pos, this.gearInstance);
+        }
+
+        // Проверка смены шкива
+        if (blockEntity.getAttachedPulley().getItem() != this.currentPulleyItem) {
+            this.currentPulleyItem = blockEntity.getAttachedPulley().getItem();
+            rebuildPulley();
+            if (this.pulleyInstance != null) relight(pos, this.pulleyInstance);
+        }
+
+        // Проверка обновления ремня
+        BlockPos connectedPos = blockEntity.getConnectedPulley();
+        if (connectedPos != lastConnectedPos) {
+            lastConnectedPos = connectedPos;
+            rebuildBelt();
         }
 
         long now = System.currentTimeMillis();
@@ -161,44 +175,34 @@ public class ShaftVisual extends AbstractBlockEntityVisual<ShaftBlockEntity> imp
 
         float targetSpeed = blockEntity.getVisualSpeed();
 
-        // DIAGNOSTIC: логируем только при изменении скорости
-        if (targetSpeed != lastLoggedSpeed) {
-            com.cim.main.CrustalIncursionMod.LOGGER.info("[VISUAL-DIAG] beginFrame at {} | speed changed: {} -> {}",
-                    pos, lastLoggedSpeed, targetSpeed);
-            lastLoggedSpeed = targetSpeed;
-        }
-
-        // 1. Плавная визуальная инерция (догоняем targetSpeed)
+        // 1. Плавная визуальная инерция
         float speedDiff = targetSpeed - smoothedSpeed;
         if (Math.abs(speedDiff) > 0.001f) {
-            smoothedSpeed += speedDiff * 4.0f * deltaSeconds; // Увеличил с 3 до 4 для более четкой остановки
+            smoothedSpeed += speedDiff * 4.0f * deltaSeconds;
         } else {
             smoothedSpeed = targetSpeed;
         }
 
-        // 2. Увеличиваем внутренний угол плавно
+        // 2. Увеличиваем внутренний угол
         currentAngle += smoothedSpeed * 2.0f * deltaSeconds;
-        
         float twoPi = (float) (2 * Math.PI);
         currentAngle = currentAngle % twoPi;
         if (currentAngle < 0) currentAngle += twoPi;
 
-        // 3. Синхронизация фазы при постоянной скорости
+        // 3. СИНХРОНИЗАЦИЯ ФАЗЫ ПРИ ПОСТОЯННОЙ СКОРОСТИ (Восстановлено!)
         if (smoothedSpeed == targetSpeed && targetSpeed != 0) {
             float time = (float) (now % 100000) / 50f;
             float globalAngle = (time * targetSpeed * 0.1f) % twoPi;
             if (globalAngle < 0) globalAngle += twoPi;
-            
+
             if (!this.phaseSynced) {
-                // Мгновенный "щелчок" в правильную фазу после разгона
                 currentAngle = globalAngle;
                 this.phaseSynced = true;
             } else {
                 float angleDiff = (globalAngle - currentAngle) % twoPi;
                 if (angleDiff > Math.PI) angleDiff -= twoPi;
                 if (angleDiff < -Math.PI) angleDiff += twoPi;
-                
-                // Очень плавная микро-подгонка
+
                 float maxCorrection = 0.5f * deltaSeconds;
                 float correction = Math.signum(angleDiff) * Math.min(Math.abs(angleDiff), maxCorrection);
                 currentAngle += correction;
@@ -207,17 +211,13 @@ public class ShaftVisual extends AbstractBlockEntityVisual<ShaftBlockEntity> imp
             this.phaseSynced = false;
         }
 
-        // 4. ДОКОВКА ЗУБЬЕВ ПРИ ОСТАНОВКЕ (МАГНИТНЫЙ ЭФФЕКТ)
-        // Когда скорость падает почти до нуля, притягиваем угол к ближайшему кратному 45 градусам (PI/4).
-        // Это ГАРАНТИРУЕТ, что все шестерни в мире будут идеально состыкованы в покое,
-        // так как 45 градусов — это ровно 1 зуб малой шестерни и 2 зуба большой.
+        // 4. ДОКОВКА ЗУБЬЕВ ПРИ ОСТАНОВКЕ (Восстановлено!)
         if (targetSpeed == 0 && Math.abs(smoothedSpeed) < 5.0f) {
             float PI_OVER_4 = (float) (Math.PI / 4.0);
             float targetSnap = Math.round(currentAngle / PI_OVER_4) * PI_OVER_4;
             float snapDiff = targetSnap - currentAngle;
-            
+
             if (Math.abs(snapDiff) > 0.001f) {
-                // Чем медленнее крутимся, тем сильнее примагничиваемся к идеальной позиции
                 float pull = 8.0f * (1.0f - (Math.abs(smoothedSpeed) / 5.0f));
                 currentAngle += snapDiff * pull * deltaSeconds;
             } else {
@@ -225,29 +225,156 @@ public class ShaftVisual extends AbstractBlockEntityVisual<ShaftBlockEntity> imp
             }
         }
 
+        // 5. Применяем вращение ко всем деталям
         setupStatic(shaftInstance, currentAngle);
+        if (gearInstance != null) setupStatic(gearInstance, currentAngle + phaseOffset);
+        if (pulleyInstance != null) setupStatic(pulleyInstance, currentAngle);
+    }
 
-        if (gearInstance != null) {
-            setupStatic(gearInstance, currentAngle + phaseOffset);
+    private float getPulleyRadius(ShaftBlockEntity be) {
+        if (be.hasPulley() && be.getAttachedPulley().getItem() instanceof com.cim.item.rotation.PulleyItem pulley) {
+            return (pulley.getDiameterPixels() / 2.0f) / 16.0f;
         }
+        return 0f;
+    }
+
+    private void rebuildBelt() {
+        beltSegments.forEach(Instance::delete);
+        beltSegments.clear();
+
+        BlockPos connectedPos = blockEntity.getConnectedPulley();
+        if (connectedPos == null) return;
+        if (pos.compareTo(connectedPos) > 0) return;
+
+        if (!(level.getBlockEntity(connectedPos) instanceof ShaftBlockEntity otherBE)) return;
+        if (!blockEntity.hasPulley() || !otherBE.hasPulley()) return;
+
+        float r1 = getPulleyRadius(blockEntity);
+        float r2 = getPulleyRadius(otherBE);
+        if (r1 == 0 || r2 == 0) return;
+
+        Direction.Axis axis = facing.getAxis();
+        float dx = connectedPos.getX() - pos.getX();
+        float dy = connectedPos.getY() - pos.getY();
+        float dz = connectedPos.getZ() - pos.getZ();
+
+        float du = 0, dv = 0;
+        if (axis == Direction.Axis.X) { du = dz; dv = dy; }
+        else if (axis == Direction.Axis.Y) { du = dx; dv = dz; }
+        else if (axis == Direction.Axis.Z) { du = dx; dv = dy; }
+
+        float distance = (float) Math.sqrt(du * du + dv * dv);
+        if (distance == 0) return;
+
+        float baseAngle = (float) Math.atan2(dv, du);
+        float alpha = (float) Math.asin((r1 - r2) / distance);
+        float straightLength = (float) Math.sqrt(distance * distance - (r1 - r2) * (r1 - r2));
+
+        float dirAngle1 = baseAngle - alpha;
+        float touchAngle1 = dirAngle1 + (float)Math.PI / 2f;
+        float uTop = r1 * (float)Math.cos(touchAngle1);
+        float vTop = r1 * (float)Math.sin(touchAngle1);
+        addBeltSegment(axis, uTop, vTop, dirAngle1, straightLength);
+
+        float dirAngle2 = baseAngle + alpha;
+        float touchAngle2 = dirAngle2 - (float)Math.PI / 2f;
+        float uBot = r1 * (float)Math.cos(touchAngle2);
+        float vBot = r1 * (float)Math.sin(touchAngle2);
+        addBeltSegment(axis, uBot, vBot, dirAngle2, straightLength);
+
+        float arc1Start = touchAngle1;
+        float arc1End = touchAngle2;
+        while (arc1End <= arc1Start) arc1End += (float)(2 * Math.PI);
+        renderArc(axis, 0, 0, r1, arc1Start, arc1End);
+
+        float arc2Start = touchAngle2;
+        float arc2End = touchAngle1;
+        while (arc2End <= arc2Start) arc2End += (float)(2 * Math.PI);
+        renderArc(axis, du, dv, r2, arc2Start, arc2End);
+    }
+
+    private void renderArc(Direction.Axis axis, float uCenter, float vCenter, float radius, float startAngle, float endAngle) {
+        float step = (float) Math.toRadians(10);
+        for (float angle = startAngle; angle < endAngle; angle += step) {
+            float nextAngle = Math.min(angle + step, endAngle);
+
+            float u1 = uCenter + radius * (float)Math.cos(angle);
+            float v1 = vCenter + radius * (float)Math.sin(angle);
+            float u2 = uCenter + radius * (float)Math.cos(nextAngle);
+            float v2 = vCenter + radius * (float)Math.sin(nextAngle);
+
+            float du = u2 - u1;
+            float dv = v2 - v1;
+            float len = (float)Math.sqrt(du * du + dv * dv);
+            float dirAngle = (float)Math.atan2(dv, du);
+
+            addBeltSegment(axis, u1, v1, dirAngle, len);
+        }
+    }
+
+    // ИСПРАВЛЕННАЯ МАТРИЦА ОРИЕНТАЦИИ (Чинит ребро и неправильные вектора)
+    private void addBeltSegment(Direction.Axis axis, float u, float v, float angle, float length) {
+        TransformedInstance segment = instancerProvider()
+                .instancer(InstanceTypes.TRANSFORMED, Models.partial(ModModels.BELT_SEGMENT))
+                .createInstance();
+
+        segment.setIdentityTransform()
+                // 5. Перемещение в мировые координаты
+                .translate(localX + 0.5f, localY + 0.5f, localZ + 0.5f);
+
+        // 4. Позиционирование в плоскости
+        if (axis == Direction.Axis.X) segment.translate(0, v, u);
+        else if (axis == Direction.Axis.Y) segment.translate(u, 0, v);
+        else if (axis == Direction.Axis.Z) segment.translate(u, v, 0);
+
+        // 3. Выравнивание ширины ремня по оси вала и длины по касательной
+        if (axis == Direction.Axis.X) {
+            segment.rotateX(-angle);
+        } else if (axis == Direction.Axis.Y) {
+            segment.rotateY(-angle + (float)Math.PI / 2f);
+            segment.rotateZ((float)Math.PI / 2f);
+        } else if (axis == Direction.Axis.Z) {
+            segment.rotateZ(angle);
+            segment.rotateY((float)Math.PI / 2f);
+        }
+
+        // 2. Растягиваем сегмент на нужную длину
+        segment.scale(1, 1, length);
+
+        // 1. Центрируем геометрию belt_segment.json (чтобы вращение было от центра 8x8 пикселей)
+        segment.translate(-0.5f, -0.5f, 0.0f);
+
+        segment.setChanged();
+        relight(pos, segment);
+        beltSegments.add(segment);
     }
 
     @Override
     public void updateLight(float partialTick) {
-        // Свет всегда считается от абсолютных координат (pos)
         relight(pos, shaftInstance);
         if (gearInstance != null) relight(pos, gearInstance);
+        if (pulleyInstance != null) relight(pos, pulleyInstance);
+        for (TransformedInstance segment : beltSegments) {
+            relight(pos, segment);
+        }
     }
 
     @Override
     protected void _delete() {
         shaftInstance.delete();
         if (gearInstance != null) gearInstance.delete();
+        if (pulleyInstance != null) pulleyInstance.delete();
+        beltSegments.forEach(Instance::delete);
+        beltSegments.clear();
     }
 
     @Override
     public void collectCrumblingInstances(Consumer<@Nullable Instance> consumer) {
         consumer.accept(shaftInstance);
         if (gearInstance != null) consumer.accept(gearInstance);
+        if (pulleyInstance != null) consumer.accept(pulleyInstance);
+        for (TransformedInstance segment : beltSegments) {
+            consumer.accept(segment);
+        }
     }
 }

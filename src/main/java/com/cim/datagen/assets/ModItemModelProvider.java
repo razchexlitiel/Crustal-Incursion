@@ -100,8 +100,10 @@ public class ModItemModelProvider extends ItemModelProvider {
         simpleItem(ModItems.FUEL_ASH);
         complexBlockItem(ModBlocks.FLUID_BARREL);
         complexBlockItem(ModBlocks.BEARING_BLOCK);
+        simpleItem(ModItems.BELT);
 
         generateAllGears();
+        generateAllPulleys();
 
         // Пример регистрации блоков как предметов (если это обычный куб)
         // complexBlockItem(ModBlocks.NECROTIC_ORE);
@@ -130,6 +132,27 @@ public class ModItemModelProvider extends ItemModelProvider {
                         .flipV(true)
                         .end()
                         .texture("gear_texture", texture)
+                        .texture("particle", texture);
+            }
+        }
+    }
+
+    public void generateAllPulleys() {
+        for (RegistryObject<Item> itemObj : com.cim.item.ModItems.ITEMS.getEntries()) {
+            if (itemObj.get() instanceof com.cim.item.rotation.PulleyItem pulley) {
+                String name = itemObj.getId().getPath(); // должно быть "pulley"
+
+                ResourceLocation objModel = modLoc("models/block/" + name + ".obj");
+                ResourceLocation texture = modLoc("block/" + name); // берет текстуру из assets/cim/textures/block/pulley.png
+
+                getBuilder(name)
+                        .parent(new net.minecraftforge.client.model.generators.ModelFile.UncheckedModelFile(modLoc("item/pulley_template")))
+                        .customLoader(net.minecraftforge.client.model.generators.loaders.ObjModelBuilder::begin)
+                        .modelLocation(objModel)
+                        .flipV(true)
+                        .end()
+                        // ВАЖНО: Имя "pulley_texture" должно быть в pulley.mtl!
+                        .texture("pulley_texture", texture)
                         .texture("particle", texture);
             }
         }

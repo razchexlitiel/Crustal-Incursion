@@ -18,6 +18,9 @@ public class ShaftBlockEntity extends BlockEntity implements Rotational {
     private long lastSyncedSpeed = 0;
     private float networkScale = 1.0f;
 
+    private ItemStack attachedPulley = ItemStack.EMPTY;
+    private BlockPos connectedPulley = null;
+
     private ItemStack attachedGear = ItemStack.EMPTY;
 
     public ShaftBlockEntity(BlockPos pos, BlockState state) {
@@ -26,6 +29,31 @@ public class ShaftBlockEntity extends BlockEntity implements Rotational {
 
     public boolean hasGear() { return !attachedGear.isEmpty(); }
     public ItemStack getAttachedGear() { return attachedGear; }
+
+
+    public boolean hasPulley() { return !attachedPulley.isEmpty(); }
+    public ItemStack getAttachedPulley() { return attachedPulley; }
+
+    public void setAttachedPulley(ItemStack pulley) {
+        this.attachedPulley = pulley;
+        this.setChanged();
+        if (level != null && !level.isClientSide) {
+            level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), 2);
+        }
+    }
+
+    public BlockPos getConnectedPulley() { return connectedPulley; }
+
+    public void setConnectedPulley(BlockPos pos) {
+        this.connectedPulley = pos;
+        this.setChanged();
+        if (level != null && !level.isClientSide) {
+            level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), 2);
+        }
+    }
+
+
+
 
     public void setAttachedGear(ItemStack gear) {
         this.attachedGear = gear;
@@ -55,6 +83,14 @@ public class ShaftBlockEntity extends BlockEntity implements Rotational {
         Direction facing = state.getValue(ShaftBlock.FACING);
         Direction.Axis axis = facing.getAxis();
         int gearSize = state.getValue(ShaftBlock.GEAR_SIZE);
+
+        list.add(myPos.relative(facing));
+        list.add(myPos.relative(facing.getOpposite()));
+
+        // 2. РЕМЕННЫЕ СВЯЗИ (Добавляем соседа только если есть шкив и ремень)
+        if (this.hasPulley() && this.connectedPulley != null) {
+            list.add(this.connectedPulley);
+        }
 
         // 1. Осевые соединения (Вал-к-Валу). Всегда добавляем перед и зад.
         list.add(myPos.relative(facing));
@@ -117,6 +153,16 @@ public class ShaftBlockEntity extends BlockEntity implements Rotational {
 
     @Override
     public float calculateTransmissionRatio(BlockPos myPos, BlockPos neighborPos, Rotational neighbor) {
+
+        if (neighborPos.equals(this.connectedPulley) && neighbor instanceof ShaftBlockEntity neighborShaft) {
+            if (this.hasPulley() && neighborShaft.hasPulley()) {
+                if (this.getAttachedPulley().getItem() instanceof com.cim.item.rotation.PulleyItem p1 &&
+                        neighborShaft.getAttachedPulley().getItem() instanceof com.cim.item.rotation.PulleyItem p2) {
+                    return (float) p1.getDiameterPixels() / p2.getDiameterPixels();
+                }
+            }
+        }
+
         if (!(neighbor instanceof ShaftBlockEntity neighborShaft)) return 1.0f;
 
         int mySize = this.getBlockState().getValue(ShaftBlock.GEAR_SIZE);
@@ -161,6 +207,11 @@ public class ShaftBlockEntity extends BlockEntity implements Rotational {
 
     @Override
     public boolean canConnectMechanically(BlockPos myPos, BlockPos neighborPos, Rotational neighbor) {
+
+        if (neighborPos.equals(this.connectedPulley)) {
+            return this.hasPulley() && neighbor instanceof ShaftBlockEntity neighborShaft && neighborShaft.hasPulley();
+        }
+
         ShaftDiameter thisDiameter = ((ShaftBlock)this.getBlockState().getBlock()).getDiameter();
         Direction thisFacing = getBlockState().getValue(ShaftBlock.FACING);
 
@@ -264,9 +315,11 @@ public class ShaftBlockEntity extends BlockEntity implements Rotational {
         tag.putLong("Speed", this.speed);
         tag.putLong("LastSyncedSpeed", this.lastSyncedSpeed);
         tag.putFloat("NetworkScale", this.networkScale);
-        if (!attachedGear.isEmpty()) {
-            tag.put("AttachedGear", attachedGear.save(new CompoundTag()));
-        }
+
+        if (!attachedGear.isEmpty()) tag.put("AttachedGear", attachedGear.save(new CompoundTag()));
+        // Сохранение шкивов
+        if (!attachedPulley.isEmpty()) tag.put("AttachedPulley", attachedPulley.save(new CompoundTag()));
+        if (connectedPulley != null) tag.put("ConnectedPulley", net.minecraft.nbt.NbtUtils.writeBlockPos(connectedPulley));
     }
 
     @Override
@@ -274,21 +327,22 @@ public class ShaftBlockEntity extends BlockEntity implements Rotational {
         super.load(tag);
         this.speed = tag.getLong("Speed");
         this.lastSyncedSpeed = tag.getLong("LastSyncedSpeed");
-        this.networkScale = tag.contains("NetworkScale") ? tag.getInt("NetworkScale") : 1;
-        if (tag.contains("AttachedGear")) {
-            this.attachedGear = ItemStack.of(tag.getCompound("AttachedGear"));
-        } else {
-            this.attachedGear = ItemStack.EMPTY;
-        }
+        this.networkScale = tag.contains("NetworkScale") ? tag.getFloat("NetworkScale") : 1.0f;
+
+        this.attachedGear = tag.contains("AttachedGear") ? ItemStack.of(tag.getCompound("AttachedGear")) : ItemStack.EMPTY;
+        // Загрузка шкивов
+        this.attachedPulley = tag.contains("AttachedPulley") ? ItemStack.of(tag.getCompound("AttachedPulley")) : ItemStack.EMPTY;
+        this.connectedPulley = tag.contains("ConnectedPulley") ? net.minecraft.nbt.NbtUtils.readBlockPos(tag.getCompound("ConnectedPulley")) : null;
     }
 
     @Override
     public CompoundTag getUpdateTag() {
         CompoundTag tag = super.getUpdateTag();
         tag.putLong("Speed", this.speed);
-        if (!attachedGear.isEmpty()) {
-            tag.put("AttachedGear", attachedGear.save(new CompoundTag()));
-        }
+        if (!attachedGear.isEmpty()) tag.put("AttachedGear", attachedGear.save(new CompoundTag()));
+        // Синхронизация на клиент
+        if (!attachedPulley.isEmpty()) tag.put("AttachedPulley", attachedPulley.save(new CompoundTag()));
+        if (connectedPulley != null) tag.put("ConnectedPulley", net.minecraft.nbt.NbtUtils.writeBlockPos(connectedPulley));
         return tag;
     }
 

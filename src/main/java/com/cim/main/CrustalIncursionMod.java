@@ -279,6 +279,8 @@ public class CrustalIncursionMod {
             event.accept(ModItems.POKER.get());
             event.accept(ModItems.GEAR1_STEEL.get());
             event.accept(ModItems.GEAR2_STEEL.get());
+            event.accept(ModItems.PULLEY.get());
+            event.accept(ModItems.BELT.get());
         }
 
 

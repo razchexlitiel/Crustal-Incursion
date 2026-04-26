@@ -1,0 +1,8 @@
+{
+  "sources": [
+    {
+      "type": "single",
+      "resource": "cim:block/belt_segment"
+    }
+  ]
+}

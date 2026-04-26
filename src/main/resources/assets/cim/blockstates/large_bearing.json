@@ -1,0 +1,10 @@
+{
+  "variants": {
+    "facing=down": { "model": "cim:block/large_bearing", "x": 90 },
+    "facing=up": { "model": "cim:block/large_bearing", "x": 270 },
+    "facing=north": { "model": "cim:block/large_bearing" },
+    "facing=south": { "model": "cim:block/large_bearing", "y": 180 },
+    "facing=west": { "model": "cim:block/large_bearing", "y": 270 },
+    "facing=east": { "model": "cim:block/large_bearing", "y": 90 }
+  }
+}
