@@ -4,6 +4,8 @@ import com.cim.block.basic.ModBlocks;
 import com.cim.block.entity.ModBlockEntities;
 import com.cim.block.entity.hive.DepthWormNestBlockEntity;
 import com.cim.block.entity.hive.HiveSoilBlockEntity;
+import com.cim.entity.ModEntities;
+import com.cim.entity.mobs.depth_worm.DepthWormBrutalEntity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
@@ -36,7 +38,8 @@ public class HiveNetwork {
     // ⭐ ИЗМЕНЕНИЕ 1: Резерв активируется ТОЛЬКО после 6 червей
     private static final int RESERVE_POINTS = 10;
     private static final int MIN_WORMS_FOR_RESERVE = 6;
-
+    private int expansionsSinceLastBrutal = 0;
+    private static final int EXPANSIONS_PER_BRUTAL = 7;
     private int rootsBuilt = 0;
     private int soilBuilt = 0;
 
@@ -100,6 +103,92 @@ public class HiveNetwork {
     // ⭐ ИЗМЕНЕНИЕ 4: Проверка доступа к резерву
     public boolean canSpendReserve() {
         return getTotalWormsIncludingActive(null) >= MIN_WORMS_FOR_RESERVE;
+    }
+    public void onSuccessfulExpansion(Level level, BlockPos expansionPos) {
+        expansionsSinceLastBrutal++;
+
+        if (expansionsSinceLastBrutal >= EXPANSIONS_PER_BRUTAL) {
+            expansionsSinceLastBrutal = 0;
+            trySpawnBrutalWorm(level, expansionPos);
+        }
+    }
+
+    private void trySpawnBrutalWorm(Level level, BlockPos nearPos) {
+        if (!(level instanceof ServerLevel serverLevel)) return;
+
+        // Ищем свободное место рядом с точкой расширения
+        BlockPos spawnPos = findBrutalSpawnPos(level, nearPos);
+        if (spawnPos == null) return;
+
+        // Спавним брутала
+        DepthWormBrutalEntity brutal = new DepthWormBrutalEntity(
+                ModEntities.DEPTH_WORM_BRUTAL.get(), level);
+        brutal.moveTo(spawnPos.getX() + 0.5, spawnPos.getY(), spawnPos.getZ() + 0.5,
+                level.random.nextFloat() * 360F, 0);
+        brutal.setHomePos(spawnPos);
+
+        // Привязываем к ближайшему гнезду сети
+        BlockPos nearestNest = findNearestNest(spawnPos);
+        if (nearestNest != null) {
+            brutal.bindToNest(nearestNest);
+        }
+
+        // Регистрируем как активного червя сети (не занимает место в гнезде!)
+        this.addActiveWorms(1);
+
+        // Callback при смерти — уменьшаем активных
+        UUID netId = this.id;
+        brutal.setOnDeathCallback(() -> {
+            HiveNetworkManager mgr = HiveNetworkManager.get(brutal.level());
+            if (mgr != null) {
+                HiveNetwork net = mgr.getNetwork(netId);
+                if (net != null) {
+                    net.removeActiveWorm();
+                }
+            }
+        });
+
+        level.addFreshEntity(brutal);
+
+        // Эффект спавна
+        serverLevel.sendParticles(net.minecraft.core.particles.ParticleTypes.POOF,
+                spawnPos.getX() + 0.5, spawnPos.getY() + 0.3, spawnPos.getZ() + 0.5,
+                8, 0.3, 0.2, 0.3, 0.05);
+
+        System.out.println("[Hive " + id + "] 💀 BRUTAL WORM spawned at " + spawnPos +
+                " (expansion #" + (wormCounts.size() + members.size()) + ")");
+    }
+
+    private BlockPos findBrutalSpawnPos(Level level, BlockPos center) {
+        // Ищем воздух рядом с точкой расширения, предпочтительно на поверхности
+        for (int y = 0; y >= -3; y--) {
+            for (int r = 1; r <= 3; r++) {
+                for (int attempt = 0; attempt < 8; attempt++) {
+                    int dx = level.getRandom().nextInt(-r, r + 1);
+                    int dz = level.getRandom().nextInt(-r, r + 1);
+                    BlockPos pos = center.offset(dx, y, dz);
+
+                    if (level.getBlockState(pos).isAir()
+                            && !level.getBlockState(pos.below()).isAir()) {
+                        return pos;
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+    private BlockPos findNearestNest(BlockPos from) {
+        BlockPos nearest = null;
+        double minDist = Double.MAX_VALUE;
+        for (BlockPos nestPos : wormCounts.keySet()) {
+            double dist = from.distSqr(nestPos);
+            if (dist < minDist) {
+                minDist = dist;
+                nearest = nestPos;
+            }
+        }
+        return nearest;
     }
 
     // ⭐ ИЗМЕНЕНИЕ 5: Доступные очки (без резерва если червей < 6)
@@ -466,6 +555,7 @@ public class HiveNetwork {
 
         killsPool -= 2;
         rootsBuilt++;
+        onSuccessfulExpansion(level, basePos);
         System.out.println("[Hive " + id + "] 🌿 Roots placed " + (hanging ? "hanging down" : "growing up") +
                 " at " + target + " on " + basePos);
         return true;
@@ -537,7 +627,7 @@ public class HiveNetwork {
         if (target == null) return false;
 
         placeHiveSoil(level, target);
-
+        onSuccessfulExpansion(level, target);
         // Обновляем моментум
         if (lastSuccessfulExpansion != null) {
             Direction dir = getDirectionFromTo(lastSuccessfulExpansion, target);
@@ -766,6 +856,7 @@ public class HiveNetwork {
         members.add(pos);
 
         nestsBuiltTotal++;
+        onSuccessfulExpansion(level, pos);
         killsPool -= 15;
 
         lastSuccessfulExpansion = pos;
@@ -911,6 +1002,7 @@ public class HiveNetwork {
             if (wormCounts.containsKey(p)) pTag.putInt("WormCount", wormCounts.get(p));
             membersList.add(pTag);
         }
+        tag.putInt("ExpansionsSinceBrutal", expansionsSinceLastBrutal);
         tag.put("Members", membersList);
         return tag;
     }
@@ -946,7 +1038,7 @@ public class HiveNetwork {
         net.targetNestCount = tag.getInt("TargetNests") == 0 ? 2 : tag.getInt("TargetNests");
         net.maxExpansionRadius = tag.getInt("MaxRadius") == 0 ? 8 : tag.getInt("MaxRadius");
         if (tag.contains("HiveCenter")) net.hiveCenter = BlockPos.of(tag.getLong("HiveCenter"));
-
+        net.expansionsSinceLastBrutal = tag.getInt("ExpansionsSinceBrutal");
         ListTag membersList = tag.getList("Members", 10);
         for (int i = 0; i < membersList.size(); i++) {
             CompoundTag pTag = membersList.getCompound(i);
