@@ -17,6 +17,8 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.function.Consumer;
 
+import static com.cim.client.render.flywheel.BeltInstance.TYPE;
+
 public class ShaftVisual extends AbstractBlockEntityVisual<ShaftBlockEntity> implements SimpleDynamicVisual {
 
     private final TransformedInstance shaftInstance;
@@ -184,7 +186,7 @@ public class ShaftVisual extends AbstractBlockEntityVisual<ShaftBlockEntity> imp
 
         // Логика обновления ремня
         BlockPos connectedPos = blockEntity.getConnectedPulley();
-        if (connectedPos != lastConnectedPos) {
+        if (connectedPos != lastConnectedPos || (connectedPos != null && beltSegments.isEmpty())) {
             lastConnectedPos = connectedPos;
             rebuildBelt();
         }
@@ -203,7 +205,7 @@ public class ShaftVisual extends AbstractBlockEntityVisual<ShaftBlockEntity> imp
             lastLoggedSpeed = targetSpeed;
         }
 
-        // 1. Плавная визуальная инерция (Твоя логика)
+        // 1. Плавная визуальная инерция
         float speedDiff = targetSpeed - smoothedSpeed;
         if (Math.abs(speedDiff) > 0.001f) {
             smoothedSpeed += speedDiff * 4.0f * deltaSeconds;
@@ -217,7 +219,7 @@ public class ShaftVisual extends AbstractBlockEntityVisual<ShaftBlockEntity> imp
         currentAngle = currentAngle % twoPi;
         if (currentAngle < 0) currentAngle += twoPi;
 
-        // 3. Твоя синхронизация фазы
+        // 3. Синхронизация фазы
         if (smoothedSpeed == targetSpeed && targetSpeed != 0) {
             float time = (float) (now % 100000) / 50f;
             float globalAngle = (time * targetSpeed * 0.1f) % twoPi;
@@ -239,7 +241,7 @@ public class ShaftVisual extends AbstractBlockEntityVisual<ShaftBlockEntity> imp
             this.phaseSynced = false;
         }
 
-        // 4. Твой МАГНИТНЫЙ ЭФФЕКТ доковки зубьев
+        // 4. Магнитный эффект доковки зубьев
         if (targetSpeed == 0 && Math.abs(smoothedSpeed) < 5.0f) {
             float PI_OVER_4 = (float) (Math.PI / 4.0);
             float targetSnap = Math.round(currentAngle / PI_OVER_4) * PI_OVER_4;
@@ -253,19 +255,34 @@ public class ShaftVisual extends AbstractBlockEntityVisual<ShaftBlockEntity> imp
             }
         }
 
-        // 5. НОВОЕ: АНИМАЦИЯ РЕМНЯ (Сдвиг текстуры через шейдер)
+        // =========================================================
+        // 5. АНИМАЦИЯ РЕМНЯ (Уроборос)
+        // =========================================================
         float radius = getPulleyRadius(blockEntity);
         float speedScroll = currentAngle * radius;
 
+        net.minecraft.client.resources.model.BakedModel bakedModel = ModModels.BELT_SEGMENT.get();
+        net.minecraft.client.renderer.texture.TextureAtlasSprite sprite = bakedModel.getParticleIcon();
+
+        // ВАЖНО: Раздели высоту твоего оригинала (кадра) на общую высоту текстуры!
+        float vHeight = sprite.getV1() - sprite.getV0();
+
+// Так как текстура двойная, один кадр — это ровно половина её реальной высоты
+        float frameHeightOnAtlas = vHeight / 2.0f;
+
+        float scrollFraction = speedScroll % 1.0f;
+        if (scrollFraction < 0) scrollFraction += 1.0f;
+        float finalScroll = scrollFraction * frameHeightOnAtlas;
+
         for (BeltInstance segment : beltSegments) {
-            // Двигаем текстуру сегмента синхронно с валом
-            segment.setUv(segment.uvScale, segment.uvScroll + speedScroll);
+            segment.setUvScroll(finalScroll);
+            // Если на коротких дугах текстура "сплющивается", мы потом добавим в шейдер компенсацию через длину (length)
             segment.setChanged();
         }
 
-        // Применяем финальные трансформации
+        // 6. Применяем финальные трансформации
         setupStatic(shaftInstance, currentAngle);
-        if (gearInstance != null) setupStatic(gearInstance, currentAngle + phaseOffset);
+        if (gearInstance != null) setupStatic(gearInstance, currentAngle + this.phaseOffset);
         if (pulleyInstance != null) setupStatic(pulleyInstance, currentAngle);
     }
 
@@ -282,13 +299,15 @@ public class ShaftVisual extends AbstractBlockEntityVisual<ShaftBlockEntity> imp
 
         BlockPos connectedPos = blockEntity.getConnectedPulley();
         if (connectedPos == null) return;
+        // Отрисовываем ремень только один раз, со стороны блока с меньшими координатами
         if (pos.compareTo(connectedPos) > 0) return;
 
         if (!(level.getBlockEntity(connectedPos) instanceof ShaftBlockEntity otherBE)) return;
         if (!blockEntity.hasPulley() || !otherBE.hasPulley()) return;
 
-        float r1 = getPulleyRadius(blockEntity);
-        float r2 = getPulleyRadius(otherBE);
+        // Прибавляем 1/16, чтобы ремень лежал НА шкиве
+        float r1 = getPulleyRadius(blockEntity) + (1.0f / 16.0f);
+        float r2 = getPulleyRadius(otherBE) + (1.0f / 16.0f);
         if (r1 == 0 || r2 == 0) return;
 
         Direction.Axis axis = facing.getAxis();
@@ -302,30 +321,46 @@ public class ShaftVisual extends AbstractBlockEntityVisual<ShaftBlockEntity> imp
         else if (axis == Direction.Axis.Z) { du = dx; dv = dy; }
 
         float distance = (float) Math.sqrt(du * du + dv * dv);
+        if (distance == 0) return;
+
         float baseAngle = (float) Math.atan2(dv, du);
         float alpha = (float) Math.asin((r1 - r2) / distance);
         float straightLength = (float) Math.sqrt(distance * distance - (r1 - r2) * (r1 - r2));
 
-        // Прямые участки (Используем возможности шейдера рисовать любую длину без растягивания)
+        // 1. Верхняя касательная (От шкива 1 к шкиву 2)
         float dirAngle1 = baseAngle - alpha;
         float touchAngle1 = dirAngle1 + (float)Math.PI / 2f;
-        addBeltSegment(axis, r1 * (float)Math.cos(touchAngle1), r1 * (float)Math.sin(touchAngle1), dirAngle1, straightLength, 0);
+        addBeltSegment(axis, r1 * (float)Math.cos(touchAngle1), r1 * (float)Math.sin(touchAngle1), dirAngle1, straightLength);
 
-        float dirAngle2 = baseAngle + alpha;
-        float touchAngle2 = dirAngle2 - (float)Math.PI / 2f;
-        addBeltSegment(axis, r1 * (float)Math.cos(touchAngle2), r1 * (float)Math.sin(touchAngle2), dirAngle2, straightLength, 0);
+        // 2. Дуга второго шкива (ПО ЧАСОВОЙ СТРЕЛКЕ: от верха к низу)
+        float dirAngle2 = baseAngle + alpha + (float)Math.PI; // Угол возврата
+        float touchAngle2 = baseAngle + alpha - (float)Math.PI / 2f;
+        renderArc(axis, du, dv, r2, touchAngle1, touchAngle2);
 
-        // Дуги обхвата
-        renderArc(axis, 0, 0, r1, touchAngle1, touchAngle2);
-        renderArc(axis, du, dv, r2, touchAngle2, touchAngle1);
+        // 3. Нижняя касательная (От шкива 2 обратно к шкиву 1)
+        float startU = du + r2 * (float)Math.cos(touchAngle2);
+        float startV = dv + r2 * (float)Math.sin(touchAngle2);
+        addBeltSegment(axis, startU, startV, dirAngle2, straightLength);
+
+        // 4. Дуга первого шкива (ПО ЧАСОВОЙ СТРЕЛКЕ: от низа обратно наверх)
+        renderArc(axis, 0, 0, r1, touchAngle2, touchAngle1);
     }
 
     private void renderArc(Direction.Axis axis, float uCenter, float vCenter, float radius, float startAngle, float endAngle) {
-        float step = (float) Math.toRadians(10);
-        float currentDist = 0;
+        // КЛЮЧЕВОЙ ФИКС: Рисуем СТРОГО по часовой стрелке!
+        // Это гарантирует, что лицевая сторона текстуры всегда смотрит наружу.
+        while (startAngle <= endAngle) {
+            startAngle += (float) (2 * Math.PI);
+        }
+        float sweep = startAngle - endAngle;
 
-        for (float angle = startAngle; angle < endAngle; angle += step) {
-            float nextAngle = Math.min(angle + step, endAngle);
+        int steps = Math.max(1, (int) Math.toDegrees(sweep) / 10);
+        float stepAngle = sweep / steps;
+
+        for (int i = 0; i < steps; i++) {
+            float angle = startAngle - i * stepAngle;
+            float nextAngle = angle - stepAngle;
+
             float u1 = uCenter + radius * (float)Math.cos(angle);
             float v1 = vCenter + radius * (float)Math.sin(angle);
             float u2 = uCenter + radius * (float)Math.cos(nextAngle);
@@ -334,32 +369,49 @@ public class ShaftVisual extends AbstractBlockEntityVisual<ShaftBlockEntity> imp
             float len = (float)Math.sqrt(Math.pow(u2 - u1, 2) + Math.pow(v2 - v1, 2));
             float dirAngle = (float)Math.atan2(v2 - v1, u2 - u1);
 
-            addBeltSegment(axis, u1, v1, dirAngle, len, currentDist);
-            currentDist += len;
+            addBeltSegment(axis, u1, v1, dirAngle, len);
         }
     }
 
-    private void addBeltSegment(Direction.Axis axis, float u, float v, float angle, float length, float baseOffset) {
+    // Используем твою проверенную математику!
+    private void addBeltSegment(Direction.Axis axis, float u, float v, float angle, float length) {
+        // 1. Создаем твой КАСТОМНЫЙ инстанс (укажи тут свой InstanceType, который ты создал для ремня)
         BeltInstance segment = instancerProvider()
-                .instancer(BeltInstance.TYPE, Models.partial(ModModels.BELT_SEGMENT))
+                .instancer(TYPE, Models.partial(ModModels.BELT_SEGMENT))
                 .createInstance();
 
+        // 2. Копируем твою ИДЕАЛЬНУЮ цепочку трансформаций один в один
         segment.setIdentityTransform()
+                // 5. Перемещение в мировые координаты
                 .translate(localX + 0.5f, localY + 0.5f, localZ + 0.5f);
 
+        // 4. Позиционирование в плоскости
+        if (axis == Direction.Axis.X) segment.translate(0, v, u);
+        else if (axis == Direction.Axis.Y) segment.translate(u, 0, v);
+        else if (axis == Direction.Axis.Z) segment.translate(u, v, 0);
+
+        // 3. Выравнивание ширины ремня по оси вала и длины по касательной
         if (axis == Direction.Axis.X) {
-            segment.translate(0, v, u).rotateX(-angle);
+            segment.rotateX(-angle);
         } else if (axis == Direction.Axis.Y) {
-            segment.translate(u, 0, v).rotateY(-angle + (float)Math.PI / 2f).rotateZ((float)Math.PI / 2f);
+            segment.rotateY(-angle + (float)Math.PI / 2f);
+            segment.rotateZ((float)Math.PI / 2f);
         } else if (axis == Direction.Axis.Z) {
-            segment.translate(u, v, 0).rotateZ(angle).rotateY((float)Math.PI / 2f);
+            segment.rotateZ(angle);
+            segment.rotateY((float)Math.PI / 2f);
         }
 
+        // 2. Растягиваем сегмент на нужную длину
         segment.scale(1, 1, length);
+
+        // 1. Центрируем геометрию belt_segment.json
         segment.translate(-0.5f, -0.5f, 0.0f);
 
-        // Магия шейдера: передаем длину и офсет для идеальной сшивки текстуры
-        segment.setUv(length, baseOffset);
+        // 3. Вызываем твой кастомный метод для сдвига UV (анимации)
+        // finalScroll - это та переменная с анимацией, которую мы высчитали в beginFrame
+        // Поскольку segment.scale() сжимает/растягивает модель физически,
+        // тебе может понадобиться передавать UV скролл отдельно в каждый сегмент.
+        // Если у тебя метод setUvScroll уже есть, просто обновляй его в beginFrame, перебирая beltSegments!
 
         segment.setChanged();
         relight(pos, segment);
