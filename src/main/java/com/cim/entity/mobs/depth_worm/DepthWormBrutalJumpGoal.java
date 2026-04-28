@@ -21,7 +21,8 @@ public class DepthWormBrutalJumpGoal extends Goal {
     private static final double MAX_HORIZONTAL_SPEED = 3.5;
     private static final double MAX_VERTICAL_SPEED = 2.0;
     private static final double GRAVITY = 0.08; // стандартная гравитация LivingEntity
-
+    private int failedJumpCooldown = 0;
+    private static final int FAILED_JUMP_COOLDOWN = 40; // 2 сек
     // Анти-застревание
     private int jumpTickCounter = 0;
     private static final int MAX_JUMP_TICKS = 60; // 3 сек максимум
@@ -68,16 +69,39 @@ public class DepthWormBrutalJumpGoal extends Goal {
 
     @Override
     public boolean canUse() {
-        this.target = this.worm.getTarget();
-        if (this.target == null || !this.target.isAlive()) return false;
+        if (failedJumpCooldown > 0) {
+            failedJumpCooldown--;
+            return false;
+        }
 
-        // ⭐ ИСПРАВЛЕНО: Не сбрасываем preparingJump здесь!
-        // Если уже готовится — пусть продолжает через canContinueToUse
+        this.target = this.worm.getTarget();
+        if (this.target == null || !this.target.isAlive()) {
+            if (this.worm.isPreparingJump()) {
+                this.worm.setPreparingJump(false);
+                this.worm.setAttacking(false);
+            }
+            return false;
+        }
+
         if (this.worm.isImpaling()) return false;
-        if (this.worm.isPreparingJump()) return false; // Просто блокируем, не сбрасываем
 
         double dist = this.worm.distanceTo(this.target);
-        return dist >= this.jumpRangeMin && dist <= this.jumpRangeMax;
+
+        // Цель слишком близко — сброс, пусть бьёт в ближнем
+        if (dist < this.jumpRangeMin) {
+            if (this.worm.isPreparingJump()) abortPrepare();
+            return false;
+        }
+
+        // Цель слишком далеко — сброс, пусть подходит
+        if (dist > this.jumpRangeMax) {
+            if (this.worm.isPreparingJump()) abortPrepare();
+            return false;
+        }
+
+        if (this.worm.isPreparingJump()) return false;
+
+        return true;
     }
 
     @Override
@@ -94,11 +118,14 @@ public class DepthWormBrutalJumpGoal extends Goal {
         // ⭐ Фаза подготовки — продолжаем пока есть таймер и цель в допустимых пределах
         if (!jumpPerformed) {
             if (prepareTimer <= 0) return false;
-            // ⭐ Цель ушла слишком далеко — сброс
+
             double dist = this.worm.distanceTo(this.target);
+
+            // ⭐ Цель ушла слишком далеко — сброс
             if (dist > this.jumpRangeMax + 4.0F) return false;
-            // ⭐ Цель подошла слишком близко — тоже сброс, переключится на ближний бой
-            if (dist < this.jumpRangeMin - 1.0F) {
+
+            // ⭐ Цель подошла слишком близко — сброс, переключится на ближний бой
+            if (dist < this.jumpRangeMin) {
                 abortPrepare();
                 return false;
             }
@@ -139,6 +166,8 @@ public class DepthWormBrutalJumpGoal extends Goal {
                     jumpPerformed = true;
                     lastJumpPos = this.worm.position();
                 } else {
+                    // ⭐ Кулдаун: если рассчитать прыжок не удалось — не спамим подготовкой
+                    failedJumpCooldown = FAILED_JUMP_COOLDOWN;
                     abortPrepare();
                 }
             }
@@ -161,6 +190,7 @@ public class DepthWormBrutalJumpGoal extends Goal {
         this.worm.setAttacking(false);
         this.jumpPerformed = true; // Чтобы canContinueToUse вернул false и goal перезапустился
     }
+
     private void executeImpaleOrBounce() {
         int armor = this.target.getArmorValue();
 

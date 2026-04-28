@@ -1,3 +1,4 @@
+// DepthWormBrutalEntity.java
 package com.cim.entity.mobs.depth_worm;
 
 import net.minecraft.nbt.CompoundTag;
@@ -62,8 +63,9 @@ public class DepthWormBrutalEntity extends DepthWormEntity {
     protected void registerGoals() {
         this.goalSelector.addGoal(0, new DepthWormBrutalJumpGoal(this, 1.8D, 6.0F, 24.0F));
         this.goalSelector.addGoal(1, new ReturnToHiveGoal(this));
-        // ⭐ CHANGED: followingTargetEvenIfNotSeen = true — не теряет цель за углом
-        this.goalSelector.addGoal(2, new MeleeAttackGoal(this, 1.4D, true));
+        // ⭐ ИСПРАВЛЕНО: followingTargetEvenIfNotSeen = false — как у обычного червя,
+        // чтобы брутал мог переключаться между прыжком и ближним боем
+        this.goalSelector.addGoal(2, new MeleeAttackGoal(this, 1.4D, false));
         this.goalSelector.addGoal(3, new WaterAvoidingRandomStrollGoal(this, 0.8D));
         this.goalSelector.addGoal(4, new RandomLookAroundGoal(this));
 
@@ -140,14 +142,15 @@ public class DepthWormBrutalEntity extends DepthWormEntity {
         // target.position() — ноги, getBoundingBox().getCenter() — центр
         Vec3 targetCenter = target.getBoundingBox().getCenter();
 
-        // Червь "впивается" в центр тела цели
-        // Небольшой сдвиг вперёд по направлению движения цели
+        // ⭐ ИСПРАВЛЕНО: Сдвигаем на ~5 пикселей (0.3125 блока) назад (в сторону хвоста червя)
+        // Червь "впивается" в центр тела цели, но смещён назад от направления движения цели
         Vec3 targetVel = target.getDeltaMovement();
         Vec3 velDir = targetVel.lengthSqr() > 0.001
                 ? targetVel.normalize()
                 : target.getLookAngle();
 
-        double offsetForward = 0.15; // Чуть впереди центра
+        // offsetForward теперь ОТРИЦАТЕЛЬНЫЙ — червь сзади центра (в сторону хвоста)
+        double offsetForward = -0.3125; // ~5 пикселей назад
         Vec3 attachPos = targetCenter.add(velDir.scale(offsetForward));
 
         // Плавное прилипание
@@ -159,11 +162,11 @@ public class DepthWormBrutalEntity extends DepthWormEntity {
 
         this.setPos(newX, newY, newZ);
         this.setDeltaMovement(targetVel);
-
-        // Поворот червя = поворот цели (как будто вцепился боком)
-        this.setYRot(target.getYRot() + 90); // +90 чтобы червь был поперёк цели
-        this.yHeadRot = target.getYHeadRot();
-        this.yBodyRot = target.getYRot() + 90;
+        Vec3 lookDir = targetCenter.subtract(wormPos);
+        float yaw = (float) (Math.atan2(lookDir.z, lookDir.x) * (180.0 / Math.PI)) - 90.0F;
+        this.setYRot(yaw);
+        this.yHeadRot = yaw;
+        this.yBodyRot = yaw;
 
         // Урон каждые 10 тиков
         if (this.tickCount % 10 == 0) {
