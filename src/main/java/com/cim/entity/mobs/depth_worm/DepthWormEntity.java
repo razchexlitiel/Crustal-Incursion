@@ -6,6 +6,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
@@ -20,6 +21,7 @@ import net.minecraft.world.entity.ai.goal.target.NearestAttackableTargetGoal;
 import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.Vec3;
 import software.bernie.geckolib.animatable.GeoEntity;
 import software.bernie.geckolib.core.animatable.instance.AnimatableInstanceCache;
 import software.bernie.geckolib.core.animation.AnimatableManager;
@@ -199,7 +201,59 @@ public class DepthWormEntity extends Monster implements GeoEntity {
     protected void transformToBrutal() {
         if (this.level().isClientSide) return;
 
-        DepthWormBrutalEntity brutal = new DepthWormBrutalEntity(ModEntities.DEPTH_WORM_BRUTAL.get(), this.level());
+        Level level = this.level();
+        Vec3 pos = this.position();
+
+        // ⭐ Эффект трансформации (отсылка к SCP Parasites)
+        if (level instanceof ServerLevel serverLevel) {
+            // Мелкий взрыв частиц — дым, кровь, осколки хитина
+            serverLevel.sendParticles(
+                    net.minecraft.core.particles.ParticleTypes.EXPLOSION,
+                    pos.x, pos.y + 0.3, pos.z,
+                    2,  // count — мало, чтобы был мелкий взрыв
+                    0.15, 0.15, 0.15,  // spread
+                    0.02  // speed
+            );
+            serverLevel.sendParticles(
+                    net.minecraft.core.particles.ParticleTypes.LARGE_SMOKE,
+                    pos.x, pos.y + 0.2, pos.z,
+                    8,
+                    0.2, 0.1, 0.2,
+                    0.01
+            );
+            serverLevel.sendParticles(
+                    net.minecraft.core.particles.ParticleTypes.SQUID_INK,
+                    pos.x, pos.y + 0.4, pos.z,
+                    4,
+                    0.1, 0.1, 0.1,
+                    0.05
+            );
+            // Тёмные частицы — "паразитарная" субстанция
+            serverLevel.sendParticles(
+                    net.minecraft.core.particles.ParticleTypes.ASH,
+                    pos.x, pos.y + 0.5, pos.z,
+                    12,
+                    0.25, 0.2, 0.25,
+                    0.03
+            );
+
+            // Локальный толчок (не взрыв, просто отталкивание)
+            float knockbackRadius = 2.5F;
+            float knockbackStrength = 0.4F;
+            for (LivingEntity entity : level.getEntitiesOfClass(LivingEntity.class,
+                    this.getBoundingBox().inflate(knockbackRadius))) {
+                if (entity == this) continue;
+                Vec3 diff = entity.position().subtract(pos);
+                double dist = diff.length();
+                if (dist < 0.01) continue;
+                Vec3 knock = diff.normalize().scale(knockbackStrength * (1.0 - dist / knockbackRadius));
+                entity.setDeltaMovement(entity.getDeltaMovement().add(knock.x, 0.15, knock.z));
+                entity.hurtMarked = true;
+            }
+        }
+
+        // Спавн брутального червя
+        DepthWormBrutalEntity brutal = new DepthWormBrutalEntity(ModEntities.DEPTH_WORM_BRUTAL.get(), level);
         brutal.copyPosition(this);
         brutal.setYRot(this.getYRot());
         brutal.yHeadRot = this.yHeadRot;
@@ -217,7 +271,7 @@ public class DepthWormEntity extends Monster implements GeoEntity {
             brutal.setOnDeathCallback(this.onDeathCallback);
         }
 
-        this.level().addFreshEntity(brutal);
+        level.addFreshEntity(brutal);
         this.discard();
     }
 
