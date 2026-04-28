@@ -305,9 +305,8 @@ public class ShaftVisual extends AbstractBlockEntityVisual<ShaftBlockEntity> imp
         if (!(level.getBlockEntity(connectedPos) instanceof ShaftBlockEntity otherBE)) return;
         if (!blockEntity.hasPulley() || !otherBE.hasPulley()) return;
 
-        // Прибавляем 1/16, чтобы ремень лежал НА шкиве
-        float r1 = getPulleyRadius(blockEntity) + (1.0f / 16.0f);
-        float r2 = getPulleyRadius(otherBE) + (1.0f / 16.0f);
+        float r1 = getPulleyRadius(blockEntity);
+        float r2 = getPulleyRadius(otherBE);
         if (r1 == 0 || r2 == 0) return;
 
         Direction.Axis axis = facing.getAxis();
@@ -327,78 +326,100 @@ public class ShaftVisual extends AbstractBlockEntityVisual<ShaftBlockEntity> imp
         float alpha = (float) Math.asin((r1 - r2) / distance);
         float straightLength = (float) Math.sqrt(distance * distance - (r1 - r2) * (r1 - r2));
 
-        // 1. Верхняя касательная (От шкива 1 к шкиву 2)
+        // === Верхняя касательная (A → B) ===
         float dirAngle1 = baseAngle - alpha;
-        float touchAngle1 = dirAngle1 + (float)Math.PI / 2f;
-        addBeltSegment(axis, r1 * (float)Math.cos(touchAngle1), r1 * (float)Math.sin(touchAngle1), dirAngle1, straightLength);
+        float touchAngle1 = dirAngle1 + (float) Math.PI / 2f;
+        float uTop = r1 * (float) Math.cos(touchAngle1);
+        float vTop = r1 * (float) Math.sin(touchAngle1);
 
-        // 2. Дуга второго шкива (ПО ЧАСОВОЙ СТРЕЛКЕ: от верха к низу)
-        float dirAngle2 = baseAngle + alpha + (float)Math.PI; // Угол возврата
-        float touchAngle2 = baseAngle + alpha - (float)Math.PI / 2f;
-        renderArc(axis, du, dv, r2, touchAngle1, touchAngle2);
+        // === Нижняя касательная (A → B, другая сторона) ===
+        float dirAngle2 = baseAngle + alpha;
+        float touchAngle2 = dirAngle2 - (float) Math.PI / 2f;
+        float uBot = r1 * (float) Math.cos(touchAngle2);
+        float vBot = r1 * (float) Math.sin(touchAngle2);
 
-        // 3. Нижняя касательная (От шкива 2 обратно к шкиву 1)
-        float startU = du + r2 * (float)Math.cos(touchAngle2);
-        float startV = dv + r2 * (float)Math.sin(touchAngle2);
-        addBeltSegment(axis, startU, startV, dirAngle2, straightLength);
+        com.cim.main.CrustalIncursionMod.LOGGER.info("[BELT-DEBUG] ===== rebuildBelt at {} =====", pos);
+        com.cim.main.CrustalIncursionMod.LOGGER.info("[BELT-DEBUG] axis={} r1={} r2={} distance={}", axis, r1, r2, distance);
+        com.cim.main.CrustalIncursionMod.LOGGER.info("[BELT-DEBUG] du={} dv={} baseAngle={}° alpha={}°", du, dv,
+                Math.toDegrees(baseAngle), Math.toDegrees(alpha));
+        com.cim.main.CrustalIncursionMod.LOGGER.info("[BELT-DEBUG] TOP tangent: dirAngle={}° touchAngle={}° start=({},{}) len={}",
+                Math.toDegrees(dirAngle1), Math.toDegrees(touchAngle1), uTop, vTop, straightLength);
+        com.cim.main.CrustalIncursionMod.LOGGER.info("[BELT-DEBUG] BOT tangent: dirAngle={}° touchAngle={}° start=({},{}) len={}",
+                Math.toDegrees(dirAngle2), Math.toDegrees(touchAngle2), uBot, vBot, straightLength);
 
-        // 4. Дуга первого шкива (ПО ЧАСОВОЙ СТРЕЛКЕ: от низа обратно наверх)
-        renderArc(axis, 0, 0, r1, touchAngle2, touchAngle1);
+        // Прямые участки (без разбиения — старый код работал без него)
+        addBeltSegment(axis, uTop, vTop, dirAngle1, straightLength);
+        addBeltSegment(axis, uBot, vBot, dirAngle2, straightLength);
+
+        // === Дуга на шкиве A (от touchAngle1 до touchAngle2, CCW — задняя сторона) ===
+        float arc1Start = touchAngle1;
+        float arc1End = touchAngle2;
+        while (arc1End <= arc1Start) arc1End += (float) (2 * Math.PI);
+        com.cim.main.CrustalIncursionMod.LOGGER.info("[BELT-DEBUG] ARC A: startAngle={}° endAngle={}° sweep={}°",
+                Math.toDegrees(arc1Start), Math.toDegrees(arc1End), Math.toDegrees(arc1End - arc1Start));
+        renderArc(axis, 0, 0, r1, arc1Start, arc1End);
+
+        // === Дуга на шкиве B (от touchAngle2 до touchAngle1, CCW — передняя сторона) ===
+        float arc2Start = touchAngle2;
+        float arc2End = touchAngle1;
+        while (arc2End <= arc2Start) arc2End += (float) (2 * Math.PI);
+        com.cim.main.CrustalIncursionMod.LOGGER.info("[BELT-DEBUG] ARC B: startAngle={}° endAngle={}° sweep={}°",
+                Math.toDegrees(arc2Start), Math.toDegrees(arc2End), Math.toDegrees(arc2End - arc2Start));
+        renderArc(axis, du, dv, r2, arc2Start, arc2End);
+
+        com.cim.main.CrustalIncursionMod.LOGGER.info("[BELT-DEBUG] Total segments created: {}", beltSegments.size());
     }
 
+    /**
+     * Рисует дугу ремня вокруг шкива, разбивая на маленькие сегменты.
+     * Обход ПРОТИВ часовой стрелки (startAngle → endAngle, endAngle > startAngle).
+     */
     private void renderArc(Direction.Axis axis, float uCenter, float vCenter, float radius, float startAngle, float endAngle) {
-        // КЛЮЧЕВОЙ ФИКС: Рисуем СТРОГО по часовой стрелке!
-        // Это гарантирует, что лицевая сторона текстуры всегда смотрит наружу.
-        while (startAngle <= endAngle) {
-            startAngle += (float) (2 * Math.PI);
-        }
-        float sweep = startAngle - endAngle;
+        float step = (float) Math.toRadians(10);
+        for (float angle = startAngle; angle < endAngle; angle += step) {
+            float nextAngle = Math.min(angle + step, endAngle);
 
-        int steps = Math.max(1, (int) Math.toDegrees(sweep) / 10);
-        float stepAngle = sweep / steps;
+            float u1 = uCenter + radius * (float) Math.cos(angle);
+            float v1 = vCenter + radius * (float) Math.sin(angle);
+            float u2 = uCenter + radius * (float) Math.cos(nextAngle);
+            float v2 = vCenter + radius * (float) Math.sin(nextAngle);
 
-        for (int i = 0; i < steps; i++) {
-            float angle = startAngle - i * stepAngle;
-            float nextAngle = angle - stepAngle;
-
-            float u1 = uCenter + radius * (float)Math.cos(angle);
-            float v1 = vCenter + radius * (float)Math.sin(angle);
-            float u2 = uCenter + radius * (float)Math.cos(nextAngle);
-            float v2 = vCenter + radius * (float)Math.sin(nextAngle);
-
-            float len = (float)Math.sqrt(Math.pow(u2 - u1, 2) + Math.pow(v2 - v1, 2));
-            float dirAngle = (float)Math.atan2(v2 - v1, u2 - u1);
+            float segDu = u2 - u1;
+            float segDv = v2 - v1;
+            float len = (float) Math.sqrt(segDu * segDu + segDv * segDv);
+            float dirAngle = (float) Math.atan2(segDv, segDu);
 
             addBeltSegment(axis, u1, v1, dirAngle, len);
         }
     }
 
-    // Используем твою проверенную математику!
+    /**
+     * Создаёт один сегмент ремня с заданной позицией, направлением и длиной.
+     */
     private void addBeltSegment(Direction.Axis axis, float u, float v, float angle, float length) {
-        // 1. Создаем твой КАСТОМНЫЙ инстанс (укажи тут свой InstanceType, который ты создал для ремня)
         BeltInstance segment = instancerProvider()
                 .instancer(TYPE, Models.partial(ModModels.BELT_SEGMENT))
                 .createInstance();
 
-        // 2. Копируем твою ИДЕАЛЬНУЮ цепочку трансформаций один в один
+        // Цепочка трансформаций (применяется снизу вверх):
+        // 5. Перемещение в мировые координаты (центр блока текущего шкива)
         segment.setIdentityTransform()
-                // 5. Перемещение в мировые координаты
                 .translate(localX + 0.5f, localY + 0.5f, localZ + 0.5f);
 
-        // 4. Позиционирование в плоскости
+        // 4. Смещение в 2D плоскости, перпендикулярной оси вала
         if (axis == Direction.Axis.X) segment.translate(0, v, u);
         else if (axis == Direction.Axis.Y) segment.translate(u, 0, v);
         else if (axis == Direction.Axis.Z) segment.translate(u, v, 0);
 
-        // 3. Выравнивание ширины ремня по оси вала и длины по касательной
+        // 3. Поворот ремня в направлении касательной + выравнивание ширины по оси вала
         if (axis == Direction.Axis.X) {
             segment.rotateX(-angle);
         } else if (axis == Direction.Axis.Y) {
-            segment.rotateY(-angle + (float)Math.PI / 2f);
-            segment.rotateZ((float)Math.PI / 2f);
+            segment.rotateY(-angle + (float) Math.PI / 2f);
+            segment.rotateZ((float) Math.PI / 2f);
         } else if (axis == Direction.Axis.Z) {
             segment.rotateZ(angle);
-            segment.rotateY((float)Math.PI / 2f);
+            segment.rotateY((float) Math.PI / 2f);
         }
 
         // 2. Растягиваем сегмент на нужную длину
@@ -406,12 +427,6 @@ public class ShaftVisual extends AbstractBlockEntityVisual<ShaftBlockEntity> imp
 
         // 1. Центрируем геометрию belt_segment.json
         segment.translate(-0.5f, -0.5f, 0.0f);
-
-        // 3. Вызываем твой кастомный метод для сдвига UV (анимации)
-        // finalScroll - это та переменная с анимацией, которую мы высчитали в beginFrame
-        // Поскольку segment.scale() сжимает/растягивает модель физически,
-        // тебе может понадобиться передавать UV скролл отдельно в каждый сегмент.
-        // Если у тебя метод setUvScroll уже есть, просто обновляй его в beginFrame, перебирая beltSegments!
 
         segment.setChanged();
         relight(pos, segment);
