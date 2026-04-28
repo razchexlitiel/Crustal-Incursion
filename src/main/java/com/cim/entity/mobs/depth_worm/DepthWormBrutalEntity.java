@@ -177,7 +177,15 @@ public class DepthWormBrutalEntity extends DepthWormEntity {
             player.hurtMarked = true;
         }
     }
+    @Override
+    protected void checkBrutalTransformation() {
+        // Брутальный червь не эволюционирует дальше
+    }
 
+    @Override
+    protected void transformToBrutal() {
+        // Уже брутальный — игнорируем
+    }
     @Override
     public boolean causeFallDamage(float distance, float multiplier, DamageSource source) {
         return this.ignoreFallDamageTicks <= 0 && super.causeFallDamage(distance, multiplier * 0.5F, source);

@@ -131,14 +131,12 @@ public class DepthWormNestBlockEntity extends BlockEntity implements HiveNetwork
         }
 
         for (CompoundTag wormTag : this.storedWorms) {
-            // ⭐ ИСПРАВЛЕНО: Сохраняем оригинальный ID сущности вместо принудительной перезаписи
-            // Если ID не задан (старые сохранения), используем стандартный
+            // ⭐ Сохраняем оригинальный ID. Если его нет (старые сохранения) — ставим обычного
             if (!wormTag.contains("id")) {
                 wormTag.putString("id", "cim:depth_worm");
             }
-            // Если это брутальный червь — ID уже будет "cim:depth_worm_brutal" из saveWithoutId()
-
             wormTag.remove("UUID");
+            if (!wormTag.contains("BoundNest")) wormTag.putLong("BoundNest", this.worldPosition.asLong());
             if (!wormTag.contains("BoundNest")) wormTag.putLong("BoundNest", this.worldPosition.asLong());
 
             final UUID netId = this.networkId;

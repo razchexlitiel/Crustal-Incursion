@@ -1,5 +1,6 @@
 package com.cim.entity.mobs.depth_worm;
 
+import com.cim.entity.ModEntities;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.syncher.EntityDataAccessor;
@@ -35,8 +36,8 @@ public class DepthWormEntity extends Monster implements GeoEntity {
     private static final EntityDataAccessor<Boolean> IS_ATTACKING = SynchedEntityData.defineId(DepthWormEntity.class, EntityDataSerializers.BOOLEAN);
     private static final EntityDataAccessor<Boolean> IS_FLYING = SynchedEntityData.defineId(DepthWormEntity.class, EntityDataSerializers.BOOLEAN);
     private static final EntityDataAccessor<Integer> KILLS = SynchedEntityData.defineId(DepthWormEntity.class, EntityDataSerializers.INT);
+    private static final EntityDataAccessor<Integer> RAW_KILLS = SynchedEntityData.defineId(DepthWormEntity.class, EntityDataSerializers.INT);
 
-    // НОВОЕ: Привязка к гнезду
     private static final EntityDataAccessor<String> BOUND_NEST_ID = SynchedEntityData.defineId(DepthWormEntity.class, EntityDataSerializers.STRING);
     private int meleeCooldown = 0;
     public int ignoreFallDamageTicks = 0;
@@ -55,6 +56,7 @@ public class DepthWormEntity extends Monster implements GeoEntity {
             onDeathCallback.run();
         }
     }
+
     public void setHomePos(BlockPos pos) {
         this.homePos = pos;
     }
@@ -63,7 +65,6 @@ public class DepthWormEntity extends Monster implements GeoEntity {
         return this.homePos;
     }
 
-    // НОВОЕ: Установка привязки к гнезду
     public void bindToNest(BlockPos nestPos) {
         if (nestPos != null) {
             this.entityData.set(BOUND_NEST_ID, nestPos.asLong() + "");
@@ -71,7 +72,6 @@ public class DepthWormEntity extends Monster implements GeoEntity {
         }
     }
 
-    // НОВОЕ: Получение привязанного гнезда
     public BlockPos getBoundNestPos() {
         String id = this.entityData.get(BOUND_NEST_ID);
         if (id == null || id.isEmpty()) return null;
@@ -82,13 +82,11 @@ public class DepthWormEntity extends Monster implements GeoEntity {
         }
     }
 
-    // НОВОЕ: Очистка привязки
     public void clearNestBinding() {
         this.entityData.set(BOUND_NEST_ID, "");
         this.nestPos = null;
     }
 
-    // НОВОЕ: Проверка привязки к конкретному гнезду
     public boolean isBoundToNest(BlockPos pos) {
         BlockPos bound = getBoundNestPos();
         return bound != null && bound.equals(pos);
@@ -103,10 +101,10 @@ public class DepthWormEntity extends Monster implements GeoEntity {
     public void addAdditionalSaveData(CompoundTag tag) {
         super.addAdditionalSaveData(tag);
         tag.putInt("Kills", this.getKills());
+        tag.putInt("RawKills", this.getRawKills());
         if (homePos != null) {
             tag.putLong("HomePos", homePos.asLong());
         }
-        // НОВОЕ: Сохраняем привязку
         BlockPos boundNest = getBoundNestPos();
         if (boundNest != null) {
             tag.putLong("BoundNest", boundNest.asLong());
@@ -117,12 +115,12 @@ public class DepthWormEntity extends Monster implements GeoEntity {
     public void readAdditionalSaveData(CompoundTag tag) {
         super.readAdditionalSaveData(tag);
         this.entityData.set(KILLS, tag.getInt("Kills"));
+        this.entityData.set(RAW_KILLS, tag.getInt("RawKills"));
         if (tag.contains("HomePos")) {
             homePos = BlockPos.of(tag.getLong("HomePos"));
         } else {
             homePos = null;
         }
-        // НОВОЕ: Восстанавливаем привязку
         if (tag.contains("BoundNest")) {
             BlockPos bound = BlockPos.of(tag.getLong("BoundNest"));
             bindToNest(bound);
@@ -155,27 +153,78 @@ public class DepthWormEntity extends Monster implements GeoEntity {
         this.entityData.define(IS_FLYING, false);
         this.entityData.define(IS_ANGRY, false);
         this.entityData.define(KILLS, 0);
-        this.entityData.define(BOUND_NEST_ID, ""); // НОВОЕ
+        this.entityData.define(RAW_KILLS, 0);
+        this.entityData.define(BOUND_NEST_ID, "");
     }
 
     public void setAttacking(boolean attacking) {
         this.entityData.set(IS_ATTACKING, attacking);
     }
+
     public boolean isAttacking() {
         return this.entityData.get(IS_ATTACKING);
     }
 
-    public void setFlying(boolean flying) { this.entityData.set(IS_FLYING, flying); }
-    public boolean isFlying() { return this.entityData.get(IS_FLYING); }
+    public void setFlying(boolean flying) {
+        this.entityData.set(IS_FLYING, flying);
+    }
+
+    public boolean isFlying() {
+        return this.entityData.get(IS_FLYING);
+    }
 
     public void addKill() {
         this.entityData.set(KILLS, this.getKills() + 1);
     }
 
+    // === RAW KILLS (чистые убийства, не сбрасываются в улье) ===
+    public int getRawKills() {
+        return this.entityData.get(RAW_KILLS);
+    }
+
+    public void setRawKills(int kills) {
+        this.entityData.set(RAW_KILLS, kills);
+    }
+
+    public void addRawKill() {
+        this.entityData.set(RAW_KILLS, getRawKills() + 1);
+    }
+
+    protected void checkBrutalTransformation() {
+        if (getRawKills() >= 5) {
+            transformToBrutal();
+        }
+    }
+
+    protected void transformToBrutal() {
+        if (this.level().isClientSide) return;
+
+        DepthWormBrutalEntity brutal = new DepthWormBrutalEntity(ModEntities.DEPTH_WORM_BRUTAL.get(), this.level());
+        brutal.copyPosition(this);
+        brutal.setYRot(this.getYRot());
+        brutal.yHeadRot = this.yHeadRot;
+        brutal.yBodyRot = this.yBodyRot;
+        brutal.setHealth(this.getHealth());
+        brutal.setTarget(this.getTarget());
+
+        BlockPos boundNest = this.getBoundNestPos();
+        if (boundNest != null) brutal.bindToNest(boundNest);
+        if (this.homePos != null) brutal.setHomePos(this.homePos);
+
+        brutal.ignoreFallDamageTicks = this.ignoreFallDamageTicks;
+
+        if (this.onDeathCallback != null) {
+            brutal.setOnDeathCallback(this.onDeathCallback);
+        }
+
+        this.level().addFreshEntity(brutal);
+        this.discard();
+    }
+
     @Override
     public boolean doHurtTarget(Entity target) {
         if (this.meleeCooldown > 0) return false;
-        this.meleeCooldown = 20; // 1 секунда
+        this.meleeCooldown = 20;
         return super.doHurtTarget(target);
     }
 
@@ -207,11 +256,15 @@ public class DepthWormEntity extends Monster implements GeoEntity {
             this.entityData.set(IS_ANGRY, this.hurtTime > 0);
         }
 
-        // Обновляем nestPos из привязки если нужно
         if (!level().isClientSide && nestPos == null) {
             nestPos = getBoundNestPos();
         }
         if (this.meleeCooldown > 0) this.meleeCooldown--;
+
+        // ⭐ Эволюция в брутального
+        if (!level().isClientSide) {
+            checkBrutalTransformation();
+        }
     }
 
     @Override
@@ -228,7 +281,6 @@ public class DepthWormEntity extends Monster implements GeoEntity {
     public boolean isPushable() {
         boolean isReturning = this.goalSelector.getAvailableGoals().stream()
                 .anyMatch(wrappedGoal -> wrappedGoal.getGoal() instanceof ReturnToHiveGoal && wrappedGoal.isRunning());
-
         return super.isPushable() && !isReturning;
     }
 
@@ -261,32 +313,32 @@ public class DepthWormEntity extends Monster implements GeoEntity {
     public boolean canAttack(LivingEntity target) {
         return !(target instanceof DepthWormEntity) && super.canAttack(target);
     }
-    public void addKillPoints(Entity victim) {
-        int points = 1; // По умолчанию (мирные мобы, животные)
 
+    public void addKillPoints(Entity victim) {
+        int points = 1;
         if (victim instanceof Player) {
-            points = 30; // Игрок
+            points = 30;
         } else if (victim instanceof net.minecraft.world.entity.monster.Enemy) {
-            // Враждебный моб
             if (victim instanceof LivingEntity le && le.getMaxHealth() >= 50.0F) {
-                points = 10; // Очень опасный моб/Босс (Варден, Иссушитель, Раваджер и т.д.)
+                points = 10;
             } else {
-                points = 3; // Средний моб (Зомби, Скелет)
+                points = 3;
             }
         }
-
         this.entityData.set(KILLS, this.getKills() + points);
     }
 
-    public int getKills() { // Возвращает накопленные очки
+    public int getKills() {
         return this.entityData.get(KILLS);
     }
 
     @Override
     public void awardKillScore(Entity killed, int score, DamageSource damageSource) {
         super.awardKillScore(killed, score, damageSource);
-        this.addKillPoints(killed); // Вычисляем и добавляем очки
+        this.addKillPoints(killed);
+        this.addRawKill(); // ⭐ +1 чистое убийство
     }
+
     @Override
     public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
         controllers.add(new AnimationController<>(this, "controller", 2, this::predicate));
@@ -296,18 +348,17 @@ public class DepthWormEntity extends Monster implements GeoEntity {
         if (this.isDeadOrDying()) {
             return state.setAndContinue(RawAnimation.begin().thenPlayAndHold("death"));
         }
-
         if (this.isAttacking()) {
             return state.setAndContinue(RawAnimation.begin().thenPlayAndHold("prepare"));
         }
-
         if (state.isMoving()) {
             return state.setAndContinue(RawAnimation.begin().thenLoop("slide"));
         }
-
         return state.setAndContinue(RawAnimation.begin().thenLoop("slide"));
     }
 
     @Override
-    public AnimatableInstanceCache getAnimatableInstanceCache() { return this.cache; }
+    public AnimatableInstanceCache getAnimatableInstanceCache() {
+        return this.cache;
+    }
 }
