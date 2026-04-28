@@ -34,9 +34,7 @@ public class DepthWormBrutalEntity extends DepthWormEntity {
             SynchedEntityData.defineId(DepthWormBrutalEntity.class, EntityDataSerializers.INT);
 
     private LivingEntity impaledTargetCache = null;
-    private int attackAnimTimer = 0;
-
-    // ⭐ CHANGED: кулдаун рукопашной (1 сек = 20 тиков)
+    private int postAttackAnimTimer = 0;
     private int meleeCooldown = 0;
 
     public DepthWormBrutalEntity(EntityType<? extends Monster> entityType, Level level) {
@@ -46,10 +44,8 @@ public class DepthWormBrutalEntity extends DepthWormEntity {
     public static AttributeSupplier.Builder createAttributes() {
         return Monster.createMonsterAttributes()
                 .add(Attributes.MAX_HEALTH, 45.0D)
-                // ⭐ CHANGED: скорость ходьбы ×2
-                .add(Attributes.MOVEMENT_SPEED, 0.44D)
-                .add(Attributes.ATTACK_DAMAGE, 6.0D)
-                // ⭐ CHANGED: больше агро-радиус — нет «слепоты» в ближнем бою
+                .add(Attributes.MOVEMENT_SPEED, 0.35D)
+                .add(Attributes.ATTACK_DAMAGE, 4.0D)
                 .add(Attributes.FOLLOW_RANGE, 40.0D)
                 .add(Attributes.KNOCKBACK_RESISTANCE, 0.4D);
     }
@@ -82,14 +78,12 @@ public class DepthWormBrutalEntity extends DepthWormEntity {
 
     @Override
     public boolean doHurtTarget(Entity target) {
-        // ⭐ CHANGED: кулдаун 1 секунда + гарантированная анимация
         if (this.meleeCooldown > 0) return false;
-
-        this.meleeCooldown = 20;
-        this.setAttacking(true);
-        this.attackAnimTimer = 10; // 0.5 сек анимации удара
+        this.meleeCooldown = 20; // ⭐ 1 секунда, было 40
+        this.triggerPostAttackAnim();
         return super.doHurtTarget(target);
     }
+
 
     @Override
     public void aiStep() {
@@ -101,13 +95,15 @@ public class DepthWormBrutalEntity extends DepthWormEntity {
             this.setPreparingJump(false);
             this.handleLanding();
         }
-        
+
         if (this.level().isClientSide) return;
 
-        // ⭐ CHANGED: таймеры
+        // ⭐ Кулдаун рукопашной
         if (this.meleeCooldown > 0) this.meleeCooldown--;
-        if (this.attackAnimTimer > 0) {
-            if (--this.attackAnimTimer == 0) {
+
+        // ⭐ Таймер пост-атаки (единственный таймер для анимации)
+        if (this.postAttackAnimTimer > 0) {
+            if (--this.postAttackAnimTimer == 0) {
                 this.setAttacking(false);
             }
         }
@@ -140,14 +136,24 @@ public class DepthWormBrutalEntity extends DepthWormEntity {
             return;
         }
 
-        Vec3 pos = this.position();
-        Vec3 look = this.getLookAngle();
-        Vec3 tongue = pos.add(look.x * 1.3, this.getBbHeight() * 0.4, look.z * 1.3);
+        // ⭐ НОВОЕ: Червь застревает ВНУТРИ цели, а не "носит" её на языке
+        Vec3 wormPos = this.position();
+        Vec3 targetPos = target.position();
 
-        target.setPos(tongue.x, tongue.y, tongue.z);
+        // Интерполируем позицию цели к центру червя
+        double lerpFactor = 0.3; // Плавное "втягивание"
+        double newX = targetPos.x + (wormPos.x - targetPos.x) * lerpFactor;
+        double newY = targetPos.y + (wormPos.y + this.getBbHeight() * 0.5 - targetPos.y - target.getBbHeight() * 0.5) * lerpFactor;
+        double newZ = targetPos.z + (wormPos.z - targetPos.z) * lerpFactor;
+
+        target.setPos(newX, newY, newZ);
         target.setDeltaMovement(Vec3.ZERO);
         target.hurtMarked = true;
         target.fallDistance = 0F;
+
+        // Червь тоже замедляется от "застрявшей" массы
+        Vec3 wormVel = this.getDeltaMovement();
+        this.setDeltaMovement(wormVel.scale(0.85));
 
         if (target instanceof Player player) {
             player.hurtMarked = true;
@@ -157,6 +163,11 @@ public class DepthWormBrutalEntity extends DepthWormEntity {
     @Override
     public boolean causeFallDamage(float distance, float multiplier, DamageSource source) {
         return this.ignoreFallDamageTicks <= 0 && super.causeFallDamage(distance, multiplier * 0.5F, source);
+    }
+
+    public void triggerPostAttackAnim() {
+        this.postAttackAnimTimer = 20;
+        this.setAttacking(true);
     }
 
     @Override
@@ -174,8 +185,8 @@ public class DepthWormBrutalEntity extends DepthWormEntity {
                 return state.setAndContinue(RawAnimation.begin().thenPlayAndHold("prepare"));
             }
 
-            // ⭐ CHANGED: attack теперь гарантированно проигрывается при setAttacking
-            if (this.isAttacking()) {
+            // ⭐ ИЗМЕНЕНО: attack держится и после атаки (postAttackAnimTimer)
+            if (this.isAttacking() || this.postAttackAnimTimer > 0) {
                 return state.setAndContinue(RawAnimation.begin().thenPlayAndHold("attack"));
             }
 

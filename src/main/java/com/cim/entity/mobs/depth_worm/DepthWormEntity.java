@@ -38,7 +38,7 @@ public class DepthWormEntity extends Monster implements GeoEntity {
 
     // НОВОЕ: Привязка к гнезду
     private static final EntityDataAccessor<String> BOUND_NEST_ID = SynchedEntityData.defineId(DepthWormEntity.class, EntityDataSerializers.STRING);
-
+    private int meleeCooldown = 0;
     public int ignoreFallDamageTicks = 0;
     public BlockPos nestPos;
     private BlockPos homePos;
@@ -144,7 +144,7 @@ public class DepthWormEntity extends Monster implements GeoEntity {
         return Monster.createMonsterAttributes()
                 .add(Attributes.MAX_HEALTH, 15.0D)
                 .add(Attributes.MOVEMENT_SPEED, 0.25D)
-                .add(Attributes.ATTACK_DAMAGE, 4.0D)
+                .add(Attributes.ATTACK_DAMAGE, 2.5D)
                 .add(Attributes.FOLLOW_RANGE, 24.0D);
     }
 
@@ -172,7 +172,12 @@ public class DepthWormEntity extends Monster implements GeoEntity {
         this.entityData.set(KILLS, this.getKills() + 1);
     }
 
-
+    @Override
+    public boolean doHurtTarget(Entity target) {
+        if (this.meleeCooldown > 0) return false;
+        this.meleeCooldown = 20; // 1 секунда
+        return super.doHurtTarget(target);
+    }
 
     @Override
     public void aiStep() {
@@ -206,6 +211,7 @@ public class DepthWormEntity extends Monster implements GeoEntity {
         if (!level().isClientSide && nestPos == null) {
             nestPos = getBoundNestPos();
         }
+        if (this.meleeCooldown > 0) this.meleeCooldown--;
     }
 
     @Override

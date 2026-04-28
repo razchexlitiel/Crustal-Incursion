@@ -72,18 +72,19 @@ public class DepthWormBrutalJumpGoal extends Goal {
     public void stop() {
         this.target = null;
         this.worm.setPreparingJump(false);
-        this.worm.setAttacking(false);
         this.worm.setFlying(false);
         this.jumpPerformed = false;
         this.jumpTickCounter = 0;
         this.noMovementTicks = 0;
         this.worm.getNavigation().stop();
 
-        // Если остались висеть в воздухе без жертвы — сбрасываем вниз
         if (!worm.onGround() && !worm.isImpaling()) {
             Vec3 v = this.worm.getDeltaMovement();
             this.worm.setDeltaMovement(v.multiply(0.5, -0.3, 0.5));
         }
+
+        // ⭐ Запускаем таймер пост-атаки (1 секунда текстуры атаки после прыжка)
+        this.worm.triggerPostAttackAnim();
     }
 
     @Override
@@ -143,7 +144,7 @@ public class DepthWormBrutalJumpGoal extends Goal {
         Vec3 targetPos = this.target.position();
         Vec3 targetVel = this.target.getDeltaMovement();
 
-        // 1. Предсказание позиции цели (итеративное, как у турели)
+        // 1. Предсказание позиции цели
         double flatDist = Math.sqrt(
                 (targetPos.x - wormPos.x) * (targetPos.x - wormPos.x) +
                         (targetPos.z - wormPos.z) * (targetPos.z - wormPos.z)
@@ -152,7 +153,6 @@ public class DepthWormBrutalJumpGoal extends Goal {
         double t = solveFlightTime(flatDist, targetPos.y - wormPos.y);
         if (t < 0) return false;
 
-        // 2 итерации упреждения — достаточно для моба
         Vec3 predictedPos = targetPos;
         for (int i = 0; i < 2; i++) {
             predictedPos = targetPos.add(targetVel.x * t, 0, targetVel.z * t);
@@ -164,9 +164,20 @@ public class DepthWormBrutalJumpGoal extends Goal {
             if (t < 0) return false;
         }
 
-        double dx = predictedPos.x - wormPos.x;
-        double dy = (predictedPos.y + this.target.getBbHeight() * 0.5) - (wormPos.y + this.worm.getBbHeight() * 0.3);
-        double dz = predictedPos.z - wormPos.z;
+        // ⭐ НОВОЕ: Целимся ЗА цель, а не В цель
+        Vec3 toTarget = predictedPos.subtract(wormPos);
+        Vec3 targetDir = toTarget.normalize();
+
+        // Расстояние "пролёта" — червь должен залететь за цель на 2-3 блока
+        double overshootDistance = 3.0;
+        Vec3 overshootPos = predictedPos.add(targetDir.scale(overshootDistance));
+
+        // Корректируем Y чтобы не врезаться в землю
+        double targetY = (predictedPos.y + this.target.getBbHeight() * 0.5);
+        double dy = targetY - (wormPos.y + this.worm.getBbHeight() * 0.3);
+
+        double dx = overshootPos.x - wormPos.x;
+        double dz = overshootPos.z - wormPos.z;
 
         // 2. Расчёт вектора запуска
         Vec3 velocity = calculateLaunchVelocity(dx, dy, dz, t);
@@ -260,11 +271,12 @@ public class DepthWormBrutalJumpGoal extends Goal {
             this.target.hurt(this.worm.damageSources().mobAttack(this.worm), 10.0F);
             this.worm.setImpaledTarget(this.target);
 
+            // ⭐ НОВОЕ: Небольшой отскок червя при застревании,
+            // но не сильный чтобы не выбросить цель
             Vec3 vel = this.worm.getDeltaMovement();
-            this.worm.setDeltaMovement(vel.scale(0.85).add(0, 0.05, 0));
+            this.worm.setDeltaMovement(vel.scale(0.3).add(0, 0.1, 0));
         } else {
             this.target.hurt(this.worm.damageSources().mobAttack(this.worm), 5.0F);
-
             Vec3 bounce = this.worm.getLookAngle().scale(-0.6).add(0, 0.4, 0);
             this.worm.setDeltaMovement(bounce);
             this.worm.setFlying(false);
