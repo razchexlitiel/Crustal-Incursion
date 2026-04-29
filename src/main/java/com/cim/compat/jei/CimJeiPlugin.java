@@ -8,6 +8,7 @@ import com.cim.api.metallurgy.system.recipe.AlloySlot;
 import com.cim.api.metallurgy.system.recipe.MoldRecipe;
 import com.cim.api.metallurgy.system.recipe.MoldRecipeRegistry;
 import com.cim.block.basic.ModBlocks;
+import com.cim.block.entity.industrial.MillstoneBlockEntity;
 import com.cim.event.SlagItem;
 import com.cim.item.ModItems;
 import com.cim.main.CrustalIncursionMod;
@@ -31,12 +32,14 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
 @JeiPlugin
 public class CimJeiPlugin implements IModPlugin {
@@ -49,6 +52,24 @@ public class CimJeiPlugin implements IModPlugin {
             RecipeType.create(CrustalIncursionMod.MOD_ID, "casting", CastingWrapper.class);
     public static final RecipeType<AlloyingWrapper> ALLOYING_TYPE =
             RecipeType.create(CrustalIncursionMod.MOD_ID, "alloying", AlloyingWrapper.class);
+    public static final RecipeType<MillstoneWrapper> MILLSTONE_TYPE =
+            RecipeType.create(CrustalIncursionMod.MOD_ID, "millstone", MillstoneWrapper.class);
+
+    public record SmeltingWrapper(ItemStack input, Metal metal, int outputUnits, int temp, float heatConsumption, int timeTicks) {}
+    public record CastingWrapper(MoldRecipe mold, Metal metal, ItemStack output, int requiredUnits) {}
+    public record AlloyingWrapper(AlloyRecipe recipe) {}
+    public record MillstoneWrapper(Item input, Item output, int outputCount, int grindsRequired) {}
+
+    @Override
+    public void registerCategories(IRecipeCategoryRegistration registration) {
+        IGuiHelper guiHelper = registration.getJeiHelpers().getGuiHelper();
+        registration.addRecipeCategories(new SmeltingCategory(guiHelper));
+        registration.addRecipeCategories(new CastingCategory(guiHelper));
+        registration.addRecipeCategories(new AlloyingCategory(guiHelper));
+        registration.addRecipeCategories(new MillstoneCategory(guiHelper));
+    }
+
+
 
     @Override
     public ResourceLocation getPluginUid() {
@@ -66,13 +87,6 @@ public class CimJeiPlugin implements IModPlugin {
                 });
     }
 
-    @Override
-    public void registerCategories(IRecipeCategoryRegistration registration) {
-        IGuiHelper guiHelper = registration.getJeiHelpers().getGuiHelper();
-        registration.addRecipeCategories(new SmeltingCategory(guiHelper));
-        registration.addRecipeCategories(new CastingCategory(guiHelper));
-        registration.addRecipeCategories(new AlloyingCategory(guiHelper));
-    }
 
     @Override
     public void registerRecipes(IRecipeRegistration registration) {
@@ -119,12 +133,25 @@ public class CimJeiPlugin implements IModPlugin {
             alloyingRecipes.add(new AlloyingWrapper(recipe));
         }
         registration.addRecipes(ALLOYING_TYPE, alloyingRecipes);
+
+        // === ЖЕРНОВА ===
+        List<MillstoneWrapper> millstoneRecipes = new ArrayList<>();
+        for (Map.Entry<Item, MillstoneBlockEntity.GrindRecipe> entry : MillstoneBlockEntity.RECIPES.entrySet()) {
+            millstoneRecipes.add(new MillstoneWrapper(
+                    entry.getKey(),
+                    entry.getValue().output(),
+                    entry.getValue().outputCount(),
+                    entry.getValue().grindsRequired()
+            ));
+        }
+        registration.addRecipes(MILLSTONE_TYPE, millstoneRecipes);
     }
 
     @Override
     public void registerRecipeCatalysts(IRecipeCatalystRegistration registration) {
         registration.addRecipeCatalyst(new ItemStack(ModBlocks.SMELTER.get()), SMELTING_TYPE, ALLOYING_TYPE, CASTING_TYPE);
         registration.addRecipeCatalyst(new ItemStack(ModBlocks.SMALL_SMELTER.get()), SMELTING_TYPE);
+        registration.addRecipeCatalyst(new ItemStack(com.cim.block.basic.ModBlocks.JERNOVA.get()), MILLSTONE_TYPE);
     }
 
     private static ItemStack createLiquidMetalStack(Metal metal, int amount) {
@@ -135,12 +162,68 @@ public class CimJeiPlugin implements IModPlugin {
         return stack;
     }
 
-    public record SmeltingWrapper(ItemStack input, Metal metal, int outputUnits,
-                                  int temp, float heatConsumption, int timeTicks) {}
 
-    public record CastingWrapper(MoldRecipe mold, Metal metal, ItemStack output, int requiredUnits) {}
 
-    public record AlloyingWrapper(AlloyRecipe recipe) {}
+
+
+
+
+
+    public static class MillstoneCategory implements IRecipeCategory<MillstoneWrapper> {
+        private final IDrawable background;
+        private final IDrawable icon;
+        private final Component title;
+
+        public MillstoneCategory(IGuiHelper guiHelper) {
+            this.background = guiHelper.createDrawable(
+                    new ResourceLocation(CrustalIncursionMod.MOD_ID, "textures/gui/jei/jei_universal_gui.png"),
+                    0, 0, 140, 62);
+            this.icon = guiHelper.createDrawableIngredient(VanillaTypes.ITEM_STACK,
+                    new ItemStack(com.cim.block.basic.ModBlocks.JERNOVA.get()));
+            this.title = Component.translatable("jei.category.cim.millstone");
+        }
+
+        @Override public RecipeType<MillstoneWrapper> getRecipeType() { return MILLSTONE_TYPE; }
+        @Override public Component getTitle() { return title; }
+        @Override public IDrawable getBackground() { return background; }
+        @Override public IDrawable getIcon() { return icon; }
+
+        @Override
+        public void setRecipe(IRecipeLayoutBuilder builder, MillstoneWrapper recipe, IFocusGroup focuses) {
+            // Левая группа 3×3: входной предмет в ЛЕВОМ ВЕРХНЕМ слоте (5,5)
+            int[][] leftSlots = {
+                    {5, 5}, {23, 5}, {41, 5},
+                    {5, 23}, {23, 23}, {41, 23},
+                    {5, 41}, {23, 41}, {41, 41}
+            };
+            for (int[] pos : leftSlots) {
+                builder.addSlot(RecipeIngredientRole.INPUT, pos[0], pos[1]);
+            }
+            // Левый верхний слот — реальный вход
+            builder.addSlot(RecipeIngredientRole.INPUT, 5, 5)
+                    .addItemStack(new ItemStack(recipe.input()));
+
+            // Правая группа 3×3: выход в ЛЕВОМ ВЕРХНЕМ слоте (83,5)
+            int[][] rightSlots = {
+                    {83, 5}, {101, 5}, {119, 5},
+                    {83, 23}, {101, 23}, {119, 23},
+                    {83, 41}, {101, 41}, {119, 41}
+            };
+            for (int[] pos : rightSlots) {
+                builder.addSlot(RecipeIngredientRole.OUTPUT, pos[0], pos[1]);
+            }
+            // Левый верхний слот — реальный выход
+            builder.addSlot(RecipeIngredientRole.OUTPUT, 83, 5)
+                    .addItemStack(new ItemStack(recipe.output(), recipe.outputCount()));
+        }
+
+        @Override
+        public void draw(MillstoneWrapper recipe, IRecipeSlotsView view, GuiGraphics gg, double mx, double my) {
+            var font = Minecraft.getInstance().font;
+            String grindsText = recipe.grindsRequired() + " об";
+            gg.drawString(font, grindsText, 60, 32, 0xFF555555, false);
+        }
+    }
 
     public static class SmeltingCategory implements IRecipeCategory<SmeltingWrapper> {
         private final IDrawable background;
@@ -153,7 +236,7 @@ public class CimJeiPlugin implements IModPlugin {
                     new ResourceLocation(CrustalIncursionMod.MOD_ID, "textures/gui/jei/jei_cast_gui.png"),
                     0, 0, 120, 60);
             this.icon = guiHelper.createDrawableIngredient(VanillaTypes.ITEM_STACK,
-                    new ItemStack(ModBlocks.SMELTER.get()));
+                    new ItemStack(ModBlocks.CASTING_DESCENT.get()));
             this.title = Component.translatable("jei.category.cim.smelting");
             this.machines = Arrays.asList(
                     new ItemStack(ModBlocks.SMELTER.get()),
@@ -197,14 +280,18 @@ public class CimJeiPlugin implements IModPlugin {
         private final IDrawable background;
         private final IDrawable icon;
         private final Component title;
-
+        private final List<ItemStack> machines;
         public CastingCategory(IGuiHelper guiHelper) {
             this.background = guiHelper.createDrawable(
                     new ResourceLocation(CrustalIncursionMod.MOD_ID, "textures/gui/jei/jei_cast_gui.png"),
                     0, 0, 120, 60);
             this.icon = guiHelper.createDrawableIngredient(VanillaTypes.ITEM_STACK,
-                    new ItemStack(ModBlocks.SMELTER.get()));
+                    new ItemStack(ModBlocks.CASTING_POT.get()));
             this.title = Component.translatable("jei.category.cim.casting");
+            this.machines = Arrays.asList(
+                    new ItemStack(ModBlocks.SMELTER.get()),
+                    new ItemStack(ModBlocks.SMALL_SMELTER.get())
+            );
         }
 
         @Override public RecipeType<CastingWrapper> getRecipeType() { return CASTING_TYPE; }
