@@ -4,12 +4,14 @@ import com.cim.api.rotation.ShaftMaterial;
 import com.cim.entity.ModEntities;
 import com.cim.entity.weapons.grenades.GrenadeIfType;
 import com.cim.entity.weapons.grenades.GrenadeType;
+import com.cim.event.LiquidMetalItem;
 import com.cim.item.armor.GrenadierArmorMaterial;
 import com.cim.item.armor.GrenadierGogglesItem;
 import com.cim.item.conglomerates.ConglomerateItem;
 import com.cim.item.energy.EnergyCellItem;
 import com.cim.item.food.FoodZamaz;
 import com.cim.event.SlagItem;
+import com.cim.item.mobs.DepthWormBrutalSpawnEggItem;
 import com.cim.item.mobs.MoryLahItem;
 import com.cim.item.energy.WireCoilItem;
 import com.cim.item.rotation.GearItem;
@@ -54,6 +56,8 @@ public class ModItems {
     public static final RegistryObject<Item> DEPTH_WORM_SPAWN_EGG = ITEMS.register("depth_worm_spawn_egg",
             () -> new DepthWormSpawnEggItem(new Item.Properties()));
 
+    public static final RegistryObject<Item> DEPTH_WORM_BRUTAL_SPAWN_EGG = ITEMS.register("depth_worm_brutal_spawn_egg",
+            () -> new DepthWormBrutalSpawnEggItem(new Item.Properties()));
 
     public static final RegistryObject<Item> SLAG = ITEMS.register("slag",
             () -> new SlagItem(new Item.Properties()));
@@ -82,6 +86,21 @@ public class ModItems {
     public static final RegistryObject<Item> REINFORCEDBRICK = ITEMS.register("reinforcedbrick",
             () -> new Item(new Item.Properties()));
 
+    public static final RegistryObject<Item> CAST_PICKAXE_IRON_BASE = ITEMS.register("cast_pickaxe_iron_base",
+            () -> new Item(new Item.Properties()));
+
+    public static final RegistryObject<Item> CAST_PICKAXE_STEEL_BASE = ITEMS.register("cast_pickaxe_steel_base",
+            () -> new Item(new Item.Properties()));
+
+    public static final RegistryObject<Item> WOODEN_HANDLE = ITEMS.register("wooden_handle",
+            () -> new Item(new Item.Properties()));
+
+    public static final RegistryObject<Item> ROPE = ITEMS.register("rope",
+            () -> new Item(new Item.Properties()));
+
+    public static final RegistryObject<Item> LIQUID_METAL = ITEMS.register("liquid_metal",
+            () -> new LiquidMetalItem(new Item.Properties()));
+
     public static final RegistryObject<Item> CAST_PICKAXE_IRON = ITEMS.register("cast_pickaxe_iron",
             () -> new CastPickaxeIronItem(new Item.Properties()));
 
@@ -89,6 +108,12 @@ public class ModItems {
             () -> new CastPickaxeSteelItem(new Item.Properties()));
 
     public static final RegistryObject<Item> MOLD_INGOT = ITEMS.register("mold_ingot",
+            () -> new Item(new Item.Properties()));
+
+    public static final RegistryObject<Item> MOLD_PICKAXE = ITEMS.register("mold_pickaxe",
+            () -> new Item(new Item.Properties()));
+
+    public static final RegistryObject<Item> MOLD_EMPTY= ITEMS.register("mold_empty",
             () -> new Item(new Item.Properties()));
 
     public static final RegistryObject<GrenadierGogglesItem> GRENADIER_GOGGLES = ITEMS.register("grenadier_goggles",

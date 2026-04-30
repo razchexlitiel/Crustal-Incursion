@@ -48,8 +48,16 @@ public class ModItemModelProvider extends ItemModelProvider {
         ResourceDatagenHelper.generateItemModels(this);
         simpleItem(ModItems.SCREWDRIVER);
         simpleItem(ModItems.CROWBAR);
+        simpleItem(ModItems.CAST_PICKAXE_STEEL_BASE);
+        simpleItem(ModItems.CAST_PICKAXE_IRON_BASE);
+        simpleItem(ModItems.WOODEN_HANDLE);
+        simpleItem(ModItems.MOLD_PICKAXE);
+        simpleItem(ModItems.MOLD_EMPTY);
+        simpleItem(ModItems.ROPE);
+        simpleItem(ModItems.LIQUID_METAL);
         simpleItem(ModItems.RANGE_DETONATOR);
         simpleItem(ModItems.DEPTH_WORM_SPAWN_EGG);
+        simpleItem(ModItems.DEPTH_WORM_BRUTAL_SPAWN_EGG);
         simpleItem(ModItems.DETONATOR);
         simpleItem(ModItems.MULTI_DETONATOR);
         simpleItem(ModItems.HARD_ROCK);
@@ -60,7 +68,11 @@ public class ModItemModelProvider extends ItemModelProvider {
         simpleItem(ModItems.BATTERY_ADVANCED);
         simpleItem(ModItems.BATTERY_LITHIUM);
         simpleItem(ModItems.BATTERY_TRIXITE);
+        simpleItem(ModItems.DOLOMITE_SMES);
+        simpleItem(ModItems.FIRE_SMES);
         simpleItem(ModItems.WIRE_COIL);
+        simpleItem(ModItems.LIMESTONE_CHUNK);
+        simpleItem(ModItems.LIMESTONE_POWDER);
         simpleItem(ModItems.BEAM_PLACER);
         simpleItem(ModItems.BAUXITE_CHUNK);
         simpleItem(ModItems.BAUXITE_POWDER);

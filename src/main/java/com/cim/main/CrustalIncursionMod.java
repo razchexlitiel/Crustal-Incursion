@@ -9,6 +9,7 @@ import com.cim.api.metallurgy.system.MetalUnits2;
 import com.cim.api.metallurgy.system.MetallurgyRegistry;
 import com.cim.api.vein.VeinManager;
 import com.cim.block.entity.conglomerate.ConglomerateBlockEntity;
+import com.cim.entity.mobs.depth_worm.DepthWormBrutalEntity;
 import com.cim.entity.mobs.grenadier.GrenadierZombieEntity;
 import com.cim.event.SlagItem;
 import com.cim.worldgen.feature.ModBiomeModifiers;
@@ -234,6 +235,9 @@ public class CrustalIncursionMod {
             event.accept(ModBlocks.SHAFT_MEDIUM_TUNGSTEN_CARBIDE);
             event.accept(ModBlocks.SHAFT_HEAVY_TUNGSTEN_CARBIDE);
 
+            event.accept(ModItems.GEAR1_STEEL.get());
+            event.accept(ModItems.GEAR2_STEEL.get());
+
             event.accept(ModBlocks.MOTOR_ELECTRO);
             event.accept(ModBlocks.BEARING_BLOCK);
 
@@ -269,13 +273,18 @@ public class CrustalIncursionMod {
             event.accept(ModBlocks.LEAD_FLUID_PIPE);
             event.accept(ModBlocks.TUNGSTEN_FLUID_PIPE);
 
+            event.accept(ModBlocks.JERNOVA);
+            event.accept(ModBlocks.SMALL_SMELTER);
+
             event.accept(ModItems.HEATER_ITEM);
             event.accept(ModBlocks.SMELTER);
             event.accept(ModBlocks.CASTING_POT);
             event.accept(ModBlocks.CASTING_DESCENT);
+            event.accept(ModItems.MOLD_EMPTY.get());
             event.accept(ModItems.MOLD_NUGGET.get());
             event.accept(ModItems.MOLD_INGOT.get());
             event.accept(ModItems.MOLD_BLOCK.get());
+            event.accept(ModItems.MOLD_PICKAXE.get());
             event.accept(ModItems.POKER.get());
             event.accept(ModItems.GEAR1_STEEL.get());
             event.accept(ModItems.GEAR2_STEEL.get());
@@ -362,6 +371,7 @@ public class CrustalIncursionMod {
             event.accept(ModBlocks.DIRT_ROUGH.get());
             event.accept(ModBlocks.BASALT_ROUGH.get());
             event.accept(ModItems.DEPTH_WORM_SPAWN_EGG);
+            event.accept(ModItems.DEPTH_WORM_BRUTAL_SPAWN_EGG);
             event.accept(ModBlocks.DEPTH_WORM_NEST);
             event.accept(ModBlocks.HIVE_SOIL);
             event.accept(ModBlocks.HIVE_ROOTS.get()); // Обычная версия
@@ -378,6 +388,7 @@ public class CrustalIncursionMod {
         event.put(ModEntities.TURRET_LIGHT.get(), TurretLightEntity.createAttributes().build());
         event.put(ModEntities.TURRET_LIGHT_LINKED.get(), TurretLightEntity.createAttributes().build());
         event.put(ModEntities.GRENADIER_ZOMBIE.get(), GrenadierZombieEntity.createAttributes().build());
+        event.put(ModEntities.DEPTH_WORM_BRUTAL.get(), DepthWormBrutalEntity.createAttributes().build());
     }
     @SubscribeEvent
     public static void onEntitySpawn(MobSpawnEvent.FinalizeSpawn event) {
@@ -427,12 +438,11 @@ public class CrustalIncursionMod {
             RandomSource rand = level.random;
             int radius = 5 + rand.nextInt(4);
             int height = 5 + rand.nextInt(4);
-            VeinManager.VeinType type = VeinManager.VeinType.values()[rand.nextInt(VeinManager.VeinType.values().length)];
 
             Set<BlockPos> veinBlocks = new HashSet<>();
 
             for (int x = -radius; x <= radius; x++) {
-                for (int y = -height/2; y < height/2 + height%2; y++) { // Центрируем по Y
+                for (int y = -height/2; y < height/2 + height%2; y++) {
                     for (int z = -radius; z <= radius; z++) {
                         double halfHeight = height / 2.0;
                         double yOffset = y;
@@ -442,7 +452,6 @@ public class CrustalIncursionMod {
                         if (dist > 1.0) continue;
 
                         BlockPos pos = origin.offset(x, y, z);
-                        // ЗАМЕЩАЕМ любой не-бедрок блок (включая воздух, но кроме бедрока)
                         BlockState existing = level.getBlockState(pos);
                         if (!existing.is(net.minecraft.world.level.block.Blocks.BEDROCK)) {
                             veinBlocks.add(pos.immutable());
@@ -452,11 +461,12 @@ public class CrustalIncursionMod {
             }
 
             if (veinBlocks.size() < 30) {
-                event.getEntity().displayClientMessage(Component.literal("§cСлишком мало места для жилы! Нужно " + (30 - veinBlocks.size()) + " блоков"), true);
+                event.getEntity().displayClientMessage(Component.literal("§cСлишком мало места для жилы!"), true);
                 return;
             }
 
-            UUID veinId = VeinManager.get(level).registerVein(veinBlocks, type);
+            var composition = com.cim.api.vein.VeinCompositionGenerator.generate(origin.getY(), rand);
+            UUID veinId = VeinManager.get(level).registerVein(veinBlocks, composition, origin.getY());
 
             for (BlockPos pos : veinBlocks) {
                 level.setBlock(pos, ModBlocks.CONGLOMERATE.get().defaultBlockState(), 2);
@@ -467,7 +477,7 @@ public class CrustalIncursionMod {
             }
 
             event.getEntity().displayClientMessage(
-                    Component.literal("§aЖила: " + veinBlocks.size() + " блоков, " + type.name()),
+                    Component.literal("§aЖила: " + veinBlocks.size() + " блоков, основной металл: " + composition.getPrimaryMetal()),
                     false
             );
         }

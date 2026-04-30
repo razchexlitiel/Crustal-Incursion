@@ -8,12 +8,15 @@ import com.cim.block.basic.conglomerate.ConglomerateBlock;
 import com.cim.block.basic.deco.BeamBlock;
 import com.cim.block.basic.deco.BeamCollisionBlock;
 import com.cim.block.basic.deco.SteelPropsBlock;
+import com.cim.block.basic.direction.SideOBlock;
 import com.cim.block.basic.fluids.FluidBarrelBlock;
 
 import com.cim.block.basic.fluids.FluidPipeBlock;
 
+import com.cim.block.basic.industrial.MillstoneBlock;
 import com.cim.block.basic.industrial.casting.CastingDescentBlock;
 import com.cim.block.basic.industrial.casting.CastingPotBlock;
+import com.cim.block.basic.industrial.casting.SmallSmelterBlock;
 import com.cim.block.basic.industrial.energy.*;
 
 import com.cim.block.basic.industrial.rotation.BearingBlock;
@@ -139,6 +142,11 @@ public class ModBlocks {
             () -> new HiveRootsBlock(BlockBehaviour.Properties.copy(Blocks.SPORE_BLOSSOM).noCollission().instabreak()));
 
 
+    public static final RegistryObject<Block> SMALL_SMELTER = registerBlock("small_smelter",
+            () -> new SmallSmelterBlock(BlockBehaviour.Properties.of()
+                    .strength(1.2F, 6.0F).sound(SoundType.STONE).requiresCorrectToolForDrops()));
+
+
     //ОБЫЧНЫЕ БЛОКИ
     public static final RegistryObject<Block> MINERAL_BLOCK2 = registerBlock("mineral_block2",
             () -> new Block(BlockBehaviour.Properties.of()
@@ -183,9 +191,15 @@ public class ModBlocks {
     public static final RegistryObject<Block> PIPE_TEST = registerBlock("pipe_test",
             () -> new Block(BlockBehaviour.Properties.of()
                     .strength(0.5F, 6.0F).sound(SoundType.STONE).requiresCorrectToolForDrops()));
+    public static final RegistryObject<Block> JERNOVA = registerBlock("jernova",
+            () -> new MillstoneBlock(BlockBehaviour.Properties.of()
+                    .strength(2.0F, 6.0F)
+                    .sound(SoundType.STONE)
+                    .requiresCorrectToolForDrops()
+                    .noOcclusion()));
     public static final RegistryObject<Block> SMELTER = registerBlock("smelter",
             () -> new SmelterBlock(BlockBehaviour.Properties.of()
-                    .strength(0.5F, 6.0F).sound(SoundType.STONE).requiresCorrectToolForDrops().noCollission()));
+                    .strength(0.5F, 6.0F).sound(SoundType.STONE).requiresCorrectToolForDrops().noOcclusion()));
     public static final RegistryObject<Block> CONCRETE_RED = registerBlock("concrete_red",
             () -> new Block(BlockBehaviour.Properties.of()
                     .strength(0.5F, 6.0F).sound(SoundType.STONE).requiresCorrectToolForDrops()));

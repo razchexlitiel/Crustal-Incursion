@@ -1,6 +1,7 @@
 package com.cim.client;
 
 import com.cim.api.metallurgy.system.ItemHeatColorRegistry;
+import com.cim.client.gecko.entity.mobs.DepthWormBrutalRenderer;
 import com.cim.main.ResourceRegistry;
 import com.cim.block.basic.ModBlocks;
 import com.cim.block.entity.fluids.FluidPipeBlockEntity;
@@ -74,7 +75,7 @@ public class ClientModEvents {
                         return 0.0f;
                     });
         });
-
+        MenuScreens.register(ModMenuTypes.SMALL_SMELTER_MENU.get(), GUISmallSmelter::new);
         MenuScreens.register(ModMenuTypes.MACHINE_BATTERY_MENU.get(), GUIMachineBattery::new);
 //        MenuScreens.register(ModMenuTypes.MOTOR_ELECTRO_MENU.get(), GUIMotorElectro::new);
         MenuScreens.register(ModMenuTypes.TURRET_AMMO_MENU.get(), GUITurretAmmo::new);
@@ -193,6 +194,7 @@ public class ClientModEvents {
     public static void registerEntityRenderers(EntityRenderersEvent.RegisterRenderers event) {
         EntityRenderers.register(ModEntities.TURRET_BULLET.get(), TurretBulletRenderer::new);
         EntityRenderers.register(ModEntities.DEPTH_WORM.get(), DepthWormRenderer::new);
+        EntityRenderers.register(ModEntities.DEPTH_WORM_BRUTAL.get(), DepthWormBrutalRenderer::new);
         event.registerEntityRenderer(ModEntities.TURRET_LIGHT.get(), TurretLightRenderer::new);
         EntityRenderers.register(ModEntities.TURRET_LIGHT_LINKED.get(), TurretLightLinkedRenderer::new);
     }
@@ -325,6 +327,8 @@ public class ClientModEvents {
                 Items.GOLDEN_CHESTPLATE,
                 Items.GOLDEN_LEGGINGS,
                 Items.GOLDEN_BOOTS,
+                ModItems.CAST_PICKAXE_STEEL_BASE.get(),
+                ModItems.CAST_PICKAXE_IRON_BASE.get(),
                 ResourceRegistry.getMainUnit("steel"),
                 ResourceRegistry.getSmallUnit("steel"),
                 ResourceRegistry.getBlock("steel"),
@@ -359,6 +363,8 @@ public class ClientModEvents {
                 Items.IRON_HELMET, Items.IRON_CHESTPLATE, Items.IRON_LEGGINGS, Items.IRON_BOOTS,
                 ResourceRegistry.getMainUnit("steel"),
                 ResourceRegistry.getSmallUnit("steel"),
+                ModItems.CAST_PICKAXE_STEEL_BASE.get(),
+                ModItems.CAST_PICKAXE_IRON_BASE.get(),
                 ResourceRegistry.getBlock("steel").asItem()
         );
 
@@ -421,5 +427,12 @@ public class ClientModEvents {
         event.register((stack, tintIndex) -> ItemHeatColorRegistry.getSlagHeatColor(stack, tintIndex),
                 ModItems.SLAG.get()
         );
+
+        event.register((stack, tintIndex) -> {
+            if (tintIndex == 0 && stack.hasTag() && stack.getTag().contains("MetalColor")) {
+                return stack.getTag().getInt("MetalColor");
+            }
+            return 0xFFFFFF;
+        }, ModItems.LIQUID_METAL.get());
     }
 }

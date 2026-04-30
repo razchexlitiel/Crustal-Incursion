@@ -438,6 +438,7 @@ public class ShaftVisual extends AbstractBlockEntityVisual<ShaftBlockEntity> imp
 
     @Override
     public void updateLight(float partialTick) {
+        // Свет всегда считается от абсолютных координат (pos)
         relight(pos, shaftInstance);
         if (gearInstance != null) relight(pos, gearInstance);
         if (pulleyInstance != null) relight(pos, pulleyInstance);

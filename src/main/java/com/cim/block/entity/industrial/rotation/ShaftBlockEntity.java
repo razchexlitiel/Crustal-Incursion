@@ -295,7 +295,7 @@ public class ShaftBlockEntity extends BlockEntity implements Rotational {
             if (shouldSyncSpeed()) {
                 this.lastSyncedSpeed = this.speed;
                 if (level != null && !level.isClientSide) {
-                    level.sendBlockUpdated(getBlockPos(), getBlockState(), getBlockState(), 3);
+                    level.sendBlockUpdated(getBlockPos(), getBlockState(), getBlockState(), 2);
                 }
             }
         }

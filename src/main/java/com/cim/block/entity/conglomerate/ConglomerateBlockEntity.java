@@ -15,7 +15,7 @@ import java.util.UUID;
 public class ConglomerateBlockEntity extends BlockEntity {
     private UUID veinId;
     private float localDepletion = 0.0f; // 0.0 - 1.0 для визуала
-    private int blockOu = 1000; // Буфер конкретного блока (10 успешных ударов)
+    private int blockOu = 810; // Буфер конкретного блока (10 успешных ударов)
 
     public ConglomerateBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.CONGLOMERATE.get(), pos, state);
@@ -57,14 +57,13 @@ public class ConglomerateBlockEntity extends BlockEntity {
         return depleted;
     }
 
-    // Обновить saveAdditional и load:
     @Override
     protected void saveAdditional(CompoundTag tag) {
         super.saveAdditional(tag);
         if (veinId != null) tag.putUUID("VeinId", veinId);
         tag.putFloat("Depletion", localDepletion);
         tag.putBoolean("Depleted", depleted);
-        tag.putInt("BlockOu", blockOu); // Сохраняем OU блока
+        tag.putInt("BlockOu", blockOu);
     }
 
     @Override
@@ -73,11 +72,7 @@ public class ConglomerateBlockEntity extends BlockEntity {
         if (tag.hasUUID("VeinId")) veinId = tag.getUUID("VeinId");
         localDepletion = tag.getFloat("Depletion");
         depleted = tag.getBoolean("Depleted");
-        if (tag.contains("BlockOu")) {
-            blockOu = tag.getInt("BlockOu"); // Загружаем OU
-        } else {
-            blockOu = 1000; // Для старых блоков, где тега еще нет
-        }
+        blockOu = tag.contains("BlockOu") ? tag.getInt("BlockOu") : 810;
     }
 
     @Nullable

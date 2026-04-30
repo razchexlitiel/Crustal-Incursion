@@ -4,28 +4,65 @@ import com.cim.worldgen.tree.custom.*;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.data.worldgen.BootstapContext; // В официальных маппингах может быть опечатка BootstapContext, проверь у себя!
 import net.minecraft.data.worldgen.features.FeatureUtils;
+import net.minecraft.data.worldgen.features.OreFeatures;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.tags.BlockTags;
 import net.minecraft.util.valueproviders.ConstantInt;
 import net.minecraft.world.level.levelgen.feature.ConfiguredFeature;
 import net.minecraft.world.level.levelgen.feature.Feature;
 import net.minecraft.world.level.levelgen.feature.configurations.FeatureConfiguration;
 import net.minecraft.world.level.levelgen.feature.configurations.NoneFeatureConfiguration;
+import net.minecraft.world.level.levelgen.feature.configurations.OreConfiguration;
 import net.minecraft.world.level.levelgen.feature.configurations.TreeConfiguration;
 import net.minecraft.world.level.levelgen.feature.featuresize.TwoLayersFeatureSize;
 import net.minecraft.world.level.levelgen.feature.stateproviders.BlockStateProvider;
 import com.cim.block.basic.ModBlocks;
 import com.cim.main.CrustalIncursionMod;
+import net.minecraft.world.level.levelgen.structure.templatesystem.TagMatchTest;
+
+import java.util.List;
 
 // Размещать в: src/main/java/razchexlitiel/cim/worldgen/ModConfiguredFeatures.java
 public class ModConfiguredFeatures {
-    public static final ResourceKey<ConfiguredFeature<?, ?>> CONGLOMERATE_VEIN_KEY = registerKey("conglomerate_vein");  // 1. Создаем уникальный ключ для нашего дерева
+// 1. Создаем уникальный ключ для нашего дерева
     public static final ResourceKey<ConfiguredFeature<?, ?>> GIANT_SEQUOIA_KEY = registerKey("giant_sequoia");
     public static final ResourceKey<ConfiguredFeature<?, ?>> SMALL_SEQUOIA_KEY = registerKey("small_sequoia");
     public static final ResourceKey<ConfiguredFeature<?, ?>> MEDIUM_SEQUOIA_KEY = registerKey("medium_sequoia");
 
     // 2. Метод Bootstrap для DataGen (Сборка дерева)
     public static void bootstrap(BootstapContext<ConfiguredFeature<?, ?>> context) {
+
+
+        // --- АВТО-ГЕНЕРАЦИЯ РУД ---
+        for (OreVeinRegistry.OreEntry ore : OreVeinRegistry.ORES) {
+            List<OreConfiguration.TargetBlockState> targets = List.of(
+                    OreConfiguration.target(new TagMatchTest(BlockTags.STONE_ORE_REPLACEABLES), ore.block.defaultBlockState()),
+                    OreConfiguration.target(new TagMatchTest(BlockTags.DEEPSLATE_ORE_REPLACEABLES), ore.block.defaultBlockState())
+            );
+            register(context, ore.configuredKey, Feature.ORE, new OreConfiguration(targets, ore.veinSize));
+        }
+
+        // --- СПЕЦИАЛЬНЫЕ ЖИЛЫ ---
+        for (OreVeinRegistry.SpecialOreEntry ore : OreVeinRegistry.SPECIAL_ORES) {
+            List<OreConfiguration.TargetBlockState> targets = List.of(
+                    OreConfiguration.target(new TagMatchTest(BlockTags.STONE_ORE_REPLACEABLES), ore.block.defaultBlockState()),
+                    OreConfiguration.target(new TagMatchTest(BlockTags.DEEPSLATE_ORE_REPLACEABLES), ore.block.defaultBlockState())
+            );
+            register(context, ore.configuredKey, ModFeatures.SPECIAL_VEIN.get(),
+                    new SpecialVeinConfiguration(targets, ore.block.defaultBlockState(),
+                            ore.minSize, ore.maxSize, ore.minY, ore.maxY,
+                            ore.respectAir, ore.density, 0.1f));
+        }
+
+        // --- КОНГЛОМЕРАТЫ ---
+        for (OreVeinRegistry.ConglomerateEntry entry : OreVeinRegistry.CONGLOMERATES) {
+            register(context, entry.configuredKey, ModFeatures.CONGLOMERATE_VEIN.get(),
+                    new ConglomerateVeinConfiguration(
+                            entry.minSize, entry.maxSize, entry.minY, entry.maxY,
+                            entry.density, entry.depletionChance
+                    ));
+        }
 
         // Собираем нашу гигантскую Секвойю!
         register(context, GIANT_SEQUOIA_KEY, Feature.TREE, new TreeConfiguration.TreeConfigurationBuilder(
@@ -66,9 +103,6 @@ public class ModConfiguredFeatures {
                 new MediumSequoiaFoliagePlacer(ConstantInt.of(1), ConstantInt.of(0)), // Радиус 1 даст нам аккуратные крестики
                 new TwoLayersFeatureSize(3, 0, 3)).build());
 
-        FeatureUtils.register(context, CONGLOMERATE_VEIN_KEY,
-                ModFeatures.CONGLOMERATE_VEIN.get(),
-                NoneFeatureConfiguration.INSTANCE);
 
     }
 
