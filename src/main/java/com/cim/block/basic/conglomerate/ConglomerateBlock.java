@@ -61,7 +61,10 @@ public class ConglomerateBlock extends BaseEntityBlock {
 
         int ouPerHit = 81;
         entity.consumeOu(ouPerHit);
-        vein.consumeUnits(ouPerHit);
+
+        // Было: vein.consumeUnits(ouPerHit);
+        // Стало: синхронно обновляем и данные, и метаданные, и ставим dirty
+        manager.consumeVeinUnits(entity.getVeinId(), ouPerHit);
 
         float chunkChance = switch (tierLevel) {
             case 0 -> 0.30f;
@@ -88,7 +91,7 @@ public class ConglomerateBlock extends BaseEntityBlock {
             entity.setLocalDepletion(1.0f - (entity.getBlockOu() / 810.0f));
         }
 
-        manager.setDirty();
+        // manager.setDirty(); // УБРАТЬ — теперь dirty ставится внутри consumeVeinUnits
     }
 
     private void convertToDepleted(ServerLevel level, BlockPos pos) {
