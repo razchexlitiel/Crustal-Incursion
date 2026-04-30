@@ -21,6 +21,8 @@ import java.util.function.Consumer;
 
 public class ShaftVisual extends AbstractBlockEntityVisual<ShaftBlockEntity> implements SimpleDynamicVisual {
 
+
+    //обед фракка
     private final TransformedInstance shaftInstance;
     @Nullable private TransformedInstance gearInstance;
     @Nullable private TransformedInstance pulleyInstance;
