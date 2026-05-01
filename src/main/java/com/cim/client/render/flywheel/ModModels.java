@@ -16,7 +16,9 @@ public class ModModels {
     public static final PartialModel BEARING_INNER_RING = PartialModel.of(new ResourceLocation("cim", "block/bearing_shaft"));
     public static final PartialModel BEARING = PartialModel.of(new ResourceLocation("cim", "block/bearing"));
     public static final PartialModel BEVEL_GEAR = PartialModel.of(new ResourceLocation("cim", "block/bevel_gear"));
+
     public static final PartialModel TACHOMETER = PartialModel.of(new ResourceLocation("cim", "block/tachometr"));
+
     public static final Map<String, PartialModel> PULLEY_MODELS = new HashMap<>();
     public static final PartialModel BELT_SEGMENT = PartialModel.of(new ResourceLocation("cim", "block/belt_segment"));
 
