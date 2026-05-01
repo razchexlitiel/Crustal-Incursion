@@ -48,6 +48,12 @@ public class ModLangProvider extends LanguageProvider {
         add("tooltip.cim.fluid.unknown", "Unknown Fluid");
         add("tooltip.cim.fluid.invalid", "Invalid Fluid");
 
+        // Fluid Pipes
+add(ModBlocks.BRONZE_FLUID_PIPE.get(), "Bronze Fluid Pipe");
+add(ModBlocks.STEEL_FLUID_PIPE.get(), "Steel Fluid Pipe");
+add(ModBlocks.LEAD_FLUID_PIPE.get(), "Lead Fluid Pipe");
+add(ModBlocks.TUNGSTEN_FLUID_PIPE.get(), "Tungsten Fluid Pipe");
+
 // Fluids
         add("fluid_type.cim.hydrogen_peroxide", "Hydrogen Peroxide");
         add("fluid_type.cim.sulfuric_acid", "Sulfuric Acid");
@@ -80,6 +86,13 @@ public class ModLangProvider extends LanguageProvider {
         add("jei.category.cim.millstone", "Millstone");
         add(ModItems.LIQUID_METAL.get(), "Liquid metal");
 
+        // Molds
+add(ModItems.MOLD_INGOT.get(), "Ingot Mold");
+add(ModItems.MOLD_PICKAXE.get(), "Pickaxe Mold");
+add(ModItems.MOLD_EMPTY.get(), "Empty Mold");
+add(ModItems.MOLD_NUGGET.get(), "Nugget Mold");
+add(ModItems.MOLD_BLOCK.get(), "Block Mold");
+
         //Секвойя
         add(ModBlocks.SEQUOIA_BARK.get(), "Sequoia bark");
         add(ModBlocks.SEQUOIA_HEARTWOOD.get(), "Sequoia heartwood");
@@ -93,6 +106,19 @@ public class ModLangProvider extends LanguageProvider {
         add(ModBlocks.SEQUOIA_DOOR.get(), "Sequoia door");
         add(ModBlocks.SEQUOIA_BIOME_MOSS.get(), "Dark moss");
         add(ModBlocks.SEQUOIA_LEAVES.get(), "Sequoia leaves");
+
+        // Протекторы
+add(ModItems.PROTECTOR_LEAD.get(), "Lead Protector");
+add(ModItems.PROTECTOR_STEEL.get(), "Steel Protector");
+add(ModItems.PROTECTOR_TUNGSTEN.get(), "Tungsten Protector");
+
+    // 
+add(ModBlocks.SMALL_SMELTER.get(), "Small Smelter");
+add(ModBlocks.SMELTER.get(), "Smelter");
+add(ModBlocks.JERNOVA.get(), "Millstone");
+add(ModBlocks.CASTING_DESCENT.get(), "Casting Descent");
+add(ModBlocks.CASTING_POT.get(), "Casting Pot");
+add(ModBlocks.HEATER.get(), "Heater");
 
         //Электроника
         add(ModItems.ENERGY_CELL_BASIC.get(), "Energy cell");
@@ -111,7 +137,14 @@ public class ModLangProvider extends LanguageProvider {
         add(ModBlocks.DEPTH_WORM_NEST.get(), "Depth worm nest");
         add(ModBlocks.HIVE_SOIL.get(), "Depth worm hive flesh");
 
-
+ // кырпичы
+        add(ModItems.SLAG.get(), "Slag");
+add(ModItems.FIREBRICK.get(), "Firebrick");
+add(ModItems.REINFORCEDBRICK.get(), "Reinforced Brick");
+add(ModItems.WOODEN_HANDLE.get(), "Wooden Handle");
+add(ModItems.ROPE.get(), "Rope");
+add(ModItems.BEAM_PLACER.get(), "Beam Placer");
+add(ModItems.POKER.get(), "Poker");
 
         //Блоки
         add(ModBlocks.CRATE.get(), "Crate");
@@ -141,6 +174,12 @@ public class ModLangProvider extends LanguageProvider {
         add(ModBlocks.CONCRETE_HAZARD_OLD_STAIRS.get(), "Old hazard concrete stairs");
         add(ModBlocks.CONCRETE_HAZARD_OLD_SLAB.get(), "Old hazard concrete slab");
         add(ModBlocks.SEQUOIA_TRAPDOOR.get(), "Sequoia trapdoor");
+        add(ModBlocks.BEAM_BLOCK.get(), "Beam Block");
+        add(ModBlocks.STEEL_PROPS.get(), "Steel Props");
+         add(ModBlocks.DECO_STEEL.get(), "Decorative Steel");
+        add(ModBlocks.DECO_STEEL_DARK.get(), "Dark Decorative Steel");
+        add(ModBlocks.DECO_LEAD.get(), "Decorative Lead");
+        add(ModBlocks.DIRT_ROUGH.get(), "Rough Dirt");
 
         // Валы
 //        add(ModBlocks.DRILL_HEAD.get(), "Drill head");
@@ -156,6 +195,12 @@ public class ModLangProvider extends LanguageProvider {
 //        add(ModBlocks.RCONVERTER.get(), "RtoE converter");
 //        add(ModBlocks.SHAFT_PLACER.get(), "Shaft placer");
 //        add(ModBlocks.MINING_PORT.get(), "Mining port");
+        add(ModItems.GEAR1_STEEL.get(), "Small Steel Gear");
+add(ModItems.GEAR2_STEEL.get(), "Medium Steel Gear");
+add(ModBlocks.BEARING_BLOCK.get(), "Bearing");
+add(ModBlocks.SHAFT_LIGHT_STEEL.get(), "Light Steel Shaft");
+add(ModBlocks.SHAFT_MEDIUM_STEEL.get(), "Medium Steel Shaft");
+add(ModBlocks.SHAFT_HEAVY_STEEL.get(), "Heavy Steel Shaft");
 
         //Другие предметы
         add(ModBlocks.DET_MINER.get(), "Mining charge");
@@ -202,6 +247,9 @@ public class ModLangProvider extends LanguageProvider {
         add("entity.cim.grenade_nuc_projectile", "Nuclear grenade");
 
         add(ModItems.GRENADIER_GOGGLES.get(), "Grenadier Goggles");
+        // Яйца призыва
+        add(ModItems.DEPTH_WORM_BRUTAL_SPAW_EGG.get(), "Brutal Depth Worm Spawn Egg");
+add(ModItems.GRENADIER_ZOMBIE_SPAWN_EGG.get(), "Grenadier Zombie Spawn Egg");
 
     }
 
@@ -217,6 +265,12 @@ public class ModLangProvider extends LanguageProvider {
 
         add(ModItems.GRENADIER_GOGGLES.get(), "Очки гренадёра");
         add("item.cim.grenadier_goggles.desc.explosion_resist", "Защита от взрывов: +%s%%");
+
+        // Протекторы
+           add(ModItems.PROTECTOR_LEAD.get(), "Свинцовый протектор");
+          add(ModItems.PROTECTOR_STEEL.get(), "Стальной протектор");
+          add(ModItems.PROTECTOR_TUNGSTEN.get(), "Вольфрамовый протектор");
+        
         // Металлы
         add("metal.cim.gold", "Золото");
         add("metal.cim.iron", "Железо");
@@ -255,6 +309,19 @@ public class ModLangProvider extends LanguageProvider {
         add(ModBlocks.WIRE_COATED.get(), "Провод из красной меди");
         add(ModBlocks.SWITCH.get(), "Рубильник");
 
+        // Лытье
+          add(ModItems.MOLD_INGOT.get(), "Форма для слитка");
+           add(ModItems.MOLD_PICKAXE.get(), "Форма для кирки");
+           add(ModItems.MOLD_EMPTY.get(), "Пустая форма");
+           add(ModItems.MOLD_NUGGET.get(), "Форма для самородка");
+            add(ModItems.MOLD_BLOCK.get(), "Форма для блока");
+        add(ModBlocks.SMALL_SMELTER.get(), "Малый плавильник");
+        add(ModBlocks.SMELTER.get(), "Плавильник");
+           add(ModBlocks.JERNOVA.get(), "Жернова");
+         add(ModBlocks.CASTING_DESCENT.get(), "Литейный спуск");
+           add(ModBlocks.CASTING_POT.get(), "Литейный котел");
+          add(ModBlocks.HEATER.get(), "Нагреватель");
+
         add(ModBlocks.TURRET_LIGHT_PLACER.get(), "Лёгкая десантная турель 'Нагваль'");
 
         // Нэкроз
@@ -288,6 +355,11 @@ public class ModLangProvider extends LanguageProvider {
         add(ModBlocks.CONCRETE_HAZARD_NEW_SLAB.get(), "Плита из бетона 'в полоску'");
         add(ModBlocks.CONCRETE_HAZARD_OLD_STAIRS.get(), "Ступени из изношенного бетона 'в полоску'");
         add(ModBlocks.CONCRETE_HAZARD_OLD_SLAB.get(), "Плита из изношенного бетона 'в полоску'");
+        add(ModBlocks.BEAM_BLOCK.get(), "Балка");
+      add(ModBlocks.STEEL_PROPS.get(), "Стальные подпорки");
+        add(ModBlocks.DECO_STEEL.get(), "Декоративная сталь");
+        add(ModBlocks.DECO_LEAD.get(), "Декоративный свинец");
+         add(ModBlocks.DIRT_ROUGH.get(), "Грубая земля");
 
 
         // Валы
@@ -303,6 +375,11 @@ public class ModLangProvider extends LanguageProvider {
 //        add(ModBlocks.RCONVERTER.get(), "Преобразователь вращения в энергию");
 //        add(ModBlocks.SHAFT_PLACER.get(), "Установщик валов");
 //        add(ModBlocks.MINING_PORT.get(), "Сборочный порт");
+        
+          add(ModItems.GEAR1_STEEL.get(), "Стальная шестерня (малая)");
+          add(ModItems.GEAR2_STEEL.get(), "Стальная шестерня (средняя)");
+          add(ModBlocks.BEARING_BLOCK.get(), "Подшипник");
+          add(ModBlocks.SHAFT_MEDIUM_STEEL.get(), "Средний стальной вал");
         
         add("jei.category.cim.smelting", "Плавка");
         add("jei.category.cim.casting", "Отлив");
@@ -321,6 +398,12 @@ public class ModLangProvider extends LanguageProvider {
         add(ModItems.MACHINEGUN.get(), "'А.П. 17'");
         add(ModItems.TURRET_CHIP.get(), "Чип турели");
         add(ModItems.TURRET_LIGHT_PORTATIVE_PLACER.get(), "Портативная лёгкая десантная турель 'Нагваль'");
+        add(ModItems.SLAG.get(), "Шлак");
+       add(ModItems.FIREBRICK.get(), "Огнеупорный кирпич");
+         add(ModItems.REINFORCEDBRICK.get(), "Армированный кирпич");
+          add(ModItems.WOODEN_HANDLE.get(), "Деревянная рукоять");
+          add(ModItems.BEAM_PLACER.get(), "Установщик балок");
+        add(ModItems.POKER.get(), "Кочерга");
 //        add(ModItems.WIND_GEN_FLUGER.get(), "Ветряной генератор вращения");
         add(ModItems.AMMO_TURRET_PIERCING.get(), "20мм турельный боеприпас");
         add(ModItems.AMMO_TURRET_HOLLOW.get(), "20мм экспансивный турельный боеприпас");
@@ -345,17 +428,24 @@ public class ModLangProvider extends LanguageProvider {
         add("itemGroup.cim.cim_nature_tab", "Природа");
 
 
-// Fluid Identifier
+// Жискосные идентификаторы
         add("item.cim.fluid_identifier", "Жидкостный индефикатор");
         add("fluid.cim.none", "Ничего");
         add("tooltip.cim.fluid.unknown", "Неизвестная жидкость");
         add("tooltip.cim.fluid.invalid", "Недействительная жидкость");
 
-// Fluids
+// Жыжкости
         add("fluid_type.cim.hydrogen_peroxide", "Пероксид водорода");
         add("fluid_type.cim.sulfuric_acid", "Серная кислота");
         add("fluid_type.cim.natural_gas", "Природный газ");
         add("fluid_type.cim.steam", "Пар");
+
+        // Трубы для жижкостей
+       add(ModBlocks.BRONZE_FLUID_PIPE.get(), "Бронзовая жидкостная труба");
+        add(ModBlocks.STEEL_FLUID_PIPE.get(), "Стальная жидкостная труба");
+         add(ModBlocks.LEAD_FLUID_PIPE.get(), "Свинцовая жидкостная труба");
+           add(ModBlocks.TUNGSTEN_FLUID_PIPE.get(), "Вольфрамовая жидкостная труба");
+        
         // Энтити
         add("entity.cim.turret_light", "Лёгкая турель");
         add("entity.cim.turret_light_linked", "Связанная лёгкая турель");
@@ -371,6 +461,10 @@ public class ModLangProvider extends LanguageProvider {
         add("entity.cim.grenade_if_slime_projectile", "Желатиновая ударная граната");
         add("entity.cim.grenade_if_he_projectile", "Фугасная ударная граната");
         add("entity.cim.grenade_nuc_projectile", "Ядерная граната");
+
+        // Яйца призыва
+         add(ModItems.DEPTH_WORM_BRUTAL_SPAW_EGG.get(), "Яйцо призыва жестокого глубинного червя");
+         add(ModItems.GRENADIER_ZOMBIE_SPAWN_EGG.get(), "Яйцо призыва зомби-гренадера");
     }
     private void addUkrainian() {
         // Вкладки креативу
