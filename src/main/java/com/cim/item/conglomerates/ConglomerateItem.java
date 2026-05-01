@@ -85,7 +85,7 @@ public class ConglomerateItem extends Item {
         super.appendHoverText(stack, level, tooltip, flag);
 
         int ou = getOU(stack);
-        tooltip.add(Component.literal("§7Ore Units: §f" + ou + "/100"));
+        tooltip.add(Component.literal("§7Ore Units: §f" + ou + "/81"));
 
         // ТЕСТ: всегда показываем состав
         String veinType = stack.hasTag() ? stack.getTag().getString(TAG_VEIN_TYPE) : "unknown";
@@ -147,12 +147,5 @@ public class ConglomerateItem extends Item {
         return stack.hasTag() ? stack.getTag().getInt(TAG_OU) : 0;
     }
 
-    public static boolean isAnalyzed(ItemStack stack) {
-        return stack.hasTag() && stack.getTag().getBoolean(TAG_ANALYZED);
-    }
 
-    @Override
-    public boolean isFoil(ItemStack stack) {
-        return !isAnalyzed(stack);
-    }
 }
