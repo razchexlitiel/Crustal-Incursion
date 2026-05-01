@@ -1,12 +1,16 @@
 {
   "variants": {
-    "facing=north,mode=speed": { "model": "cim:block/tachometer_speed" },
-    "facing=south,mode=speed": { "model": "cim:block/tachometer_speed", "y": 180 },
-    "facing=east,mode=speed":  { "model": "cim:block/tachometer_speed", "y": 90 },
-    "facing=west,mode=speed":  { "model": "cim:block/tachometer_speed", "y": 270 },
-    "facing=north,mode=torque": { "model": "cim:block/tachometer_torque" },
-    "facing=south,mode=torque": { "model": "cim:block/tachometer_torque", "y": 180 },
-    "facing=east,mode=torque":  { "model": "cim:block/tachometer_torque", "y": 90 },
-    "facing=west,mode=torque":  { "model": "cim:block/tachometer_torque", "y": 270 }
+    "facing=north,has_shaft=false": { "model": "cim:block/tachometr", "x": 90 },
+    "facing=north,has_shaft=true":  { "model": "cim:block/tachometr", "x": 90 },
+    "facing=south,has_shaft=false": { "model": "cim:block/tachometr", "x": 90, "y": 180 },
+    "facing=south,has_shaft=true":  { "model": "cim:block/tachometr", "x": 90, "y": 180 },
+    "facing=west,has_shaft=false":  { "model": "cim:block/tachometr", "x": 90, "y": 270 },
+    "facing=west,has_shaft=true":   { "model": "cim:block/tachometr", "x": 90, "y": 270 },
+    "facing=east,has_shaft=false":  { "model": "cim:block/tachometr", "x": 90, "y": 90 },
+    "facing=east,has_shaft=true":   { "model": "cim:block/tachometr", "x": 90, "y": 90 },
+    "facing=up,has_shaft=false":    { "model": "cim:block/tachometr" },
+    "facing=up,has_shaft=true":     { "model": "cim:block/tachometr" },
+    "facing=down,has_shaft=false":  { "model": "cim:block/tachometr", "x": 180 },
+    "facing=down,has_shaft=true":   { "model": "cim:block/tachometr", "x": 180 }
   }
 }

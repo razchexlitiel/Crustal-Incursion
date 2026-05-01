@@ -311,5 +311,8 @@ public class KineticNetwork {
         this.currentSpeed = speed;
     }
 
+    public long getTotalTorque() { return totalGeneratedTorque; }
+    public long getTotalInertia() { return totalInertia; }
+    public long getTotalFriction() { return totalFriction; }
 
 }
