@@ -36,6 +36,8 @@ public class ShaftBlock extends BaseEntityBlock {
     public static final DirectionProperty FACING = BlockStateProperties.FACING;
     public static final IntegerProperty GEAR_SIZE = IntegerProperty.create("gear_size", 0, 3);
     public static final IntegerProperty PULLEY_SIZE = IntegerProperty.create("pulley_size", 0, 3);
+    public static final net.minecraft.world.level.block.state.properties.BooleanProperty HAS_BEVEL_START = net.minecraft.world.level.block.state.properties.BooleanProperty.create("has_bevel_start");
+    public static final net.minecraft.world.level.block.state.properties.BooleanProperty HAS_BEVEL_END = net.minecraft.world.level.block.state.properties.BooleanProperty.create("has_bevel_end");
 
     // НОВЫЕ ПЕРЕМЕННЫЕ
     private final ShaftMaterial material;
@@ -49,7 +51,9 @@ public class ShaftBlock extends BaseEntityBlock {
         this.registerDefaultState(this.stateDefinition.any()
                 .setValue(FACING, Direction.NORTH)
                 .setValue(GEAR_SIZE, 0)
-                .setValue(PULLEY_SIZE, 0)); // По умолчанию вал пустой
+                .setValue(PULLEY_SIZE, 0)
+                .setValue(HAS_BEVEL_START, false)
+                .setValue(HAS_BEVEL_END, false)); // По умолчанию вал пустой
     }
 
     // Геттеры для сущности (BlockEntity)
@@ -58,7 +62,7 @@ public class ShaftBlock extends BaseEntityBlock {
 
     @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
-        builder.add(FACING, GEAR_SIZE, PULLEY_SIZE);
+        builder.add(FACING, GEAR_SIZE, PULLEY_SIZE, HAS_BEVEL_START, HAS_BEVEL_END);
     }
 
     // ДИНАМИЧЕСКИЙ ХИТБОКС (зависит от диаметра)
@@ -96,26 +100,43 @@ public class ShaftBlock extends BaseEntityBlock {
             return Shapes.or(shaftShape, attachmentShape);
         }
 
-        // 2. Хитбокс шестерни (твой старый код)
         if (gearSize == 1) {
             double gMin = 0.0, gMax = 16.0;
-            attachmentShape = switch (state.getValue(FACING).getAxis()) {
+            VoxelShape gearShape = switch (state.getValue(FACING).getAxis()) {
                 case X -> Block.box(tMin, gMin, gMin, tMax, gMax, gMax);
                 case Y -> Block.box(gMin, tMin, gMin, gMax, tMax, gMax);
                 case Z -> Block.box(gMin, gMin, tMin, gMax, gMax, tMax);
             };
-            return Shapes.or(shaftShape, attachmentShape);
+            attachmentShape = Shapes.or(attachmentShape, gearShape);
         } else if (gearSize >= 2) {
             double gMin = -8.0, gMax = 24.0;
-            attachmentShape = switch (state.getValue(FACING).getAxis()) {
+            VoxelShape gearShape = switch (state.getValue(FACING).getAxis()) {
                 case X -> Block.box(tMin, gMin, gMin, tMax, gMax, gMax);
                 case Y -> Block.box(gMin, tMin, gMin, gMax, tMax, gMax);
                 case Z -> Block.box(gMin, gMin, tMin, gMax, gMax, tMax);
             };
-            return Shapes.or(shaftShape, attachmentShape);
+            attachmentShape = Shapes.or(attachmentShape, gearShape);
         }
 
-        return shaftShape;
+        // 3. Хитбокс конических шестерней
+        if (state.getValue(HAS_BEVEL_START)) {
+            VoxelShape startShape = switch (state.getValue(FACING).getAxis()) {
+                case X -> Block.box(0.0, 2.0, 2.0, 4.0, 14.0, 14.0);
+                case Y -> Block.box(2.0, 0.0, 2.0, 14.0, 4.0, 14.0);
+                case Z -> Block.box(2.0, 2.0, 0.0, 14.0, 14.0, 4.0);
+            };
+            attachmentShape = Shapes.or(attachmentShape, startShape);
+        }
+        if (state.getValue(HAS_BEVEL_END)) {
+            VoxelShape endShape = switch (state.getValue(FACING).getAxis()) {
+                case X -> Block.box(12.0, 2.0, 2.0, 16.0, 14.0, 14.0);
+                case Y -> Block.box(2.0, 12.0, 2.0, 14.0, 16.0, 14.0);
+                case Z -> Block.box(2.0, 2.0, 12.0, 14.0, 14.0, 16.0);
+            };
+            attachmentShape = Shapes.or(attachmentShape, endShape);
+        }
+
+        return Shapes.or(shaftShape, attachmentShape);
     }
 
     @Override
@@ -123,15 +144,33 @@ public class ShaftBlock extends BaseEntityBlock {
         if (player.getItemInHand(hand).is(ModItems.SCREWDRIVER.get())) {
             boolean isGear = state.getValue(GEAR_SIZE) > 0;
             boolean isPulley = state.getValue(PULLEY_SIZE) > 0;
+            boolean isBevelStart = state.getValue(HAS_BEVEL_START);
+            boolean isBevelEnd = state.getValue(HAS_BEVEL_END);
 
-            if (isGear || isPulley) {
+            if (isGear || isPulley || isBevelStart || isBevelEnd) {
                 if (!level.isClientSide) {
                     BlockEntity be = level.getBlockEntity(pos);
                     if (be instanceof ShaftBlockEntity shaftBE) {
 
-                        if (isGear && shaftBE.hasGear()) {
+                        // Определяем, по чему именно кликнули
+                        double hitLoc = switch (state.getValue(FACING).getAxis()) {
+                            case X -> hit.getLocation().x - pos.getX();
+                            case Y -> hit.getLocation().y - pos.getY();
+                            case Z -> hit.getLocation().z - pos.getZ();
+                        };
+
+                        if (isBevelStart && hitLoc < 0.375) {
+                            Containers.dropItemStack(level, pos.getX(), pos.getY(), pos.getZ(), shaftBE.getAttachedBevelStart());
+                            shaftBE.setAttachedBevelStart(net.minecraft.world.item.ItemStack.EMPTY);
+                            level.setBlock(pos, state.setValue(HAS_BEVEL_START, false), 3);
+                        } else if (isBevelEnd && hitLoc > 0.625) {
+                            Containers.dropItemStack(level, pos.getX(), pos.getY(), pos.getZ(), shaftBE.getAttachedBevelEnd());
+                            shaftBE.setAttachedBevelEnd(net.minecraft.world.item.ItemStack.EMPTY);
+                            level.setBlock(pos, state.setValue(HAS_BEVEL_END, false), 3);
+                        } else if (isGear && shaftBE.hasGear()) {
                             Containers.dropItemStack(level, pos.getX(), pos.getY(), pos.getZ(), shaftBE.getAttachedGear());
                             shaftBE.setAttachedGear(net.minecraft.world.item.ItemStack.EMPTY);
+                            level.setBlock(pos, state.setValue(GEAR_SIZE, 0), 3);
                         } else if (isPulley && shaftBE.hasPulley()) {
                             Containers.dropItemStack(level, pos.getX(), pos.getY(), pos.getZ(), shaftBE.getAttachedPulley());
                             shaftBE.setAttachedPulley(net.minecraft.world.item.ItemStack.EMPTY);
@@ -142,9 +181,11 @@ public class ShaftBlock extends BaseEntityBlock {
                                 otherBE.setConnectedPulley(null);
                             }
                             shaftBE.setConnectedPulley(null);
+                            level.setBlock(pos, state.setValue(PULLEY_SIZE, 0), 3);
+                        } else {
+                            return InteractionResult.PASS; // Не попали ни по одной детали
                         }
 
-                        level.setBlock(pos, state.setValue(GEAR_SIZE, 0).setValue(PULLEY_SIZE, 0), 3);
                         level.playSound(null, pos, SoundEvents.ITEM_FRAME_REMOVE_ITEM, SoundSource.BLOCKS, 1.0f, 1.0f);
 
                         // Пересчет
@@ -244,6 +285,12 @@ public class ShaftBlock extends BaseEntityBlock {
             if (be instanceof ShaftBlockEntity shaftBE) {
                 if (shaftBE.hasGear()) {
                     Containers.dropItemStack(level, pos.getX(), pos.getY(), pos.getZ(), shaftBE.getAttachedGear());
+                }
+                if (shaftBE.hasBevelStart()) {
+                    Containers.dropItemStack(level, pos.getX(), pos.getY(), pos.getZ(), shaftBE.getAttachedBevelStart());
+                }
+                if (shaftBE.hasBevelEnd()) {
+                    Containers.dropItemStack(level, pos.getX(), pos.getY(), pos.getZ(), shaftBE.getAttachedBevelEnd());
                 }
                 if (shaftBE.hasPulley()) {
                     Containers.dropItemStack(level, pos.getX(), pos.getY(), pos.getZ(), shaftBE.getAttachedPulley());

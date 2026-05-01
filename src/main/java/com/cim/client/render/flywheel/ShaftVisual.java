@@ -26,6 +26,8 @@ public class ShaftVisual extends AbstractBlockEntityVisual<ShaftBlockEntity> imp
     private final TransformedInstance shaftInstance;
     @Nullable private TransformedInstance gearInstance;
     @Nullable private TransformedInstance pulleyInstance;
+    @Nullable private TransformedInstance bevelStartInstance;
+    @Nullable private TransformedInstance bevelEndInstance;
 
     private final Direction facing;
 
@@ -35,6 +37,8 @@ public class ShaftVisual extends AbstractBlockEntityVisual<ShaftBlockEntity> imp
     private float phaseOffset = 0f;
     private net.minecraft.world.item.Item currentGearItem;
     private net.minecraft.world.item.Item currentPulleyItem;
+    private net.minecraft.world.item.Item currentBevelStartItem;
+    private net.minecraft.world.item.Item currentBevelEndItem;
 
     private final float localX;
     private final float localY;
@@ -79,9 +83,12 @@ public class ShaftVisual extends AbstractBlockEntityVisual<ShaftBlockEntity> imp
 
         this.currentGearItem = blockEntity.getAttachedGear().getItem();
         this.currentPulleyItem = blockEntity.getAttachedPulley().getItem();
+        this.currentBevelStartItem = blockEntity.getAttachedBevelStart().getItem();
+        this.currentBevelEndItem = blockEntity.getAttachedBevelEnd().getItem();
 
         rebuildGear();
         rebuildPulley();
+        rebuildBevelGears();
 
         setupStatic(shaftInstance, 0);
         updateLight(partialTick);
@@ -144,6 +151,33 @@ public class ShaftVisual extends AbstractBlockEntityVisual<ShaftBlockEntity> imp
         }
     }
 
+    private void rebuildBevelGears() {
+        if (this.bevelStartInstance != null) {
+            this.bevelStartInstance.delete();
+            this.bevelStartInstance = null;
+        }
+        if (this.bevelEndInstance != null) {
+            this.bevelEndInstance.delete();
+            this.bevelEndInstance = null;
+        }
+
+        if (blockState.getValue(ShaftBlock.HAS_BEVEL_START) && blockEntity.hasBevelStart()) {
+            PartialModel bevelModel = ModModels.BEVEL_GEAR;
+            if (bevelModel != null) {
+                this.bevelStartInstance = instancerProvider().instancer(InstanceTypes.TRANSFORMED, Models.partial(bevelModel)).createInstance();
+                setupStaticForBevel(this.bevelStartInstance, 0, true);
+            }
+        }
+        
+        if (blockState.getValue(ShaftBlock.HAS_BEVEL_END) && blockEntity.hasBevelEnd()) {
+            PartialModel bevelModel = ModModels.BEVEL_GEAR;
+            if (bevelModel != null) {
+                this.bevelEndInstance = instancerProvider().instancer(InstanceTypes.TRANSFORMED, Models.partial(bevelModel)).createInstance();
+                setupStaticForBevel(this.bevelEndInstance, 0, false);
+            }
+        }
+    }
+
     private void setupStatic(TransformedInstance instance, float initialRotationZ) {
         instance.setIdentityTransform()
                 .translate(localX, localY, localZ)
@@ -166,6 +200,61 @@ public class ShaftVisual extends AbstractBlockEntityVisual<ShaftBlockEntity> imp
         instance.setChanged();
     }
 
+    private void setupStaticForBevel(TransformedInstance instance, float initialRotationZ, boolean isStart) {
+        float shiftX = 0, shiftY = 0, shiftZ = 0;
+        float shiftAmount = isStart ? -0.5f : 0.5f;
+        Direction.Axis axis = facing.getAxis();
+        if (axis == Direction.Axis.X) shiftX = shiftAmount;
+        if (axis == Direction.Axis.Y) shiftY = shiftAmount;
+        if (axis == Direction.Axis.Z) shiftZ = shiftAmount;
+
+        // 1. Центрируем и сдвигаем на нужный торец (край) вала
+        instance.setIdentityTransform()
+                .translate(localX, localY, localZ)
+                .translate(0.5f + shiftX, 0.5f + shiftY, 0.5f + shiftZ);
+
+        // 2. Вычисляем, куда именно "смотрит" коническая шестерня.
+        // Она всегда должна смотреть НАРУЖУ от вала.
+        Direction gearFacing;
+        if (axis == Direction.Axis.X) gearFacing = isStart ? Direction.WEST : Direction.EAST;
+        else if (axis == Direction.Axis.Y) gearFacing = isStart ? Direction.DOWN : Direction.UP;
+        else gearFacing = isStart ? Direction.NORTH : Direction.SOUTH;
+
+        // 3. Поворачиваем так, чтобы локальная ось +Z модели смотрела в сторону gearFacing
+        if (gearFacing == Direction.EAST) {
+            instance.rotateY((float) Math.toRadians(270));
+        } else if (gearFacing == Direction.WEST) {
+            instance.rotateY((float) Math.toRadians(90));
+        } else if (gearFacing == Direction.UP) {
+            instance.rotateX((float) Math.toRadians(90));
+        } else if (gearFacing == Direction.DOWN) {
+            instance.rotateX((float) Math.toRadians(-90));
+        } else if (gearFacing == Direction.NORTH) {
+            // Без вращения, так как модель изначально смотрит зубьями на Север (-Z)
+        } else if (gearFacing == Direction.SOUTH) {
+            instance.rotateY((float) Math.toRadians(180));
+        }
+
+        // 4. Применяем кинетическое вращение.
+        float rotZ = initialRotationZ;
+        if (gearFacing != facing) {
+            rotZ = -initialRotationZ;
+        }
+        
+        if (rotZ != 0) {
+            instance.rotateZ(rotZ);
+        }
+
+        // 5. Возвращаем центр модели
+        instance.translate(-0.5f, -0.5f, -0.5f);
+        
+        // 6. Сдвигаем модель вдоль её локальной оси Z внутрь вала.
+        // Я ставлю 0.0f. Если она все еще не на месте, поменяйте это число (например, на -0.25f или 0.25f).
+        instance.translate(0, 0, 0.0f); 
+        
+        instance.setChanged();
+    }
+
     @Override
     public void update(float pt) {
         super.update(pt);
@@ -177,6 +266,12 @@ public class ShaftVisual extends AbstractBlockEntityVisual<ShaftBlockEntity> imp
         if (blockEntity.getAttachedPulley().getItem() != this.currentPulleyItem) {
             this.currentPulleyItem = blockEntity.getAttachedPulley().getItem();
             rebuildPulley();
+            updateLight(pt);
+        }
+        if (blockEntity.getAttachedBevelStart().getItem() != this.currentBevelStartItem || blockEntity.getAttachedBevelEnd().getItem() != this.currentBevelEndItem) {
+            this.currentBevelStartItem = blockEntity.getAttachedBevelStart().getItem();
+            this.currentBevelEndItem = blockEntity.getAttachedBevelEnd().getItem();
+            rebuildBevelGears();
             updateLight(pt);
         }
     }
@@ -198,6 +293,13 @@ public class ShaftVisual extends AbstractBlockEntityVisual<ShaftBlockEntity> imp
             this.currentPulleyItem = blockEntity.getAttachedPulley().getItem();
             rebuildPulley();
             if (this.pulleyInstance != null) relight(pos, this.pulleyInstance);
+        }
+        if (blockEntity.getAttachedBevelStart().getItem() != this.currentBevelStartItem || blockEntity.getAttachedBevelEnd().getItem() != this.currentBevelEndItem) {
+            this.currentBevelStartItem = blockEntity.getAttachedBevelStart().getItem();
+            this.currentBevelEndItem = blockEntity.getAttachedBevelEnd().getItem();
+            rebuildBevelGears();
+            if (this.bevelStartInstance != null) relight(pos, this.bevelStartInstance);
+            if (this.bevelEndInstance != null) relight(pos, this.bevelEndInstance);
         }
 
         BlockPos connectedPos = blockEntity.getConnectedPulley();
@@ -311,6 +413,10 @@ public class ShaftVisual extends AbstractBlockEntityVisual<ShaftBlockEntity> imp
         setupStatic(shaftInstance, currentAngle);
         if (gearInstance != null) setupStatic(gearInstance, currentAngle + this.phaseOffset);
         if (pulleyInstance != null) setupStatic(pulleyInstance, currentAngle);
+        
+        // Вращение конических шестерней (добавляем фазу для правильного сцепления)
+        if (bevelStartInstance != null) setupStaticForBevel(bevelStartInstance, currentAngle, true);
+        if (bevelEndInstance != null) setupStaticForBevel(bevelEndInstance, currentAngle, false);
     }
 
     private float getPulleyRadius(ShaftBlockEntity be) {
@@ -443,6 +549,8 @@ public class ShaftVisual extends AbstractBlockEntityVisual<ShaftBlockEntity> imp
         relight(pos, shaftInstance);
         if (gearInstance != null) relight(pos, gearInstance);
         if (pulleyInstance != null) relight(pos, pulleyInstance);
+        if (bevelStartInstance != null) relight(pos, bevelStartInstance);
+        if (bevelEndInstance != null) relight(pos, bevelEndInstance);
         for (TransformedInstance track : beltTracks) {
             relight(pos, track);
         }
@@ -453,6 +561,8 @@ public class ShaftVisual extends AbstractBlockEntityVisual<ShaftBlockEntity> imp
         shaftInstance.delete();
         if (gearInstance != null) gearInstance.delete();
         if (pulleyInstance != null) pulleyInstance.delete();
+        if (bevelStartInstance != null) bevelStartInstance.delete();
+        if (bevelEndInstance != null) bevelEndInstance.delete();
         beltTracks.forEach(Instance::delete);
         beltTracks.clear();
     }
@@ -462,6 +572,8 @@ public class ShaftVisual extends AbstractBlockEntityVisual<ShaftBlockEntity> imp
         consumer.accept(shaftInstance);
         if (gearInstance != null) consumer.accept(gearInstance);
         if (pulleyInstance != null) consumer.accept(pulleyInstance);
+        if (bevelStartInstance != null) consumer.accept(bevelStartInstance);
+        if (bevelEndInstance != null) consumer.accept(bevelEndInstance);
         for (TransformedInstance track : beltTracks) {
             consumer.accept(track);
         }
