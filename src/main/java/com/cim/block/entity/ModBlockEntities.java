@@ -142,6 +142,11 @@ public class ModBlockEntities {
             () -> BlockEntityType.Builder.of(BearingBlockEntity::new, ModBlocks.BEARING_BLOCK.get())
                     .build(null));
 
+    public static final RegistryObject<BlockEntityType<com.cim.block.entity.industrial.rotation.TachometerBlockEntity>> TACHOMETER_BE =
+            BLOCK_ENTITIES.register("tachometer_be",
+                    () -> BlockEntityType.Builder.of(com.cim.block.entity.industrial.rotation.TachometerBlockEntity::new, ModBlocks.TACHOMETER.get())
+                            .build(null));
+
     public static final RegistryObject<BlockEntityType<MotorElectroBlockEntity>> MOTOR_ELECTRO_BE =
             BLOCK_ENTITIES.register("motor_electro",
                     () -> BlockEntityType.Builder.of(MotorElectroBlockEntity::new, ModBlocks.MOTOR_ELECTRO.get()).build(null));

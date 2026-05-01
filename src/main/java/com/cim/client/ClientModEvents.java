@@ -50,6 +50,7 @@ import com.cim.client.gecko.entity.mobs.DepthWormRenderer;
 import com.cim.client.gecko.entity.turrets.TurretLightLinkedRenderer;
 import com.cim.client.gecko.entity.turrets.TurretLightRenderer;
 import com.cim.client.overlay.hud.OverlayAmmoHud;
+import com.cim.client.overlay.hud.TachometerOverlay;
 import com.cim.entity.ModEntities;
 import com.cim.item.ModItems;
 import com.cim.main.CrustalIncursionMod;
@@ -128,6 +129,7 @@ public class ClientModEvents {
         event.register(new net.minecraft.resources.ResourceLocation("cim", "block/half_shaft"));
         event.register(new net.minecraft.resources.ResourceLocation("cim", "block/electro_motor"));
         event.register(new net.minecraft.resources.ResourceLocation("cim", "block/bearing_shaft"));
+        event.register(new net.minecraft.resources.ResourceLocation("cim", "block/tachometr"));
 
         // 3. Динамические модели
         for (String name : ModModels.GEAR_MODELS.keySet()) {
@@ -187,6 +189,19 @@ public class ClientModEvents {
                     return true;
                 }
             });
+
+            VisualizerRegistry.setVisualizer(ModBlockEntities.TACHOMETER_BE.get(), new dev.engine_room.flywheel.api.visualization.BlockEntityVisualizer<com.cim.block.entity.industrial.rotation.TachometerBlockEntity>() {
+
+                @Override
+                public dev.engine_room.flywheel.api.visual.BlockEntityVisual<? super com.cim.block.entity.industrial.rotation.TachometerBlockEntity> createVisual(dev.engine_room.flywheel.api.visualization.VisualizationContext ctx, com.cim.block.entity.industrial.rotation.TachometerBlockEntity be, float partialTick) {
+                    return new com.cim.client.render.flywheel.TachometerVisual(ctx, be, partialTick);
+                }
+
+                @Override
+                public boolean skipVanillaRender(com.cim.block.entity.industrial.rotation.TachometerBlockEntity be) {
+                    return true;
+                }
+            });
         });
 
 
@@ -212,6 +227,7 @@ public class ClientModEvents {
     @SubscribeEvent
     public static void onRegisterGuiOverlays(RegisterGuiOverlaysEvent event) {
         event.registerAbove(VanillaGuiOverlay.HOTBAR.id(), "ammo_hud", OverlayAmmoHud.HUD_AMMO);
+        event.registerAbove(VanillaGuiOverlay.CROSSHAIR.id(), "tachometer_hud", TachometerOverlay.HUD_TACHOMETER);
     }
 
 

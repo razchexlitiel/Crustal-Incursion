@@ -209,6 +209,29 @@ public class ModBlockStateProvider extends BlockStateProvider {
         }
     }
 
+    public void generateTachometerBlock() {
+        String name = "tachometer";
+        ResourceLocation objModel = modLoc("models/block/tachometr.obj");
+        ResourceLocation texture = modLoc("block/tachometr");
+
+        // Модель блока (JSON обертка для OBJ)
+        ModelFile blockModel = models().getBuilder(name)
+                .customLoader(net.minecraftforge.client.model.generators.loaders.ObjModelBuilder::begin)
+                .modelLocation(objModel)
+                .flipV(true)
+                .end()
+                .texture("tachometr_texture", texture)
+                .texture("particle", texture);
+
+        // Блокстейт с поддержкой всех 6 направлений
+        directionalBlock(ModBlocks.TACHOMETER.get(), blockModel);
+
+        // Модель предмета для инвентаря
+        itemModels().getBuilder(name)
+                .parent(blockModel);
+    }
+
+
     public void hiveRootsBlock(RegistryObject<Block> block) {
         getVariantBuilder(block.get()).forAllStates(state -> {
             boolean up = state.getValue(HiveRootsBlock.UP);

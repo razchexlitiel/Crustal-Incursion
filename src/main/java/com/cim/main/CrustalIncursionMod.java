@@ -1,6 +1,5 @@
 package com.cim.main;
 
-
 import com.cim.api.fluids.ModFluids;
 import com.cim.api.hive.HiveNetworkManager;
 import com.cim.api.metallurgy.ModMetallurgy;
@@ -113,10 +112,12 @@ public class CrustalIncursionMod {
 
                 // 2. УНИВЕРСАЛЬНЫЙ ЩИТ: Ищем признаки любого стороннего фикса Iris-Flywheel
                 // Мы ищем по файлу миксинов, так как ID мода у всех может быть разным
-                boolean hasThirdPartyFix =
-                        Thread.currentThread().getContextClassLoader().getResource("irisflw.mixins.json") != null ||
-                                net.minecraftforge.fml.loading.FMLLoader.getLoadingModList().getModFileById("oculusflywheelcompat") != null ||
-                                net.minecraftforge.fml.loading.FMLLoader.getLoadingModList().getModFileById("irisflw") != null;
+                boolean hasThirdPartyFix = Thread.currentThread().getContextClassLoader()
+                        .getResource("irisflw.mixins.json") != null ||
+                        net.minecraftforge.fml.loading.FMLLoader.getLoadingModList()
+                                .getModFileById("oculusflywheelcompat") != null
+                        ||
+                        net.minecraftforge.fml.loading.FMLLoader.getLoadingModList().getModFileById("irisflw") != null;
 
                 if (!hasThirdPartyFix) {
                     // Если чисто — зажигаем!
@@ -124,7 +125,8 @@ public class CrustalIncursionMod {
                     LOGGER.info("🔥 [CIM] Движок Flywheel-Oculus успешно запущен!");
                 } else {
                     // Если кто-то уже чинит — вежливо отходим
-                    LOGGER.warn("🛡️ [CIM] Обнаружен сторонний графический фикс. Встроенная оптимизация CIM отключена для стабильности.");
+                    LOGGER.warn(
+                            "🛡️ [CIM] Обнаружен сторонний графический фикс. Встроенная оптимизация CIM отключена для стабильности.");
                 }
             }
         }
@@ -134,16 +136,18 @@ public class CrustalIncursionMod {
         }
 
     }
+
     private void registerCapabilities(IEventBus modEventBus) {
         modEventBus.addListener(ModCapabilities::register);
     }
 
     private void commonSetup(final FMLCommonSetupEvent event) {
         event.enqueueWork(() -> {
-            ModMetallurgy.init();          // <-- регистрация металлов и рецептов
+            ModMetallurgy.init(); // <-- регистрация металлов и рецептов
             ModPacketHandler.register();
             Regions.register(new ModOverworldRegion(new ResourceLocation(MOD_ID, "overworld"), 5));
-            SurfaceRuleManager.addSurfaceRules(SurfaceRuleManager.RuleCategory.OVERWORLD, "cim", ModSurfaceRules.makeRules());
+            SurfaceRuleManager.addSurfaceRules(SurfaceRuleManager.RuleCategory.OVERWORLD, "cim",
+                    ModSurfaceRules.makeRules());
         });
     }
 
@@ -209,9 +213,7 @@ public class CrustalIncursionMod {
             event.accept(ModBlocks.CRATE.get());
             event.accept(ModBlocks.CRATE_AMMO.get());
 
-
         }
-
 
         if (event.getTab() == ModCreativeTabs.CIM_TECH_TAB.get()) {
 
@@ -242,6 +244,8 @@ public class CrustalIncursionMod {
             event.accept(ModBlocks.BEARING_BLOCK);
             event.accept(ModItems.PULLEY.get());
             event.accept(ModItems.BELT.get());
+            event.accept(ModBlocks.TACHOMETER);
+            event.accept(ModItems.BEVEL_GEAR.get());
 
             event.accept(ModItems.WIRE_COIL);
             event.accept(ModBlocks.CONNECTOR);
@@ -253,15 +257,22 @@ public class CrustalIncursionMod {
             event.accept(ModBlocks.MACHINE_BATTERY);
             event.accept(ModItems.ENERGY_CELL_BASIC);
 
-
             event.accept(ModItems.CREATIVE_BATTERY);
             List<RegistryObject<Item>> batteriesToAdd = List.of(
                     ModItems.BATTERY,
                     ModItems.BATTERY_ADVANCED,
                     ModItems.BATTERY_LITHIUM,
-                    ModItems.BATTERY_TRIXITE
-            ); for (RegistryObject<Item> batteryRegObj : batteriesToAdd) {Item item = batteryRegObj.get();
-                if (item instanceof ModBatteryItem batteryItem) {ItemStack emptyStack = new ItemStack(batteryItem);event.accept(emptyStack);ItemStack chargedStack = new ItemStack(batteryItem);ModBatteryItem.setEnergy(chargedStack, batteryItem.getCapacity());event.accept(chargedStack);}}
+                    ModItems.BATTERY_TRIXITE);
+            for (RegistryObject<Item> batteryRegObj : batteriesToAdd) {
+                Item item = batteryRegObj.get();
+                if (item instanceof ModBatteryItem batteryItem) {
+                    ItemStack emptyStack = new ItemStack(batteryItem);
+                    event.accept(emptyStack);
+                    ItemStack chargedStack = new ItemStack(batteryItem);
+                    ModBatteryItem.setEnergy(chargedStack, batteryItem.getCapacity());
+                    event.accept(chargedStack);
+                }
+            }
 
             event.accept(ModItems.FLUID_IDENTIFIER.get());
             event.accept(ModItems.INFINITE_FLUID_BARREL);
@@ -296,7 +307,6 @@ public class CrustalIncursionMod {
 
         }
 
-
         if (event.getTab() == ModCreativeTabs.CIM_WEAPONS_TAB.get()) {
             event.accept(ModItems.CAST_PICKAXE_IRON);
             event.accept(ModItems.CAST_PICKAXE_STEEL);
@@ -327,34 +337,31 @@ public class CrustalIncursionMod {
             event.accept(ModItems.AMMO_TURRET_FIRE);
             event.accept(ModItems.AMMO_TURRET_RADIO);
 
-
         }
 
-
-            if (event.getTab() == ModCreativeTabs.CIM_RECOURSES_TAB.get()) {
-                for (Metal metal : MetallurgyRegistry.getAllMetals()) {
-                    ItemStack slagStack = SlagItem.createSlag(metal, MetalUnits2.UNITS_PER_INGOT);
-                    event.accept(slagStack);
-                }
-                event.accept(ModItems.FIRE_SMES.get());
-                event.accept(ModItems.DOLOMITE_SMES.get());
-                event.accept(ModItems.FIREBRICK.get());
-                event.accept(ModItems.REINFORCEDBRICK.get());
-
-                event.accept(ModItems.CONGLOMERATE_CHUNK);
-                event.accept(ModItems.HARD_ROCK);
-                event.accept(ModItems.DOLOMITE_CHUNK);
-                event.accept(ModItems.LIMESTONE_CHUNK);
-                event.accept(ModItems.BAUXITE_CHUNK);
-
-                event.accept(ModItems.DOLOMITE_POWDER);
-                event.accept(ModItems.LIMESTONE_POWDER);
-                event.accept(ModItems.BAUXITE_POWDER);
-
-                event.accept(ModItems.FUEL_ASH.get());
-
+        if (event.getTab() == ModCreativeTabs.CIM_RECOURSES_TAB.get()) {
+            for (Metal metal : MetallurgyRegistry.getAllMetals()) {
+                ItemStack slagStack = SlagItem.createSlag(metal, MetalUnits2.UNITS_PER_INGOT);
+                event.accept(slagStack);
             }
+            event.accept(ModItems.FIRE_SMES.get());
+            event.accept(ModItems.DOLOMITE_SMES.get());
+            event.accept(ModItems.FIREBRICK.get());
+            event.accept(ModItems.REINFORCEDBRICK.get());
 
+            event.accept(ModItems.CONGLOMERATE_CHUNK);
+            event.accept(ModItems.HARD_ROCK);
+            event.accept(ModItems.DOLOMITE_CHUNK);
+            event.accept(ModItems.LIMESTONE_CHUNK);
+            event.accept(ModItems.BAUXITE_CHUNK);
+
+            event.accept(ModItems.DOLOMITE_POWDER);
+            event.accept(ModItems.LIMESTONE_POWDER);
+            event.accept(ModItems.BAUXITE_POWDER);
+
+            event.accept(ModItems.FUEL_ASH.get());
+
+        }
 
         if (event.getTab() == ModCreativeTabs.CIM_NATURE_TAB.get()) {
 
@@ -388,7 +395,7 @@ public class CrustalIncursionMod {
             event.accept(ModItems.GRENADIER_ZOMBIE_SPAWN_EGG.get());
         }
 
-       }
+    }
 
     // Метод регистрации атрибутов (здоровье, урон и т.д.)
     private void entityAttributeEvent(net.minecraftforge.event.entity.EntityAttributeCreationEvent event) {
@@ -398,6 +405,7 @@ public class CrustalIncursionMod {
         event.put(ModEntities.GRENADIER_ZOMBIE.get(), GrenadierZombieEntity.createAttributes().build());
         event.put(ModEntities.DEPTH_WORM_BRUTAL.get(), DepthWormBrutalEntity.createAttributes().build());
     }
+
     @SubscribeEvent
     public static void onEntitySpawn(MobSpawnEvent.FinalizeSpawn event) {
         Level level = (Level) event.getLevel();
@@ -412,6 +420,7 @@ public class CrustalIncursionMod {
             }
         }
     }
+
     @SubscribeEvent
     public void onAttachCapabilities(AttachCapabilitiesEvent<Level> event) {
         if (!event.getObject().isClientSide) {
@@ -420,7 +429,6 @@ public class CrustalIncursionMod {
             System.out.println("DEBUG: Capability Attached to Level!");
         }
     }
-
 
     @Mod.EventBusSubscriber(modid = "cim", bus = Mod.EventBusSubscriber.Bus.FORGE)
     public class HiveEventHandler {
@@ -438,7 +446,8 @@ public class CrustalIncursionMod {
 
     @SubscribeEvent
     public void onRightClick(PlayerInteractEvent.RightClickBlock event) {
-        if (event.getLevel().isClientSide) return;
+        if (event.getLevel().isClientSide)
+            return;
         if (event.getItemStack().is(Items.STICK)) {
             ServerLevel level = (ServerLevel) event.getLevel();
             BlockPos origin = event.getPos().above();
@@ -450,14 +459,15 @@ public class CrustalIncursionMod {
             Set<BlockPos> veinBlocks = new HashSet<>();
 
             for (int x = -radius; x <= radius; x++) {
-                for (int y = -height/2; y < height/2 + height%2; y++) {
+                for (int y = -height / 2; y < height / 2 + height % 2; y++) {
                     for (int z = -radius; z <= radius; z++) {
                         double halfHeight = height / 2.0;
                         double yOffset = y;
-                        double dist = (x*x)/(double)(radius*radius) +
-                                (yOffset*yOffset)/(halfHeight*halfHeight) +
-                                (z*z)/(double)(radius*radius);
-                        if (dist > 1.0) continue;
+                        double dist = (x * x) / (double) (radius * radius) +
+                                (yOffset * yOffset) / (halfHeight * halfHeight) +
+                                (z * z) / (double) (radius * radius);
+                        if (dist > 1.0)
+                            continue;
 
                         BlockPos pos = origin.offset(x, y, z);
                         BlockState existing = level.getBlockState(pos);
@@ -485,9 +495,9 @@ public class CrustalIncursionMod {
             }
 
             event.getEntity().displayClientMessage(
-                    Component.literal("§aЖила: " + veinBlocks.size() + " блоков, основной металл: " + composition.getPrimaryMetal()),
-                    false
-            );
+                    Component.literal("§aЖила: " + veinBlocks.size() + " блоков, основной металл: "
+                            + composition.getPrimaryMetal()),
+                    false);
         }
     }
 }
