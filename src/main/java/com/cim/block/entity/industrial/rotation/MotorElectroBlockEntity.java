@@ -12,8 +12,8 @@ import com.cim.block.basic.industrial.rotation.MotorElectroBlock;
 
 public class MotorElectroBlockEntity extends BlockEntity implements Rotational {
 
-    private final long speedConstant = 2;
-    private final long torqueConstant = 100;
+    private final long speedConstant = 1500;  // 1500 RPM
+    private final long torqueConstant = 2500;  // Высокий момент для разгона тяжелой сети
     private boolean reversed = false;
 
     private long currentSpeed = 0;
@@ -179,7 +179,7 @@ public class MotorElectroBlockEntity extends BlockEntity implements Rotational {
     }
 
     @Override
-    public long getMaxSpeed() { return 256; }
+    public long getMaxSpeed() { return 3000; }
 
     @Override
     public long getMaxTorque() { return 1024; }

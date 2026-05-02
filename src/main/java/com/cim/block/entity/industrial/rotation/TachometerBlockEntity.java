@@ -182,12 +182,17 @@ public class TachometerBlockEntity extends BlockEntity implements Rotational {
     @Override
     public long getMaxTorqueTolerance() { return 10000; }
     @Override
-    public long getMaxSpeed() { return 1024; }
+    public long getMaxSpeed() {
+        if (hasShaft() && getShaftMaterial() != null && getShaftDiameter() != null) {
+            return (long) (getShaftMaterial().getBaseMaxSpeed() * getShaftDiameter().getSpeedMultiplier());
+        }
+        return 1024;
+    }
 
     @Override
     public long getMaxTorque() {
         if (hasShaft() && getShaftMaterial() != null && getShaftDiameter() != null) {
-            return (long) (getShaftMaterial().baseTorque() * getShaftDiameter().torqueMod);
+            return (long) (getShaftMaterial().getBaseMaxTorque() * getShaftDiameter().getTorqueMultiplier());
         }
         return 10000;
     }

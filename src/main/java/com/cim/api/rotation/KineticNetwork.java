@@ -68,12 +68,19 @@ public class KineticNetwork {
             long effectiveTorque = totalGeneratedTorque - totalFriction;
 
             if (effectiveTorque > 0) {
-                // Вычисляем ускорение
-                deltaSpeed = effectiveTorque / totalInertia;
+                // Умножаем на 10 для запаса точности при RPM-масштабе
+                deltaSpeed = (effectiveTorque * 10) / totalInertia;
                 if (deltaSpeed == 0) deltaSpeed = 1; // Минимальный шаг
 
                 // Направляем ускорение в нужную сторону
                 deltaSpeed = targetNetworkSpeed > 0 ? deltaSpeed : -deltaSpeed;
+
+                // Не разгоняемся быстрее целевой скорости за один тик
+                if (targetNetworkSpeed > 0 && currentSpeed + deltaSpeed > targetNetworkSpeed) {
+                    deltaSpeed = targetNetworkSpeed - currentSpeed;
+                } else if (targetNetworkSpeed < 0 && currentSpeed + deltaSpeed < targetNetworkSpeed) {
+                    deltaSpeed = targetNetworkSpeed - currentSpeed;
+                }
             }
         }
         // 2. ИНЕРЦИЯ И ОСТАНОВКА (моторы выключены) [cite: 30]

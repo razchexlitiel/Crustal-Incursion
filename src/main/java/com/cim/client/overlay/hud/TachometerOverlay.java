@@ -52,7 +52,7 @@ public class TachometerOverlay {
         } else {
             // Вал есть — отображаем параметры сети
             String header = "▶ Network Analyzer";
-            String speedText = "Speed: " + tachometer.getNetworkSpeed() + " RPM";
+            String speedText = "Speed: " + Math.abs(tachometer.getNetworkSpeed()) + " RPM";
             String torqueText = "Torque: " + tachometer.getNetworkTorque() + " Nm";
             String inertiaText = "Inertia: " + tachometer.getNetworkInertia();
             String frictionText = "Friction: " + tachometer.getNetworkFriction();
