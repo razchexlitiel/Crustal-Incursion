@@ -5,8 +5,8 @@
     "top": "cim:block/rotation_meter_top",
     "bottom": "cim:block/rotation_meter_top",
     "front": "cim:block/stopper_off",
-    "back": "cim:block/rotation_meter_top",
-    "side": "cim:block/gear_port_open"
+    "back": "cim:block/stopper_off",
+    "side": "cim:block/switch_on"
   },
   "elements": [
     {
@@ -21,12 +21,5 @@
         "east":  { "texture": "#side",   "cullface": "east" }
       }
     }
-  ],
-  "display": {
-    "gui": {
-      "rotation": [0, 45, 0],
-      "translation": [0, 0, 0],
-      "scale": [1, 1, 1]
-    }
-  }
+  ]
 }
