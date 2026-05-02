@@ -2,6 +2,7 @@ package com.cim.block.basic.weapons;
 
 
 
+import com.cim.block.entity.weapons.TurretAmmoContainer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -58,8 +59,21 @@ public class TurretLightPlacerBlock extends BaseEntityBlock {
     @Override
     public void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean isMoving) {
         if (!state.is(newState.getBlock())) {
-            // Энергия удаляется в BE.setRemoved(), так что здесь удаляем только энтити турели
             if (!level.isClientSide) {
+                // [НОВОЕ] Выбрасываем содержимое инвентаря
+                BlockEntity be = level.getBlockEntity(pos);
+                if (be instanceof TurretLightPlacerBlockEntity turretBE) {
+                    TurretAmmoContainer container = turretBE.getAmmoContainer();
+                    for (int i = 0; i < container.getSlots(); i++) {
+                        ItemStack stack = container.getStackInSlot(i);
+                        if (!stack.isEmpty()) {
+                            net.minecraft.world.Containers.dropItemStack(
+                                    level, pos.getX(), pos.getY(), pos.getZ(), stack);
+                        }
+                    }
+                }
+
+                // Удаляем турель-энтити
                 AABB box = new AABB(pos).inflate(2.0);
                 var turrets = level.getEntitiesOfClass(TurretLightLinkedEntity.class, box,
                         t -> pos.equals(t.getParentBlock()));

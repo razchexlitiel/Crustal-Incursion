@@ -12,7 +12,7 @@ import com.cim.item.weapons.turrets.TurretChipItem;
 
 public class TurretAmmoContainer extends ItemStackHandler {
 
-    private static final int SLOT_COUNT = 10;
+    private static final int SLOT_COUNT = 11;
     private Runnable onContentsChanged;
 
 
