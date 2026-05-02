@@ -19,7 +19,6 @@ import javax.annotation.Nullable;
 
 public class SwitchBlockEntity extends BlockEntity implements IEnergyConnector {
 
-    // Capability всегда "живая", но доступ к ней регулируется через getCapability
     private final LazyOptional<IEnergyConnector> hbmConnector = LazyOptional.of(() -> this);
 
     public SwitchBlockEntity(BlockPos pos, BlockState state) {
@@ -29,7 +28,6 @@ public class SwitchBlockEntity extends BlockEntity implements IEnergyConnector {
     public static void tick(Level level, BlockPos pos, BlockState state, SwitchBlockEntity entity) {
         if (level.isClientSide) return;
 
-        // Если рубильник включен, он ОБЯЗАН быть в сети
         if (state.getValue(SwitchBlock.POWERED)) {
             ServerLevel serverLevel = (ServerLevel) level;
             EnergyNetworkManager manager = EnergyNetworkManager.get(serverLevel);
@@ -43,8 +41,6 @@ public class SwitchBlockEntity extends BlockEntity implements IEnergyConnector {
     @Override
     public @NotNull <T> LazyOptional<T> getCapability(@NotNull Capability<T> cap, @Nullable Direction side) {
         if (cap == ModCapabilities.ENERGY_CONNECTOR) {
-            // [ВАЖНО] Проверяем валидность здесь. Если isValidSide вернет false (например, выключен),
-            // мы вернем super (empty). Это заставит EnergyNetworkManager считать узел невалидным.
             if (isValidSide(side)) {
                 return hbmConnector.cast();
             }
@@ -53,17 +49,13 @@ public class SwitchBlockEntity extends BlockEntity implements IEnergyConnector {
     }
 
     private boolean isValidSide(@Nullable Direction side) {
-        // [ИСПРАВЛЕНО] Добавлена проверка POWERED.
-        // Теперь, если рубильник выключен, он не отдает Capability.
-        // Это синхронизирует логику EnergyNetworkManager с состоянием блока.
         BlockState state = this.getBlockState();
         if (!(state.getBlock() instanceof SwitchBlock)) return false;
-
-        if (!state.getValue(SwitchBlock.POWERED)) return false; // <--- ВОТ ЭТОГО НЕ ХВАТАЛО
-
         if (side == null) return true;
+
         Direction facing = state.getValue(SwitchBlock.FACING);
-        return side == facing || side == facing.getOpposite();
+        if (side.getAxis() == Direction.Axis.Y) return false;
+        return side != facing && side != facing.getOpposite();
     }
 
     @Override
@@ -74,7 +66,6 @@ public class SwitchBlockEntity extends BlockEntity implements IEnergyConnector {
 
     @Override
     public boolean canConnectEnergy(Direction side) {
-        // Используем ту же логику проверки
         return isValidSide(side);
     }
 
@@ -91,5 +82,4 @@ public class SwitchBlockEntity extends BlockEntity implements IEnergyConnector {
         }
         hbmConnector.invalidate();
     }
-
 }

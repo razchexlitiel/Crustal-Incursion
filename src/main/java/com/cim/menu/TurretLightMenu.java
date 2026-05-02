@@ -1,6 +1,5 @@
 package com.cim.menu;
 
-
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.world.entity.player.Inventory;
@@ -10,8 +9,11 @@ import net.minecraft.world.inventory.ContainerData;
 import net.minecraft.world.inventory.SimpleContainerData;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
+import net.minecraftforge.common.capabilities.ForgeCapabilities;
 import net.minecraftforge.items.SlotItemHandler;
 import com.cim.block.entity.weapons.TurretAmmoContainer;
+import com.cim.item.energy.EnergyCellItem;
+import com.cim.item.energy.ModBatteryItem;
 import com.cim.item.weapons.turrets.TurretChipItem;
 
 public class TurretLightMenu extends AbstractContainerMenu {
@@ -22,7 +24,8 @@ public class TurretLightMenu extends AbstractContainerMenu {
 
     public static final int AMMO_SLOT_COUNT = 9;
     public static final int CHIP_SLOT_INDEX = 9;
-    public static final int TOTAL_TURRET_SLOTS = 10;
+    public static final int BATTERY_SLOT_INDEX = 10;        // [НОВОЕ]
+    public static final int TOTAL_TURRET_SLOTS = 11;        // [ИЗМЕНЕНО] было 10
 
     // --- КОНСТАНТЫ ДЛЯ ДАННЫХ ---
     public static final int DATA_ENERGY = 0;
@@ -30,30 +33,23 @@ public class TurretLightMenu extends AbstractContainerMenu {
     public static final int DATA_STATUS = 2;
     public static final int DATA_SWITCH = 3;
     public static final int DATA_BOOT_TIMER = 4;
-    // Новые слоты настроек
     public static final int DATA_TARGET_HOSTILE = 5;
     public static final int DATA_TARGET_NEUTRAL = 6;
     public static final int DATA_TARGET_PLAYERS = 7;
-    private static final int DATA_COUNT = 10;
     public static final int DATA_KILLS = 8;
-    public static final int DATA_LIFETIME = 9; // В секундах (ticks / 20)
+    public static final int DATA_LIFETIME = 9;
+    private static final int DATA_COUNT = 10;
 
     public TurretLightMenu(int containerId, Inventory playerInventory, TurretAmmoContainer ammoContainer, ContainerData data, BlockPos pos) {
         super(ModMenuTypes.TURRET_AMMO_MENU.get(), containerId);
-
-        // ВАЖНО: Проверяем размер данных, чтобы избежать крашей при обновлении
         checkContainerDataCount(data, DATA_COUNT);
 
         this.ammoContainer = ammoContainer;
         this.data = data;
         this.pos = pos;
-
         this.addDataSlots(data);
 
-        // ... (Код слотов остаётся тем же: патроны, чип, инвентарь) ...
-        // Код слотов скопируй из своего предыдущего файла, он не менялся
-
-        // Слоты турели
+        // Слоты патронов 0-8
         int ammoStartX = 115;
         int ammoStartY = 44;
         for (int row = 0; row < 3; row++) {
@@ -64,13 +60,25 @@ public class TurretLightMenu extends AbstractContainerMenu {
             }
         }
 
-        // 2. Слот ЧИПА (Индекс 9) - Координаты 91, 80
+        // Слот ЧИПА (9) — 91, 80
         this.addSlot(new SlotItemHandler(ammoContainer, CHIP_SLOT_INDEX, 91, 80) {
             @Override public boolean mayPlace(ItemStack stack) { return stack.getItem() instanceof TurretChipItem; }
             @Override public void setChanged() { super.setChanged(); ammoContainer.onContentsChanged(this.getSlotIndex()); }
         });
 
-        // Инвентарь игрока и хотбар (стандартный код)
+        // [НОВОЕ] Слот БАТАРЕИ (10) — 180, 81
+        this.addSlot(new SlotItemHandler(ammoContainer, BATTERY_SLOT_INDEX, 180, 81) {
+            @Override
+            public boolean mayPlace(ItemStack stack) {
+                // Принимаем любые предметы с энергией
+                return stack.getCapability(ForgeCapabilities.ENERGY).isPresent()
+                        || stack.getItem() instanceof ModBatteryItem
+                        || stack.getItem() instanceof EnergyCellItem;
+            }
+            @Override public void setChanged() { super.setChanged(); ammoContainer.onContentsChanged(this.getSlotIndex()); }
+        });
+
+        // Инвентарь игрока
         int playerStartX = 8;
         int playerStartY = 106;
         for (int row = 0; row < 3; row++) {
@@ -84,19 +92,65 @@ public class TurretLightMenu extends AbstractContainerMenu {
     }
 
     public TurretLightMenu(int containerId, Inventory playerInventory, FriendlyByteBuf extraData) {
-        // Клиентский конструктор тоже должен знать про 8 слотов
         this(containerId, playerInventory, new TurretAmmoContainer(), new SimpleContainerData(DATA_COUNT), extraData.readBlockPos());
     }
 
-    // Геттеры
     public BlockPos getPos() { return pos; }
     public int getDataSlot(int index) { return this.data.get(index); }
     public TurretAmmoContainer getAmmoContainer() { return ammoContainer; }
 
     @Override
     public ItemStack quickMoveStack(Player player, int index) {
-        // ... (Твой стандартный quickMoveStack) ...
-        return ItemStack.EMPTY; // Заглушка, вставь свой код
+        ItemStack itemstack = ItemStack.EMPTY;
+        Slot slot = this.slots.get(index);
+        if (slot != null && slot.hasItem()) {
+            ItemStack stack = slot.getItem();
+            itemstack = stack.copy();
+
+            int totalSlots = TOTAL_TURRET_SLOTS; // 11
+            int playerInvStart = totalSlots;
+            int playerInvEnd = playerInvStart + 27;
+            int hotbarStart = playerInvEnd;
+            int hotbarEnd = hotbarStart + 9;
+
+            if (index < totalSlots) {
+                // Из слотов турели → в инвентарь игрока
+                if (!this.moveItemStackTo(stack, playerInvStart, hotbarEnd, true)) {
+                    return ItemStack.EMPTY;
+                }
+            } else {
+                // Из инвентаря игрока → в слоты турели
+                if (stack.getItem() instanceof TurretChipItem) {
+                    if (!this.moveItemStackTo(stack, CHIP_SLOT_INDEX, CHIP_SLOT_INDEX + 1, false)) {
+                        return ItemStack.EMPTY;
+                    }
+                } else if (stack.getCapability(ForgeCapabilities.ENERGY).isPresent()
+                        || stack.getItem() instanceof ModBatteryItem
+                        || stack.getItem() instanceof EnergyCellItem) {
+                    if (!this.moveItemStackTo(stack, BATTERY_SLOT_INDEX, BATTERY_SLOT_INDEX + 1, false)) {
+                        return ItemStack.EMPTY;
+                    }
+                } else {
+                    // Патроны → слоты 0-8
+                    if (!this.moveItemStackTo(stack, 0, AMMO_SLOT_COUNT, false)) {
+                        return ItemStack.EMPTY;
+                    }
+                }
+            }
+
+            if (stack.isEmpty()) {
+                slot.set(ItemStack.EMPTY);
+            } else {
+                slot.setChanged();
+            }
+
+            if (stack.getCount() == itemstack.getCount()) {
+                return ItemStack.EMPTY;
+            }
+
+            slot.onTake(player, stack);
+        }
+        return itemstack;
     }
 
     @Override

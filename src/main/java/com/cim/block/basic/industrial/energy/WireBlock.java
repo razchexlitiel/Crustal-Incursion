@@ -127,56 +127,40 @@ public class WireBlock extends BaseEntityBlock {
             return true;
         }
 
-        // 2. [🔥 НОВАЯ ЛОГИКА]
-        // Это Рубильник или Батарея? (Блоки, которые *всегда* должны быть подключены)
-        // Мы проверяем BlockState, а не BlockEntity, чтобы это работало мгновенно.
+        // 2. [ИСПРАВЛЕНО] Рубильник — всегда цепляемся, но только с боковых сторон
         Block block = neighborState.getBlock();
-        if (block instanceof SwitchBlock || block instanceof MachineBatteryBlock) {
+        if (block instanceof SwitchBlock) {
+            Direction facing = neighborState.getValue(SwitchBlock.FACING);
+
+            // Запрещаем верх, низ, лицо и зад рубильника
+            if (sideFromNeighbor.getAxis() == Direction.Axis.Y) {
+                return false;
+            }
+            return sideFromNeighbor != facing && sideFromNeighbor != facing.getOpposite();
+        }
+
+        if (block instanceof MachineBatteryBlock) {
             return true;
         }
 
-        // 3. [🔥 СТАРАЯ ЛОГИКА]
-        // Это часть мультиблока или другая машина?
-        // Для *всего остального* (включая UniversalMachinePartBlock),
-        // мы должны строго проверять capability.
-
+        // 3.
         BlockEntity be = world.getBlockEntity(neighborPos);
         if (be == null) {
-            // BE еще не загрузился.
-            // Если это не Рубильник и не Батарея (проверили в п.2),
-            // то мы не можем знать, коннектор это или нет.
-            // Безопаснее сказать "нет". "Тикающий" WireBlockEntity
-            // или обновление соседнего блока позже это исправят.
             return false;
         }
 
-        // 4. BE существует. Проверяем ЛЮБОЙ HBM capability.
-        //    Это поймает машины (Provider/Receiver) и коннекторы (Connector).
-
-        //    Проверяем HBM_CONNECTOR
         LazyOptional<IEnergyConnector> hbmCap = be.getCapability(ModCapabilities.ENERGY_CONNECTOR, sideFromNeighbor);
         if (hbmCap.isPresent()) {
-            // Сосед - это Провод, Рубильник "Вкл" или Батарея "Оба".
-            // Спрашиваем у него, можно ли (вдруг он на что-то смотрит).
-            // [ВАЖНО] UniversalMachinePartBlockEntity с ролью "DEFAULT"
-            // не будет иметь этого capability, и вернет false.
-            // А с ролью "ENERGY_CONNECTOR" - будет (если контроллер его имеет).
             return hbmCap.resolve().map(c -> c.canConnectEnergy(sideFromNeighbor)).orElse(false);
         }
 
-        //    Проверяем HBM_PROVIDER (Машины, Батареи "Выход")
-        //    (Это поймает энерго-порты твоего Генератора)
         if (be.getCapability(ModCapabilities.ENERGY_PROVIDER, sideFromNeighbor).isPresent()) {
             return true;
         }
-
-        //    Проверяем HBM_RECEIVER (Машины, Батареи "Вход")
-        //    (Это поймает энерго-порты твоего Сборщика)
         if (be.getCapability(ModCapabilities.ENERGY_RECEIVER, sideFromNeighbor).isPresent()) {
             return true;
         }
 
-        // 5. Это не наш HBM-блок. Проверяем Forge Energy (для модов).
         return be.getCapability(net.minecraftforge.common.capabilities.ForgeCapabilities.ENERGY, sideFromNeighbor).isPresent();
     }
 
@@ -190,7 +174,7 @@ public class WireBlock extends BaseEntityBlock {
             case DOWN -> DOWN;
         };
     }
-    
+
 
     @Override
     public RenderShape getRenderShape(BlockState state) {

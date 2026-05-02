@@ -82,10 +82,37 @@ public class TurretLightPlacerBlockEntity extends BlockEntity implements GeoBloc
     public static void tick(Level level, BlockPos pos, BlockState state, TurretLightPlacerBlockEntity entity) {
         if (level.isClientSide) return;
         entity.lifetimeTicks++;
-        // Фикс сети... (без изменений)
-        if (level instanceof ServerLevel serverLevel) {
-            EnergyNetworkManager manager = EnergyNetworkManager.get(serverLevel);
-            if (!manager.hasNode(pos)) manager.addNode(pos);
+
+        // [НОВОЕ] Зарядка от батарейки в слоте 10
+        ItemStack batteryStack = entity.ammoContainer.getStackInSlot(10);
+        if (!batteryStack.isEmpty() && entity.energyStored < entity.MAX_ENERGY) {
+            // 1. Пробуем Forge Energy (FE)
+            batteryStack.getCapability(ForgeCapabilities.ENERGY).ifPresent(energyStorage -> {
+                if (energyStorage.canExtract()) {
+                    int maxReceive = (int) Math.min(entity.MAX_RECEIVE, entity.MAX_ENERGY - entity.energyStored);
+                    if (maxReceive > 0) {
+                        int extracted = energyStorage.extractEnergy(maxReceive, false);
+                        if (extracted > 0) {
+                            entity.energyStored += extracted;
+                            entity.setChanged();
+                        }
+                    }
+                }
+            });
+
+            // 2. Если FE не сработал и буфер ещё не полон — пробуем HBM
+            if (entity.energyStored < entity.MAX_ENERGY) {
+                batteryStack.getCapability(ModCapabilities.ENERGY_PROVIDER).ifPresent(provider -> {
+                    if (provider.canExtract()) {
+                        long maxReceive = Math.min(entity.MAX_RECEIVE, entity.MAX_ENERGY - entity.energyStored);
+                        long extracted = provider.extractEnergy(maxReceive, false);
+                        if (extracted > 0) {
+                            entity.energyStored += extracted;
+                            entity.setChanged();
+                        }
+                    }
+                });
+            }
         }
 
         // --- ЛОГИКА ВЫКЛЮЧАТЕЛЯ ---
