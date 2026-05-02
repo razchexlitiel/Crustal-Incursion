@@ -73,6 +73,27 @@
       "cim:turret_lock"
     ]
   },
+  "lever1": {
+    "category": "block",
+    "subtitle": "sounds.cim.lever1",
+    "sounds": [
+      "cim:lever1"
+    ]
+  },
+  "lever2": {
+    "category": "block",
+    "subtitle": "sounds.cim.lever2",
+    "sounds": [
+      "cim:lever2"
+    ]
+  },
+  "button1": {
+    "category": "block",
+    "subtitle": "sounds.cim.button1",
+    "sounds": [
+      "cim:button1"
+    ]
+  },
   "dry_fire": {
     "category": "player",
     "sounds": [
