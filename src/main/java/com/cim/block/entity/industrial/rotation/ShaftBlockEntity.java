@@ -30,12 +30,21 @@ public class ShaftBlockEntity extends BlockEntity implements Rotational {
         super(ModBlockEntities.SHAFT_BE.get(), pos, state);
     }
 
-    public boolean hasGear() { return !attachedGear.isEmpty(); }
-    public ItemStack getAttachedGear() { return attachedGear; }
+    public boolean hasGear() {
+        return !attachedGear.isEmpty();
+    }
 
+    public ItemStack getAttachedGear() {
+        return attachedGear;
+    }
 
-    public boolean hasPulley() { return !attachedPulley.isEmpty(); }
-    public ItemStack getAttachedPulley() { return attachedPulley; }
+    public boolean hasPulley() {
+        return !attachedPulley.isEmpty();
+    }
+
+    public ItemStack getAttachedPulley() {
+        return attachedPulley;
+    }
 
     public void setAttachedPulley(ItemStack pulley) {
         this.attachedPulley = pulley;
@@ -45,7 +54,9 @@ public class ShaftBlockEntity extends BlockEntity implements Rotational {
         }
     }
 
-    public BlockPos getConnectedPulley() { return connectedPulley; }
+    public BlockPos getConnectedPulley() {
+        return connectedPulley;
+    }
 
     public void setConnectedPulley(BlockPos pos) {
         this.connectedPulley = pos;
@@ -54,9 +65,6 @@ public class ShaftBlockEntity extends BlockEntity implements Rotational {
             level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), 2);
         }
     }
-
-
-
 
     public void setAttachedGear(ItemStack gear) {
         this.attachedGear = gear;
@@ -68,8 +76,14 @@ public class ShaftBlockEntity extends BlockEntity implements Rotational {
         }
     }
 
-    public boolean hasBevelStart() { return !attachedBevelStart.isEmpty(); }
-    public ItemStack getAttachedBevelStart() { return attachedBevelStart; }
+    public boolean hasBevelStart() {
+        return !attachedBevelStart.isEmpty();
+    }
+
+    public ItemStack getAttachedBevelStart() {
+        return attachedBevelStart;
+    }
+
     public void setAttachedBevelStart(ItemStack bevel) {
         this.attachedBevelStart = bevel;
         this.setChanged();
@@ -78,8 +92,14 @@ public class ShaftBlockEntity extends BlockEntity implements Rotational {
         }
     }
 
-    public boolean hasBevelEnd() { return !attachedBevelEnd.isEmpty(); }
-    public ItemStack getAttachedBevelEnd() { return attachedBevelEnd; }
+    public boolean hasBevelEnd() {
+        return !attachedBevelEnd.isEmpty();
+    }
+
+    public ItemStack getAttachedBevelEnd() {
+        return attachedBevelEnd;
+    }
+
     public void setAttachedBevelEnd(ItemStack bevel) {
         this.attachedBevelEnd = bevel;
         this.setChanged();
@@ -88,20 +108,59 @@ public class ShaftBlockEntity extends BlockEntity implements Rotational {
         }
     }
 
+    private boolean isPosBetween(BlockPos mid, BlockPos a, BlockPos b) {
+        if (a.getX() == b.getX() && mid.getX() == a.getX() && a.getY() == b.getY() && mid.getY() == a.getY()) {
+            return (mid.getZ() > Math.min(a.getZ(), b.getZ())) && (mid.getZ() < Math.max(a.getZ(), b.getZ()));
+        }
+        if (a.getX() == b.getX() && mid.getX() == a.getX() && a.getZ() == b.getZ() && mid.getZ() == a.getZ()) {
+            return (mid.getY() > Math.min(a.getY(), b.getY())) && (mid.getY() < Math.max(a.getY(), b.getY()));
+        }
+        if (a.getY() == b.getY() && mid.getY() == a.getY() && a.getZ() == b.getZ() && mid.getZ() == a.getZ()) {
+            return (mid.getX() > Math.min(a.getX(), b.getX())) && (mid.getX() < Math.max(a.getX(), b.getX()));
+        }
+        return false;
+    }
+
+    private java.util.List<BlockPos> getPulleysBetween(net.minecraft.world.level.Level level, BlockPos a, BlockPos b) {
+        java.util.List<BlockPos> list = new java.util.ArrayList<>();
+        int dx = Integer.compare(b.getX(), a.getX());
+        int dy = Integer.compare(b.getY(), a.getY());
+        int dz = Integer.compare(b.getZ(), a.getZ());
+
+        // Только прямые линии
+        if (Math.abs(dx) + Math.abs(dy) + Math.abs(dz) != 1)
+            return list;
+
+        BlockPos current = a.offset(dx, dy, dz);
+        while (!current.equals(b)) {
+            if (level.isLoaded(current)) {
+                net.minecraft.world.level.block.entity.BlockEntity be = level.getBlockEntity(current);
+                if (be instanceof ShaftBlockEntity shaft && shaft.hasPulley()) {
+                    list.add(current.immutable());
+                }
+            }
+            current = current.offset(dx, dy, dz);
+        }
+        return list;
+    }
+
     @Override
     public Direction[] getPropagationDirections() {
         BlockState state = getBlockState();
-        if (!state.hasProperty(ShaftBlock.FACING)) return new Direction[0];
+        if (!state.hasProperty(ShaftBlock.FACING))
+            return new Direction[0];
         Direction facing = state.getValue(ShaftBlock.FACING);
-        if (hasGear() || hasBevelStart() || hasBevelEnd()) return Direction.values();
-        return new Direction[]{facing, facing.getOpposite()};
+        if (hasGear() || hasBevelStart() || hasBevelEnd())
+            return Direction.values();
+        return new Direction[] { facing, facing.getOpposite() };
     }
 
     @Override
     public java.util.List<BlockPos> getPotentialConnections(net.minecraft.world.level.Level level, BlockPos myPos) {
         java.util.List<BlockPos> list = new java.util.ArrayList<>();
         BlockState state = getBlockState();
-        if (!state.hasProperty(ShaftBlock.FACING)) return list;
+        if (!state.hasProperty(ShaftBlock.FACING))
+            return list;
 
         Direction facing = state.getValue(ShaftBlock.FACING);
         Direction.Axis axis = facing.getAxis();
@@ -110,9 +169,38 @@ public class ShaftBlockEntity extends BlockEntity implements Rotational {
         list.add(myPos.relative(facing));
         list.add(myPos.relative(facing.getOpposite()));
 
-        // 2. РЕМЕННЫЕ СВЯЗИ (Добавляем соседа только если есть шкив и ремень)
-        if (this.hasPulley() && this.connectedPulley != null) {
-            list.add(this.connectedPulley);
+        // 2. РЕМЕННЫЕ СВЯЗИ (Динамическое сканирование)
+        if (this.hasPulley()) {
+            if (this.connectedPulley != null) {
+                list.add(this.connectedPulley);
+                list.addAll(getPulleysBetween(level, myPos, this.connectedPulley));
+            }
+
+            int radius = 16;
+            for (int dx = -radius; dx <= radius; dx++) {
+                for (int dy = -radius; dy <= radius; dy++) {
+                    for (int dz = -radius; dz <= radius; dz++) {
+                        if (Math.abs(dx) + Math.abs(dy) + Math.abs(dz) <= radius) {
+                            if (dx == 0 && dy == 0 && dz == 0) continue;
+                            BlockPos scanPos = myPos.offset(dx, dy, dz);
+                            if (level.isLoaded(scanPos)) {
+                                net.minecraft.world.level.block.entity.BlockEntity be = level.getBlockEntity(scanPos);
+                                if (be instanceof ShaftBlockEntity otherShaft && otherShaft.hasPulley()) {
+                                    BlockPos theirTarget = otherShaft.getConnectedPulley();
+                                    if (theirTarget != null) {
+                                        if (theirTarget.equals(myPos) || isPosBetween(myPos, scanPos, theirTarget)) {
+                                            list.add(scanPos);
+                                            if (!theirTarget.equals(myPos)) {
+                                                list.add(theirTarget);
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
 
         // 1. Осевые соединения (Вал-к-Валу). Всегда добавляем перед и зад.
@@ -123,31 +211,48 @@ public class ShaftBlockEntity extends BlockEntity implements Rotational {
         if (gearSize > 0) {
             // Проверяем квадрат 5x5 вокруг шестерни
             for (BlockPos pos : BlockPos.betweenClosed(myPos.offset(-2, -2, -2), myPos.offset(2, 2, 2))) {
-                if (pos.equals(myPos)) continue;
+                if (pos.equals(myPos))
+                    continue;
 
                 BlockEntity be = level.getBlockEntity(pos);
                 if (be instanceof ShaftBlockEntity otherShaft) {
-                    if (!otherShaft.hasGear()) continue;
+                    if (!otherShaft.hasGear())
+                        continue;
                     int otherSize = otherShaft.getBlockState().getValue(ShaftBlock.GEAR_SIZE);
                     Direction.Axis otherAxis = otherShaft.getBlockState().getValue(ShaftBlock.FACING).getAxis();
 
                     if (axis == otherAxis) {
                         // Отсекаем блоки не в нашей плоскости
-                        if (axis == Direction.Axis.X && pos.getX() != myPos.getX()) continue;
-                        if (axis == Direction.Axis.Y && pos.getY() != myPos.getY()) continue;
-                        if (axis == Direction.Axis.Z && pos.getZ() != myPos.getZ()) continue;
+                        if (axis == Direction.Axis.X && pos.getX() != myPos.getX())
+                            continue;
+                        if (axis == Direction.Axis.Y && pos.getY() != myPos.getY())
+                            continue;
+                        if (axis == Direction.Axis.Z && pos.getZ() != myPos.getZ())
+                            continue;
 
                         // Считаем дистанцию по осям плоскости
                         int d1 = 0, d2 = 0;
-                        if (axis == Direction.Axis.X) { d1 = Math.abs(pos.getY() - myPos.getY()); d2 = Math.abs(pos.getZ() - myPos.getZ()); }
-                        if (axis == Direction.Axis.Y) { d1 = Math.abs(pos.getX() - myPos.getX()); d2 = Math.abs(pos.getZ() - myPos.getZ()); }
-                        if (axis == Direction.Axis.Z) { d1 = Math.abs(pos.getX() - myPos.getX()); d2 = Math.abs(pos.getY() - myPos.getY()); }
+                        if (axis == Direction.Axis.X) {
+                            d1 = Math.abs(pos.getY() - myPos.getY());
+                            d2 = Math.abs(pos.getZ() - myPos.getZ());
+                        }
+                        if (axis == Direction.Axis.Y) {
+                            d1 = Math.abs(pos.getX() - myPos.getX());
+                            d2 = Math.abs(pos.getZ() - myPos.getZ());
+                        }
+                        if (axis == Direction.Axis.Z) {
+                            d1 = Math.abs(pos.getX() - myPos.getX());
+                            d2 = Math.abs(pos.getY() - myPos.getY());
+                        }
 
                         if (gearSize == 1) {
-                            if (otherSize == 1 && ((d1 == 1 && d2 == 0) || (d1 == 0 && d2 == 1))) list.add(pos.immutable());
-                            if (otherSize == 2 && d1 == 1 && d2 == 1) list.add(pos.immutable());
+                            if (otherSize == 1 && ((d1 == 1 && d2 == 0) || (d1 == 0 && d2 == 1)))
+                                list.add(pos.immutable());
+                            if (otherSize == 2 && d1 == 1 && d2 == 1)
+                                list.add(pos.immutable());
                         } else if (gearSize == 2) {
-                            if (otherSize == 1 && d1 == 1 && d2 == 1) list.add(pos.immutable());
+                            if (otherSize == 1 && d1 == 1 && d2 == 1)
+                                list.add(pos.immutable());
                         }
                     } else {
                         // Перпендикулярные оси (только для больших шестерней)
@@ -156,14 +261,27 @@ public class ShaftBlockEntity extends BlockEntity implements Rotational {
                             int dy = Math.abs(pos.getY() - myPos.getY());
                             int dz = Math.abs(pos.getZ() - myPos.getZ());
 
-                            // Для перпендикулярных 2x2 шестерней: смещение по двум осям шестерней должно быть 1, а по третьей 0
-                            if (axis != Direction.Axis.X && otherAxis != Direction.Axis.X && dx != 0) continue;
-                            if (axis != Direction.Axis.Y && otherAxis != Direction.Axis.Y && dy != 0) continue;
-                            if (axis != Direction.Axis.Z && otherAxis != Direction.Axis.Z && dz != 0) continue;
+                            // Для перпендикулярных 2x2 шестерней: смещение по двум осям шестерней должно
+                            // быть 1, а по третьей 0
+                            if (axis != Direction.Axis.X && otherAxis != Direction.Axis.X && dx != 0)
+                                continue;
+                            if (axis != Direction.Axis.Y && otherAxis != Direction.Axis.Y && dy != 0)
+                                continue;
+                            if (axis != Direction.Axis.Z && otherAxis != Direction.Axis.Z && dz != 0)
+                                continue;
 
-                            if (axis == Direction.Axis.X || otherAxis == Direction.Axis.X) { if (dx != 1) continue; }
-                            if (axis == Direction.Axis.Y || otherAxis == Direction.Axis.Y) { if (dy != 1) continue; }
-                            if (axis == Direction.Axis.Z || otherAxis == Direction.Axis.Z) { if (dz != 1) continue; }
+                            if (axis == Direction.Axis.X || otherAxis == Direction.Axis.X) {
+                                if (dx != 1)
+                                    continue;
+                            }
+                            if (axis == Direction.Axis.Y || otherAxis == Direction.Axis.Y) {
+                                if (dy != 1)
+                                    continue;
+                            }
+                            if (axis == Direction.Axis.Z || otherAxis == Direction.Axis.Z) {
+                                if (dz != 1)
+                                    continue;
+                            }
 
                             list.add(pos.immutable());
                         }
@@ -171,11 +289,12 @@ public class ShaftBlockEntity extends BlockEntity implements Rotational {
                 }
             }
         }
-        
+
         // 3. Конические шестерни (Bevel Gears)
         if (this.hasBevelStart() || this.hasBevelEnd()) {
             for (BlockPos pos : BlockPos.betweenClosed(myPos.offset(-1, -1, -1), myPos.offset(1, 1, 1))) {
-                if (pos.equals(myPos)) continue;
+                if (pos.equals(myPos))
+                    continue;
                 BlockEntity be = level.getBlockEntity(pos);
                 if (be instanceof ShaftBlockEntity otherShaft) {
                     if (otherShaft.hasBevelStart() || otherShaft.hasBevelEnd()) {
@@ -187,15 +306,29 @@ public class ShaftBlockEntity extends BlockEntity implements Rotational {
                 }
             }
         }
-        
+
         return list;
     }
 
     @Override
     public float calculateTransmissionRatio(BlockPos myPos, BlockPos neighborPos, Rotational neighbor) {
 
-        if (neighborPos.equals(this.connectedPulley) && neighbor instanceof ShaftBlockEntity neighborShaft) {
-            if (this.hasPulley() && neighborShaft.hasPulley()) {
+        if (this.hasPulley() && neighbor instanceof ShaftBlockEntity neighborShaft && neighborShaft.hasPulley()) {
+            boolean isBeltConnection = neighborPos.equals(this.connectedPulley);
+
+            if (!isBeltConnection && neighborShaft.getConnectedPulley() != null) {
+                BlockPos theirTarget = neighborShaft.getConnectedPulley();
+                if (theirTarget.equals(myPos) || isPosBetween(myPos, neighborPos, theirTarget)) {
+                    isBeltConnection = true;
+                }
+            }
+            if (!isBeltConnection && this.connectedPulley != null) {
+                if (isPosBetween(neighborPos, myPos, this.connectedPulley)) {
+                    isBeltConnection = true;
+                }
+            }
+
+            if (isBeltConnection) {
                 if (this.getAttachedPulley().getItem() instanceof com.cim.item.rotation.PulleyItem p1 &&
                         neighborShaft.getAttachedPulley().getItem() instanceof com.cim.item.rotation.PulleyItem p2) {
                     return (float) p1.getDiameterPixels() / p2.getDiameterPixels();
@@ -203,7 +336,8 @@ public class ShaftBlockEntity extends BlockEntity implements Rotational {
             }
         }
 
-        if (!(neighbor instanceof ShaftBlockEntity neighborShaft)) return 1.0f;
+        if (!(neighbor instanceof ShaftBlockEntity neighborShaft))
+            return 1.0f;
 
         int mySize = this.getBlockState().getValue(ShaftBlock.GEAR_SIZE);
         int neighborSize = neighborShaft.getBlockState().getValue(ShaftBlock.GEAR_SIZE);
@@ -214,14 +348,19 @@ public class ShaftBlockEntity extends BlockEntity implements Rotational {
         Direction.Axis neighborAxis = neighborFacing.getAxis();
 
         // Проверка соединения конических шестерней (Bevel Gears)
-        if (myAxis != neighborAxis && (this.hasBevelStart() || this.hasBevelEnd()) && (neighborShaft.hasBevelStart() || neighborShaft.hasBevelEnd())) {
+        if (myAxis != neighborAxis && (this.hasBevelStart() || this.hasBevelEnd())
+                && (neighborShaft.hasBevelStart() || neighborShaft.hasBevelEnd())) {
             java.util.List<net.minecraft.world.phys.Vec3> myBevels = new java.util.ArrayList<>();
-            if (this.hasBevelStart()) myBevels.add(getBevelPos(myPos, myAxis, true));
-            if (this.hasBevelEnd()) myBevels.add(getBevelPos(myPos, myAxis, false));
+            if (this.hasBevelStart())
+                myBevels.add(getBevelPos(myPos, myAxis, true));
+            if (this.hasBevelEnd())
+                myBevels.add(getBevelPos(myPos, myAxis, false));
 
             java.util.List<net.minecraft.world.phys.Vec3> neighborBevels = new java.util.ArrayList<>();
-            if (neighborShaft.hasBevelStart()) neighborBevels.add(getBevelPos(neighborPos, neighborAxis, true));
-            if (neighborShaft.hasBevelEnd()) neighborBevels.add(getBevelPos(neighborPos, neighborAxis, false));
+            if (neighborShaft.hasBevelStart())
+                neighborBevels.add(getBevelPos(neighborPos, neighborAxis, true));
+            if (neighborShaft.hasBevelEnd())
+                neighborBevels.add(getBevelPos(neighborPos, neighborAxis, false));
 
             for (net.minecraft.world.phys.Vec3 g1 : myBevels) {
                 for (net.minecraft.world.phys.Vec3 g2 : neighborBevels) {
@@ -238,19 +377,26 @@ public class ShaftBlockEntity extends BlockEntity implements Rotational {
         if (myAxis != neighborAxis && mySize == 2 && neighborSize == 2) {
             // Перпендикулярное соединение (большие шестерни)
             int diff1 = 0, diff2 = 0;
-            if (myAxis == Direction.Axis.X) diff1 = neighborPos.getX() - myPos.getX();
-            if (myAxis == Direction.Axis.Y) diff1 = neighborPos.getY() - myPos.getY();
-            if (myAxis == Direction.Axis.Z) diff1 = neighborPos.getZ() - myPos.getZ();
+            if (myAxis == Direction.Axis.X)
+                diff1 = neighborPos.getX() - myPos.getX();
+            if (myAxis == Direction.Axis.Y)
+                diff1 = neighborPos.getY() - myPos.getY();
+            if (myAxis == Direction.Axis.Z)
+                diff1 = neighborPos.getZ() - myPos.getZ();
 
-            if (neighborAxis == Direction.Axis.X) diff2 = neighborPos.getX() - myPos.getX();
-            if (neighborAxis == Direction.Axis.Y) diff2 = neighborPos.getY() - myPos.getY();
-            if (neighborAxis == Direction.Axis.Z) diff2 = neighborPos.getZ() - myPos.getZ();
+            if (neighborAxis == Direction.Axis.X)
+                diff2 = neighborPos.getX() - myPos.getX();
+            if (neighborAxis == Direction.Axis.Y)
+                diff2 = neighborPos.getY() - myPos.getY();
+            if (neighborAxis == Direction.Axis.Z)
+                diff2 = neighborPos.getZ() - myPos.getZ();
 
-            return (float)(Math.signum(diff1) * Math.signum(diff2));
+            return (float) (Math.signum(diff1) * Math.signum(diff2));
         }
 
         // Если соединение по оси (вал-вал) - передача 1:1, знак не меняется
-        if (myPos.relative(myFacing).equals(neighborPos) || myPos.relative(myFacing.getOpposite()).equals(neighborPos)) {
+        if (myPos.relative(myFacing).equals(neighborPos)
+                || myPos.relative(myFacing.getOpposite()).equals(neighborPos)) {
             return 1.0f;
         }
 
@@ -270,11 +416,19 @@ public class ShaftBlockEntity extends BlockEntity implements Rotational {
     @Override
     public boolean canConnectMechanically(BlockPos myPos, BlockPos neighborPos, Rotational neighbor) {
 
-        if (neighborPos.equals(this.connectedPulley)) {
-            return this.hasPulley() && neighbor instanceof ShaftBlockEntity neighborShaft && neighborShaft.hasPulley();
+        if (this.hasPulley() && neighbor instanceof ShaftBlockEntity neighborShaft && neighborShaft.hasPulley()) {
+            if (neighborPos.equals(this.connectedPulley))
+                return true;
+            if (neighborShaft.getConnectedPulley() != null) {
+                BlockPos theirTarget = neighborShaft.getConnectedPulley();
+                if (theirTarget.equals(myPos) || isPosBetween(myPos, neighborPos, theirTarget))
+                    return true;
+            }
+            if (this.connectedPulley != null && isPosBetween(neighborPos, myPos, this.connectedPulley))
+                return true;
         }
 
-        ShaftDiameter thisDiameter = ((ShaftBlock)this.getBlockState().getBlock()).getDiameter();
+        ShaftDiameter thisDiameter = ((ShaftBlock) this.getBlockState().getBlock()).getDiameter();
         Direction thisFacing = getBlockState().getValue(ShaftBlock.FACING);
 
         // Проверяем, находятся ли валы на одной прямой линии (торец к торцу)
@@ -283,7 +437,7 @@ public class ShaftBlockEntity extends BlockEntity implements Rotational {
 
         if (neighbor instanceof ShaftBlockEntity otherShaft) {
             Direction otherFacing = otherShaft.getBlockState().getValue(ShaftBlock.FACING);
-            ShaftDiameter otherDiameter = ((ShaftBlock)otherShaft.getBlockState().getBlock()).getDiameter();
+            ShaftDiameter otherDiameter = ((ShaftBlock) otherShaft.getBlockState().getBlock()).getDiameter();
 
             Direction.Axis myAxis = thisFacing.getAxis();
             Direction.Axis otherAxis = otherFacing.getAxis();
@@ -292,14 +446,19 @@ public class ShaftBlockEntity extends BlockEntity implements Rotational {
                 return thisDiameter == otherDiameter && myAxis == otherAxis;
             } else {
                 // Проверка соединения конических шестерней (Bevel Gears)
-                if (myAxis != otherAxis && (this.hasBevelStart() || this.hasBevelEnd()) && (otherShaft.hasBevelStart() || otherShaft.hasBevelEnd())) {
+                if (myAxis != otherAxis && (this.hasBevelStart() || this.hasBevelEnd())
+                        && (otherShaft.hasBevelStart() || otherShaft.hasBevelEnd())) {
                     java.util.List<net.minecraft.world.phys.Vec3> myBevels = new java.util.ArrayList<>();
-                    if (this.hasBevelStart()) myBevels.add(getBevelPos(myPos, myAxis, true));
-                    if (this.hasBevelEnd()) myBevels.add(getBevelPos(myPos, myAxis, false));
+                    if (this.hasBevelStart())
+                        myBevels.add(getBevelPos(myPos, myAxis, true));
+                    if (this.hasBevelEnd())
+                        myBevels.add(getBevelPos(myPos, myAxis, false));
 
                     java.util.List<net.minecraft.world.phys.Vec3> neighborBevels = new java.util.ArrayList<>();
-                    if (otherShaft.hasBevelStart()) neighborBevels.add(getBevelPos(neighborPos, otherAxis, true));
-                    if (otherShaft.hasBevelEnd()) neighborBevels.add(getBevelPos(neighborPos, otherAxis, false));
+                    if (otherShaft.hasBevelStart())
+                        neighborBevels.add(getBevelPos(neighborPos, otherAxis, true));
+                    if (otherShaft.hasBevelEnd())
+                        neighborBevels.add(getBevelPos(neighborPos, otherAxis, false));
 
                     for (net.minecraft.world.phys.Vec3 g1 : myBevels) {
                         for (net.minecraft.world.phys.Vec3 g2 : neighborBevels) {
@@ -311,17 +470,27 @@ public class ShaftBlockEntity extends BlockEntity implements Rotational {
                 }
 
                 // Боковое или диагональное соединение шестерней
-                if (!this.hasGear() || !otherShaft.hasGear()) return false;
-                
+                if (!this.hasGear() || !otherShaft.hasGear())
+                    return false;
+
                 if (myAxis == otherAxis) {
                     int mySize = this.getBlockState().getValue(ShaftBlock.GEAR_SIZE);
                     int otherSize = otherShaft.getBlockState().getValue(ShaftBlock.GEAR_SIZE);
-                    
+
                     int d1 = 0, d2 = 0;
-                    if (myAxis == Direction.Axis.X) { d1 = Math.abs(neighborPos.getY() - myPos.getY()); d2 = Math.abs(neighborPos.getZ() - myPos.getZ()); }
-                    if (myAxis == Direction.Axis.Y) { d1 = Math.abs(neighborPos.getX() - myPos.getX()); d2 = Math.abs(neighborPos.getZ() - myPos.getZ()); }
-                    if (myAxis == Direction.Axis.Z) { d1 = Math.abs(neighborPos.getX() - myPos.getX()); d2 = Math.abs(neighborPos.getY() - myPos.getY()); }
-                    
+                    if (myAxis == Direction.Axis.X) {
+                        d1 = Math.abs(neighborPos.getY() - myPos.getY());
+                        d2 = Math.abs(neighborPos.getZ() - myPos.getZ());
+                    }
+                    if (myAxis == Direction.Axis.Y) {
+                        d1 = Math.abs(neighborPos.getX() - myPos.getX());
+                        d2 = Math.abs(neighborPos.getZ() - myPos.getZ());
+                    }
+                    if (myAxis == Direction.Axis.Z) {
+                        d1 = Math.abs(neighborPos.getX() - myPos.getX());
+                        d2 = Math.abs(neighborPos.getY() - myPos.getY());
+                    }
+
                     if (mySize == 1 && otherSize == 1) {
                         return (d1 == 1 && d2 == 0) || (d1 == 0 && d2 == 1);
                     } else if (mySize == 2 && otherSize == 2) {
@@ -338,13 +507,25 @@ public class ShaftBlockEntity extends BlockEntity implements Rotational {
                         int dy = Math.abs(neighborPos.getY() - myPos.getY());
                         int dz = Math.abs(neighborPos.getZ() - myPos.getZ());
 
-                        if (myAxis != Direction.Axis.X && otherAxis != Direction.Axis.X && dx != 0) return false;
-                        if (myAxis != Direction.Axis.Y && otherAxis != Direction.Axis.Y && dy != 0) return false;
-                        if (myAxis != Direction.Axis.Z && otherAxis != Direction.Axis.Z && dz != 0) return false;
+                        if (myAxis != Direction.Axis.X && otherAxis != Direction.Axis.X && dx != 0)
+                            return false;
+                        if (myAxis != Direction.Axis.Y && otherAxis != Direction.Axis.Y && dy != 0)
+                            return false;
+                        if (myAxis != Direction.Axis.Z && otherAxis != Direction.Axis.Z && dz != 0)
+                            return false;
 
-                        if (myAxis == Direction.Axis.X || otherAxis == Direction.Axis.X) { if (dx != 1) return false; }
-                        if (myAxis == Direction.Axis.Y || otherAxis == Direction.Axis.Y) { if (dy != 1) return false; }
-                        if (myAxis == Direction.Axis.Z || otherAxis == Direction.Axis.Z) { if (dz != 1) return false; }
+                        if (myAxis == Direction.Axis.X || otherAxis == Direction.Axis.X) {
+                            if (dx != 1)
+                                return false;
+                        }
+                        if (myAxis == Direction.Axis.Y || otherAxis == Direction.Axis.Y) {
+                            if (dy != 1)
+                                return false;
+                        }
+                        if (myAxis == Direction.Axis.Z || otherAxis == Direction.Axis.Z) {
+                            if (dz != 1)
+                                return false;
+                        }
 
                         return true;
                     }
@@ -377,10 +558,14 @@ public class ShaftBlockEntity extends BlockEntity implements Rotational {
     }
 
     @Override
-    public void setNetworkScale(float scale) { this.networkScale = scale; }
+    public void setNetworkScale(float scale) {
+        this.networkScale = scale;
+    }
 
     @Override
-    public float getNetworkScale() { return this.networkScale; }
+    public float getNetworkScale() {
+        return this.networkScale;
+    }
 
     @Override
     public void setSpeed(long speed) {
@@ -398,8 +583,10 @@ public class ShaftBlockEntity extends BlockEntity implements Rotational {
     }
 
     private boolean shouldSyncSpeed() {
-        if (this.speed == 0 && this.lastSyncedSpeed != 0) return true;
-        if (this.speed != 0 && this.lastSyncedSpeed == 0) return true;
+        if (this.speed == 0 && this.lastSyncedSpeed != 0)
+            return true;
+        if (this.speed != 0 && this.lastSyncedSpeed == 0)
+            return true;
         long diff = Math.abs(this.speed - this.lastSyncedSpeed);
         long threshold = Math.max(2, Math.abs(this.lastSyncedSpeed) / 20);
         return diff >= threshold;
@@ -412,12 +599,17 @@ public class ShaftBlockEntity extends BlockEntity implements Rotational {
         tag.putLong("LastSyncedSpeed", this.lastSyncedSpeed);
         tag.putFloat("NetworkScale", this.networkScale);
 
-        if (!attachedGear.isEmpty()) tag.put("AttachedGear", attachedGear.save(new CompoundTag()));
-        if (!attachedBevelStart.isEmpty()) tag.put("AttachedBevelStart", attachedBevelStart.save(new CompoundTag()));
-        if (!attachedBevelEnd.isEmpty()) tag.put("AttachedBevelEnd", attachedBevelEnd.save(new CompoundTag()));
+        if (!attachedGear.isEmpty())
+            tag.put("AttachedGear", attachedGear.save(new CompoundTag()));
+        if (!attachedBevelStart.isEmpty())
+            tag.put("AttachedBevelStart", attachedBevelStart.save(new CompoundTag()));
+        if (!attachedBevelEnd.isEmpty())
+            tag.put("AttachedBevelEnd", attachedBevelEnd.save(new CompoundTag()));
         // Сохранение шкивов
-        if (!attachedPulley.isEmpty()) tag.put("AttachedPulley", attachedPulley.save(new CompoundTag()));
-        if (connectedPulley != null) tag.put("ConnectedPulley", net.minecraft.nbt.NbtUtils.writeBlockPos(connectedPulley));
+        if (!attachedPulley.isEmpty())
+            tag.put("AttachedPulley", attachedPulley.save(new CompoundTag()));
+        if (connectedPulley != null)
+            tag.put("ConnectedPulley", net.minecraft.nbt.NbtUtils.writeBlockPos(connectedPulley));
     }
 
     @Override
@@ -427,24 +619,36 @@ public class ShaftBlockEntity extends BlockEntity implements Rotational {
         this.lastSyncedSpeed = tag.getLong("LastSyncedSpeed");
         this.networkScale = tag.contains("NetworkScale") ? tag.getFloat("NetworkScale") : 1.0f;
 
-        this.attachedGear = tag.contains("AttachedGear") ? ItemStack.of(tag.getCompound("AttachedGear")) : ItemStack.EMPTY;
-        this.attachedBevelStart = tag.contains("AttachedBevelStart") ? ItemStack.of(tag.getCompound("AttachedBevelStart")) : ItemStack.EMPTY;
-        this.attachedBevelEnd = tag.contains("AttachedBevelEnd") ? ItemStack.of(tag.getCompound("AttachedBevelEnd")) : ItemStack.EMPTY;
+        this.attachedGear = tag.contains("AttachedGear") ? ItemStack.of(tag.getCompound("AttachedGear"))
+                : ItemStack.EMPTY;
+        this.attachedBevelStart = tag.contains("AttachedBevelStart")
+                ? ItemStack.of(tag.getCompound("AttachedBevelStart"))
+                : ItemStack.EMPTY;
+        this.attachedBevelEnd = tag.contains("AttachedBevelEnd") ? ItemStack.of(tag.getCompound("AttachedBevelEnd"))
+                : ItemStack.EMPTY;
         // Загрузка шкивов
-        this.attachedPulley = tag.contains("AttachedPulley") ? ItemStack.of(tag.getCompound("AttachedPulley")) : ItemStack.EMPTY;
-        this.connectedPulley = tag.contains("ConnectedPulley") ? net.minecraft.nbt.NbtUtils.readBlockPos(tag.getCompound("ConnectedPulley")) : null;
+        this.attachedPulley = tag.contains("AttachedPulley") ? ItemStack.of(tag.getCompound("AttachedPulley"))
+                : ItemStack.EMPTY;
+        this.connectedPulley = tag.contains("ConnectedPulley")
+                ? net.minecraft.nbt.NbtUtils.readBlockPos(tag.getCompound("ConnectedPulley"))
+                : null;
     }
 
     @Override
     public CompoundTag getUpdateTag() {
         CompoundTag tag = super.getUpdateTag();
         tag.putLong("Speed", this.speed);
-        if (!attachedGear.isEmpty()) tag.put("AttachedGear", attachedGear.save(new CompoundTag()));
-        if (!attachedBevelStart.isEmpty()) tag.put("AttachedBevelStart", attachedBevelStart.save(new CompoundTag()));
-        if (!attachedBevelEnd.isEmpty()) tag.put("AttachedBevelEnd", attachedBevelEnd.save(new CompoundTag()));
+        if (!attachedGear.isEmpty())
+            tag.put("AttachedGear", attachedGear.save(new CompoundTag()));
+        if (!attachedBevelStart.isEmpty())
+            tag.put("AttachedBevelStart", attachedBevelStart.save(new CompoundTag()));
+        if (!attachedBevelEnd.isEmpty())
+            tag.put("AttachedBevelEnd", attachedBevelEnd.save(new CompoundTag()));
         // Синхронизация на клиент
-        if (!attachedPulley.isEmpty()) tag.put("AttachedPulley", attachedPulley.save(new CompoundTag()));
-        if (connectedPulley != null) tag.put("ConnectedPulley", net.minecraft.nbt.NbtUtils.writeBlockPos(connectedPulley));
+        if (!attachedPulley.isEmpty())
+            tag.put("AttachedPulley", attachedPulley.save(new CompoundTag()));
+        if (connectedPulley != null)
+            tag.put("ConnectedPulley", net.minecraft.nbt.NbtUtils.writeBlockPos(connectedPulley));
         return tag;
     }
 
@@ -481,7 +685,8 @@ public class ShaftBlockEntity extends BlockEntity implements Rotational {
     @Override
     public long getVisualSpeed() {
         BlockState state = getBlockState();
-        if (!state.hasProperty(ShaftBlock.FACING)) return this.speed;
+        if (!state.hasProperty(ShaftBlock.FACING))
+            return this.speed;
 
         Direction facing = state.getValue(ShaftBlock.FACING);
         // Инвертируем визуальную скорость для позитивных осей (правило правой руки)
@@ -503,12 +708,16 @@ public class ShaftBlockEntity extends BlockEntity implements Rotational {
         return super.getRenderBoundingBox();
     }
 
-
+    @Override
+    public long getSpeed() {
+        return speed;
+    }
 
     @Override
-    public long getSpeed() { return speed; }
-    @Override
-    public long getTorque() { return 0; }
+    public long getTorque() {
+        return 0;
+    }
+
     @Override
     public long getMaxSpeed() {
         if (getBlockState().getBlock() instanceof ShaftBlock shaft) {
@@ -516,6 +725,7 @@ public class ShaftBlockEntity extends BlockEntity implements Rotational {
         }
         return 256;
     }
+
     @Override
     public long getMaxTorque() {
         if (getBlockState().getBlock() instanceof ShaftBlock shaft) {
@@ -523,6 +733,7 @@ public class ShaftBlockEntity extends BlockEntity implements Rotational {
         }
         return 1024;
     }
+
     @Override
     public long getInertiaContribution() {
         if (getBlockState().getBlock() instanceof ShaftBlock shaft) {
@@ -530,8 +741,14 @@ public class ShaftBlockEntity extends BlockEntity implements Rotational {
         }
         return 5;
     }
+
     @Override
-    public long getFrictionContribution() { return 1; }
+    public long getFrictionContribution() {
+        return 1;
+    }
+
     @Override
-    public long getMaxTorqueTolerance() { return 1000; }
+    public long getMaxTorqueTolerance() {
+        return 1000;
+    }
 }

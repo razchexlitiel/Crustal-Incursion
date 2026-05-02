@@ -100,22 +100,22 @@ public class BeltItem extends Item {
                 return InteractionResult.FAIL;
             }
 
-            // УСПЕХ: Связываем
-            beA.setConnectedPulley(posB);
-            beB.setConnectedPulley(posA);
+            InteractionResult result = com.cim.api.rotation.BeltConnectionHelper.tryConnectPulleys(level, player, posA, posB);
+            
+            if (result == InteractionResult.SUCCESS) {
+                nbt.remove("SelectedPulley");
+                if (!player.isCreative()) stack.shrink(1);
 
-            nbt.remove("SelectedPulley");
-            if (!player.isCreative()) stack.shrink(1);
+                player.displayClientMessage(Component.literal("§aРемень успешно натянут!"), true);
+                level.playSound(null, posB, SoundEvents.WOOL_PLACE, SoundSource.BLOCKS, 1.0f, 1.0f);
 
-            player.displayClientMessage(Component.literal("§aРемень успешно натянут!"), true);
-            level.playSound(null, posB, SoundEvents.WOOL_PLACE, SoundSource.BLOCKS, 1.0f, 1.0f);
-
-            // Обновляем сеть
-            com.cim.api.rotation.KineticNetworkManager manager = com.cim.api.rotation.KineticNetworkManager.get((net.minecraft.server.level.ServerLevel) level);
-            manager.updateNetworkAfterRemove(posA);
-            manager.updateNetworkAfterPlace(posA);
-
-            return InteractionResult.SUCCESS;
+                // Обновляем сеть
+                com.cim.api.rotation.KineticNetworkManager manager = com.cim.api.rotation.KineticNetworkManager.get((net.minecraft.server.level.ServerLevel) level);
+                manager.updateNetworkAfterRemove(posA);
+                manager.updateNetworkAfterPlace(posA);
+            }
+            
+            return result;
         }
         return InteractionResult.PASS;
     }
