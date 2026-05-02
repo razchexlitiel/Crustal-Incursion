@@ -510,11 +510,26 @@ public class ShaftBlockEntity extends BlockEntity implements Rotational {
     @Override
     public long getTorque() { return 0; }
     @Override
-    public long getMaxSpeed() { return 256; }
+    public long getMaxSpeed() {
+        if (getBlockState().getBlock() instanceof ShaftBlock shaft) {
+            return (long) (shaft.getMaterial().getBaseMaxSpeed() * shaft.getDiameter().getSpeedMultiplier());
+        }
+        return 256;
+    }
     @Override
-    public long getMaxTorque() { return 1024; }
+    public long getMaxTorque() {
+        if (getBlockState().getBlock() instanceof ShaftBlock shaft) {
+            return (long) (shaft.getMaterial().getBaseMaxTorque() * shaft.getDiameter().getTorqueMultiplier());
+        }
+        return 1024;
+    }
     @Override
-    public long getInertiaContribution() { return 5; }
+    public long getInertiaContribution() {
+        if (getBlockState().getBlock() instanceof ShaftBlock shaft) {
+            return (long) (shaft.getMaterial().baseInertia() * shaft.getDiameter().inertiaMod);
+        }
+        return 5;
+    }
     @Override
     public long getFrictionContribution() { return 1; }
     @Override

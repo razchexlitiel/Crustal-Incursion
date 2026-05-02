@@ -65,6 +65,12 @@ public class ClientModEvents {
     @SubscribeEvent
     public static void registerRenderers(final EntityRenderersEvent.RegisterRenderers event) {
         MinecraftForge.EVENT_BUS.register(ClientRenderHandler.class);
+        // Единый таймер кадра — обновляется 1 раз ДО всех Flywheel beginFrame()
+        MinecraftForge.EVENT_BUS.addListener((net.minecraftforge.event.TickEvent.RenderTickEvent renderEvent) -> {
+            if (renderEvent.phase == net.minecraftforge.event.TickEvent.Phase.START) {
+                com.cim.client.render.flywheel.AnimationTimer.onFrameStart();
+            }
+        });
 
         ModItems.MACHINEGUN.ifPresent(item -> {
             ItemProperties.register(item,

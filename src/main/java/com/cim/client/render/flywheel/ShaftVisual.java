@@ -278,7 +278,7 @@ public class ShaftVisual extends AbstractBlockEntityVisual<ShaftBlockEntity> imp
 
     private float smoothedSpeed = 0f;
     private float currentAngle = 0f;
-    private long lastFrameTime = -1;
+    private boolean initialized = false;
     private float lastLoggedSpeed = Float.NaN;
     private boolean phaseSynced = false;
 
@@ -308,12 +308,23 @@ public class ShaftVisual extends AbstractBlockEntityVisual<ShaftBlockEntity> imp
             rebuildBelt();
         }
 
-        long now = System.currentTimeMillis();
-        if (lastFrameTime == -1) lastFrameTime = now;
-        float deltaSeconds = (now - lastFrameTime) / 1000f;
-        lastFrameTime = now;
+        long now = AnimationTimer.getFrameTimeMs();
+        float deltaSeconds = AnimationTimer.getFrameDeltaSeconds();
 
         float targetSpeed = blockEntity.getVisualSpeed();
+
+        // При первом кадре — мгновенно синхронизируемся с глобальным углом
+        if (!initialized) {
+            smoothedSpeed = targetSpeed;
+            if (targetSpeed != 0) {
+                float time = AnimationTimer.getFrameTimeSeconds();
+                float twoPi0 = (float) (2 * Math.PI);
+                currentAngle = (time * targetSpeed * ((float) Math.PI / 30.0f)) % twoPi0;
+                if (currentAngle < 0) currentAngle += twoPi0;
+            }
+            initialized = true;
+            lastLoggedSpeed = targetSpeed;
+        }
 
         if (targetSpeed != lastLoggedSpeed) {
             com.cim.main.CrustalIncursionMod.LOGGER.info("[VISUAL-DIAG] beginFrame at {} | speed changed: {} -> {}",
@@ -328,14 +339,14 @@ public class ShaftVisual extends AbstractBlockEntityVisual<ShaftBlockEntity> imp
             smoothedSpeed = targetSpeed;
         }
 
-        currentAngle += smoothedSpeed * 2.0f * deltaSeconds;
+        currentAngle += smoothedSpeed * ((float) Math.PI / 30.0f) * deltaSeconds;
         float twoPi = (float) (2 * Math.PI);
         currentAngle = currentAngle % twoPi;
         if (currentAngle < 0) currentAngle += twoPi;
 
         if (smoothedSpeed == targetSpeed && targetSpeed != 0) {
-            float time = (float) (now % 100000) / 50f;
-            float globalAngle = (time * targetSpeed * 0.1f) % twoPi;
+            float time = AnimationTimer.getFrameTimeSeconds();
+            float globalAngle = (time * targetSpeed * ((float) Math.PI / 30.0f)) % twoPi;
             if (globalAngle < 0) globalAngle += twoPi;
 
             if (!this.phaseSynced) {

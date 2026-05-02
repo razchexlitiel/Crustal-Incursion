@@ -111,7 +111,7 @@ public class BearingVisual extends AbstractBlockEntityVisual<BearingBlockEntity>
 
     private float smoothedSpeed = 0f;
     private float currentAngle = 0f;
-    private long lastFrameTime = -1;
+    private boolean initialized = false;
     private boolean phaseSynced = false;
 
     @Override
@@ -141,12 +141,21 @@ public class BearingVisual extends AbstractBlockEntityVisual<BearingBlockEntity>
         }
 
         // 2. ВРАЩЕНИЕ с плавной инерцией
-        long now = System.currentTimeMillis();
-        if (lastFrameTime == -1) lastFrameTime = now;
-        float deltaSeconds = (now - lastFrameTime) / 1000f;
-        lastFrameTime = now;
+        float deltaSeconds = AnimationTimer.getFrameDeltaSeconds();
 
         float targetSpeed = blockEntity.getVisualSpeed();
+
+        // При первом кадре — мгновенно синхронизируемся
+        if (!initialized) {
+            smoothedSpeed = targetSpeed;
+            if (targetSpeed != 0) {
+                float time = AnimationTimer.getFrameTimeSeconds();
+                float twoPi0 = (float) (2 * Math.PI);
+                currentAngle = (time * targetSpeed * ((float) Math.PI / 30.0f)) % twoPi0;
+                if (currentAngle < 0) currentAngle += twoPi0;
+            }
+            initialized = true;
+        }
 
         // 2.1 Плавное изменение скорости
         float speedDiff = targetSpeed - smoothedSpeed;
@@ -157,7 +166,7 @@ public class BearingVisual extends AbstractBlockEntityVisual<BearingBlockEntity>
         }
 
         // 2.2 Увеличиваем внутренний угол плавно
-        currentAngle += smoothedSpeed * 2.0f * deltaSeconds;
+        currentAngle += smoothedSpeed * ((float) Math.PI / 30.0f) * deltaSeconds;
         
         float twoPi = (float) (2 * Math.PI);
         currentAngle = currentAngle % twoPi;
@@ -165,8 +174,8 @@ public class BearingVisual extends AbstractBlockEntityVisual<BearingBlockEntity>
 
         // 2.3 Синхронизация фазы при постоянной скорости
         if (smoothedSpeed == targetSpeed && targetSpeed != 0) {
-            float time = (float) (now % 100000) / 50f;
-            float globalAngle = (time * targetSpeed * 0.1f) % twoPi;
+            float time = AnimationTimer.getFrameTimeSeconds();
+            float globalAngle = (time * targetSpeed * ((float) Math.PI / 30.0f)) % twoPi;
             if (globalAngle < 0) globalAngle += twoPi;
             
             if (!this.phaseSynced) {
