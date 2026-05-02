@@ -220,6 +220,9 @@ public class CrustalIncursionMod {
             event.accept(ModItems.CROWBAR.get());
             event.accept(ModItems.BEAM_PLACER.get());
             event.accept(ModItems.SCREWDRIVER.get());
+            event.accept(ModItems.POKER.get());
+            event.accept(ModItems.FLUID_IDENTIFIER.get());
+            event.accept(ModItems.INFINITE_FLUID_BARREL);
 
             event.accept(ModBlocks.SHAFT_LIGHT_IRON);
             event.accept(ModBlocks.SHAFT_MEDIUM_IRON);
@@ -240,12 +243,16 @@ public class CrustalIncursionMod {
             event.accept(ModItems.GEAR1_STEEL.get());
             event.accept(ModItems.GEAR2_STEEL.get());
 
-            event.accept(ModBlocks.MOTOR_ELECTRO);
             event.accept(ModBlocks.BEARING_BLOCK);
-            event.accept(ModItems.PULLEY.get());
-            event.accept(ModItems.BELT.get());
-            event.accept(ModBlocks.TACHOMETER);
             event.accept(ModItems.BEVEL_GEAR.get());
+            event.accept(ModItems.PULLEY.get());
+
+            event.accept(ModBlocks.MOTOR_ELECTRO);
+            event.accept(ModBlocks.TACHOMETER);
+
+            event.accept(ModItems.BELT.get());
+
+
 
             event.accept(ModItems.WIRE_COIL);
             event.accept(ModBlocks.CONNECTOR);
@@ -274,8 +281,9 @@ public class CrustalIncursionMod {
                 }
             }
 
-            event.accept(ModItems.FLUID_IDENTIFIER.get());
-            event.accept(ModItems.INFINITE_FLUID_BARREL);
+
+
+
             event.accept(ModItems.PROTECTOR_STEEL);
             event.accept(ModItems.PROTECTOR_LEAD);
             event.accept(ModItems.PROTECTOR_TUNGSTEN);
@@ -284,6 +292,9 @@ public class CrustalIncursionMod {
             event.accept(ModBlocks.STEEL_FLUID_PIPE);
             event.accept(ModBlocks.LEAD_FLUID_PIPE);
             event.accept(ModBlocks.TUNGSTEN_FLUID_PIPE);
+
+
+
 
             event.accept(ModBlocks.JERNOVA);
             event.accept(ModBlocks.SMALL_SMELTER);
@@ -297,7 +308,8 @@ public class CrustalIncursionMod {
             event.accept(ModItems.MOLD_INGOT.get());
             event.accept(ModItems.MOLD_BLOCK.get());
             event.accept(ModItems.MOLD_PICKAXE.get());
-            event.accept(ModItems.POKER.get());
+
+
 
             event.accept(ModItems.CAST_PICKAXE_IRON_BASE.get());
             event.accept(ModItems.CAST_PICKAXE_STEEL_BASE.get());

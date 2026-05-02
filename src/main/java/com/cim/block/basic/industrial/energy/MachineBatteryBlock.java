@@ -192,25 +192,34 @@ public class MachineBatteryBlock extends BaseEntityBlock {
                                 popResource(level, pos.relative(facing), extracted);
                             }
                             level.playSound(null, pos, SoundEvents.IRON_TRAPDOOR_OPEN, SoundSource.BLOCKS, 0.6f, 1.2f);
-                            heldItem.hurtAndBreak(1, player, (p) -> p.broadcastBreakEvent(hand));
+
+                            // [ФИКС] Не ломаем отвёртку в креативе
+                            if (!player.isCreative()) {
+                                heldItem.hurtAndBreak(1, player, (p) -> p.broadcastBreakEvent(hand));
+                            }
+
                             player.displayClientMessage(
                                     Component.literal("§eЯчейка извлечена из слота " + (cellSlot + 1)), true);
                             return InteractionResult.CONSUME;
                         }
-                    } else {
-                        player.displayClientMessage(
-                                Component.literal("§7Слот " + (cellSlot + 1) + " пуст"), true);
-                        return InteractionResult.CONSUME;
                     }
                 }
 
                 // --- ЭНЕРГОЯЧЕЙКА В РУКЕ: вставка ---
                 if (heldItem.getItem() instanceof EnergyCellItem) {
                     if (battery.isCellEmpty(cellSlot)) {
-                        if (battery.insertCell(cellSlot, heldItem)) {
+                        // [ФИКС] Передаём копию, чтобы insertCell не трогал оригинал в руке
+                        ItemStack insertStack = heldItem.copy();
+                        if (battery.insertCell(cellSlot, insertStack)) {
                             level.playSound(null, pos, SoundEvents.IRON_TRAPDOOR_CLOSE, SoundSource.BLOCKS, 0.6f, 0.9f);
                             player.displayClientMessage(
                                     Component.literal("§aЯчейка вставлена в слот " + (cellSlot + 1)), true);
+
+                            // Тратим только в выживании
+                            if (!player.isCreative()) {
+                                heldItem.shrink(1);
+                            }
+
                             return InteractionResult.CONSUME;
                         }
                     } else {
