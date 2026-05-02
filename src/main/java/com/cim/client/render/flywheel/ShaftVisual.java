@@ -278,9 +278,8 @@ public class ShaftVisual extends AbstractBlockEntityVisual<ShaftBlockEntity> imp
 
     private float smoothedSpeed = 0f;
     private float currentAngle = 0f;
-    private boolean initialized = false;
-    private float lastLoggedSpeed = Float.NaN;
     private boolean phaseSynced = false;
+    private float lastFrameTime = -1.0f;
 
     @Override
     public void beginFrame(Context ctx) {
@@ -308,75 +307,68 @@ public class ShaftVisual extends AbstractBlockEntityVisual<ShaftBlockEntity> imp
             rebuildBelt();
         }
 
-        long now = AnimationTimer.getFrameTimeMs();
-        float deltaSeconds = AnimationTimer.getFrameDeltaSeconds();
+// --- МАТЕМАТИКА ВРАЩЕНИЯ (Глобальная синхронизация) ---
+        float partialTick = net.minecraft.client.Minecraft.getInstance().getFrameTime();
+        float timeInSeconds = (level.getGameTime() + partialTick) / 20.0f;
 
-        float targetSpeed = blockEntity.getVisualSpeed();
+        if (this.lastFrameTime < 0) this.lastFrameTime = timeInSeconds;
+        float deltaSeconds = timeInSeconds - this.lastFrameTime;
+        this.lastFrameTime = timeInSeconds;
 
-        // При первом кадре — мгновенно синхронизируемся с глобальным углом
-        if (!initialized) {
-            smoothedSpeed = targetSpeed;
-            if (targetSpeed != 0) {
-                float time = AnimationTimer.getFrameTimeSeconds();
-                float twoPi0 = (float) (2 * Math.PI);
-                currentAngle = (time * targetSpeed * ((float) Math.PI / 30.0f)) % twoPi0;
-                if (currentAngle < 0) currentAngle += twoPi0;
-            }
-            initialized = true;
-            lastLoggedSpeed = targetSpeed;
+        float physicalTargetSpeed = blockEntity.getVisualSpeed();
+
+        // Ограничитель скорости для рендера (защита от стробоскопического эффекта на сверхвысоких RPM)
+        float maxRenderSpeed = 300f; 
+        float targetSpeed = physicalTargetSpeed;
+        if (Math.abs(targetSpeed) > maxRenderSpeed) {
+            targetSpeed = Math.signum(targetSpeed) * maxRenderSpeed;
         }
 
-        if (targetSpeed != lastLoggedSpeed) {
-            com.cim.main.CrustalIncursionMod.LOGGER.info("[VISUAL-DIAG] beginFrame at {} | speed changed: {} -> {}",
-                    pos, lastLoggedSpeed, targetSpeed);
-            lastLoggedSpeed = targetSpeed;
+        if (this.smoothedSpeed == 0 && targetSpeed != 0) {
+            this.smoothedSpeed = targetSpeed;
+            this.currentAngle = (timeInSeconds * targetSpeed * ((float) Math.PI / 30.0f)) % ((float) Math.PI * 2);
+            if (this.currentAngle < 0) this.currentAngle += (float) Math.PI * 2;
         }
 
-        float speedDiff = targetSpeed - smoothedSpeed;
-        if (Math.abs(speedDiff) > 0.001f) {
-            smoothedSpeed += speedDiff * 4.0f * deltaSeconds;
+        float speedDiff = targetSpeed - this.smoothedSpeed;
+        if (Math.abs(speedDiff) > 0.1f) {
+            this.smoothedSpeed += speedDiff * 4.0f * deltaSeconds;
+            this.phaseSynced = false;
         } else {
-            smoothedSpeed = targetSpeed;
+            this.smoothedSpeed = targetSpeed;
         }
 
-        currentAngle += smoothedSpeed * ((float) Math.PI / 30.0f) * deltaSeconds;
+        this.currentAngle += this.smoothedSpeed * ((float) Math.PI / 30.0f) * deltaSeconds;
         float twoPi = (float) (2 * Math.PI);
-        currentAngle = currentAngle % twoPi;
-        if (currentAngle < 0) currentAngle += twoPi;
+        this.currentAngle = this.currentAngle % twoPi;
+        if (this.currentAngle < 0) this.currentAngle += twoPi;
 
-        if (smoothedSpeed == targetSpeed && targetSpeed != 0) {
-            float time = AnimationTimer.getFrameTimeSeconds();
-            float globalAngle = (time * targetSpeed * ((float) Math.PI / 30.0f)) % twoPi;
+        if (this.smoothedSpeed == targetSpeed && targetSpeed != 0) {
+            // Идеальный глобальный угол, одинаковый для всех блоков сети
+            float globalAngle = (timeInSeconds * targetSpeed * ((float) Math.PI / 30.0f)) % twoPi;
             if (globalAngle < 0) globalAngle += twoPi;
 
-            if (!this.phaseSynced) {
-                currentAngle = globalAngle;
-                this.phaseSynced = true;
-            } else {
-                float angleDiff = (globalAngle - currentAngle) % twoPi;
-                if (angleDiff > Math.PI) angleDiff -= twoPi;
-                if (angleDiff < -Math.PI) angleDiff += twoPi;
+            float diff = (globalAngle - this.currentAngle) % twoPi;
+            if (diff > Math.PI) diff -= twoPi;
+            if (diff < -Math.PI) diff += twoPi;
 
-                float maxCorrection = 0.5f * deltaSeconds;
-                float correction = Math.signum(angleDiff) * Math.min(Math.abs(angleDiff), maxCorrection);
-                currentAngle += correction;
-            }
-        } else {
-            this.phaseSynced = false;
+            // Плавно притягиваем текущий угол к идеальному, устраняя любые погрешности
+            this.currentAngle += diff * 10.0f * deltaSeconds;
         }
 
-        if (targetSpeed == 0 && Math.abs(smoothedSpeed) < 5.0f) {
+        if (targetSpeed == 0 && Math.abs(this.smoothedSpeed) < 5.0f) {
             float PI_OVER_4 = (float) (Math.PI / 4.0);
-            float targetSnap = Math.round(currentAngle / PI_OVER_4) * PI_OVER_4;
-            float snapDiff = targetSnap - currentAngle;
-
+            float targetSnap = Math.round(this.currentAngle / PI_OVER_4) * PI_OVER_4;
+            float snapDiff = targetSnap - this.currentAngle;
+            
             if (Math.abs(snapDiff) > 0.001f) {
-                float pull = 8.0f * (1.0f - (Math.abs(smoothedSpeed) / 5.0f));
-                currentAngle += snapDiff * pull * deltaSeconds;
+                float pull = 8.0f * (1.0f - (Math.abs(this.smoothedSpeed) / 5.0f));
+                this.currentAngle += snapDiff * pull * deltaSeconds;
             } else {
-                currentAngle = targetSnap;
+                this.currentAngle = targetSnap;
             }
         }
+// --- КОНЕЦ МАТЕМАТИКИ ---
 
         // =========================================================
         // 5. АНИМАЦИЯ РЕМНЯ (3D Траки)
