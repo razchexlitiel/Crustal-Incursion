@@ -175,11 +175,8 @@ public class ShaftBlock extends BaseEntityBlock {
                             Containers.dropItemStack(level, pos.getX(), pos.getY(), pos.getZ(), shaftBE.getAttachedPulley());
                             shaftBE.setAttachedPulley(net.minecraft.world.item.ItemStack.EMPTY);
 
-                            // ОБРЫВ РЕМНЯ: Чистим память у связанного вала!
-                            BlockPos connected = shaftBE.getConnectedPulley();
-                            if (connected != null && level.getBlockEntity(connected) instanceof ShaftBlockEntity otherBE) {
-                                otherBE.setConnectedPulley(null);
-                            }
+                            // ОБРЫВ РЕМНЯ: Чистим память у всех связанных валов
+                            com.cim.api.rotation.BeltConnectionHelper.breakBelt(level, pos);
                             shaftBE.setConnectedPulley(null);
                             level.setBlock(pos, state.setValue(PULLEY_SIZE, 0), 3);
                         } else {
@@ -296,10 +293,7 @@ public class ShaftBlock extends BaseEntityBlock {
                     Containers.dropItemStack(level, pos.getX(), pos.getY(), pos.getZ(), shaftBE.getAttachedPulley());
 
                     // ОБРЫВ РЕМНЯ при ломании блока киркой
-                    BlockPos connected = shaftBE.getConnectedPulley();
-                    if (connected != null && level.getBlockEntity(connected) instanceof ShaftBlockEntity otherBE) {
-                        otherBE.setConnectedPulley(null);
-                    }
+                    com.cim.api.rotation.BeltConnectionHelper.breakBelt(level, pos);
                 }
             }
             if (!level.isClientSide) {

@@ -13,6 +13,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.core.Direction;
 
 public class GearItem extends Item {
     private final int gearSize;
@@ -48,6 +49,49 @@ public class GearItem extends Item {
             else if (gearSize == 3 && (shaftDiameter == ShaftDiameter.MEDIUM || shaftDiameter == ShaftDiameter.HEAVY)) canAttach = true;
 
             if (canAttach) {
+                if (gearSize == 2) {
+                    Direction.Axis axis = state.getValue(ShaftBlock.FACING).getAxis();
+                    Direction[] crossDirs = new Direction[4];
+                    Direction[][] diagDirs = new Direction[4][2];
+                    
+                    if (axis == Direction.Axis.X) {
+                        crossDirs = new Direction[]{Direction.UP, Direction.DOWN, Direction.NORTH, Direction.SOUTH};
+                        diagDirs = new Direction[][]{{Direction.UP, Direction.NORTH}, {Direction.UP, Direction.SOUTH}, {Direction.DOWN, Direction.NORTH}, {Direction.DOWN, Direction.SOUTH}};
+                    } else if (axis == Direction.Axis.Y) {
+                        crossDirs = new Direction[]{Direction.EAST, Direction.WEST, Direction.NORTH, Direction.SOUTH};
+                        diagDirs = new Direction[][]{{Direction.EAST, Direction.NORTH}, {Direction.EAST, Direction.SOUTH}, {Direction.WEST, Direction.NORTH}, {Direction.WEST, Direction.SOUTH}};
+                    } else {
+                        crossDirs = new Direction[]{Direction.UP, Direction.DOWN, Direction.EAST, Direction.WEST};
+                        diagDirs = new Direction[][]{{Direction.UP, Direction.EAST}, {Direction.UP, Direction.WEST}, {Direction.DOWN, Direction.EAST}, {Direction.DOWN, Direction.WEST}};
+                    }
+
+                    // Проверка крестовины
+                    for (Direction dir : crossDirs) {
+                        BlockPos checkPos = pos.relative(dir);
+                        if (!level.getBlockState(checkPos).canBeReplaced()) {
+                            if (!level.isClientSide && context.getPlayer() != null) context.getPlayer().displayClientMessage(net.minecraft.network.chat.Component.literal("§cНет места для шестерни! (Крестовина)"), true);
+                            return InteractionResult.FAIL;
+                        }
+                    }
+
+                    // Проверка диагоналей
+                    for (Direction[] diag : diagDirs) {
+                        BlockPos checkPos = pos.relative(diag[0]).relative(diag[1]);
+                        BlockState diagState = level.getBlockState(checkPos);
+                        if (!diagState.canBeReplaced()) {
+                            if (diagState.getBlock() instanceof ShaftBlock) {
+                                if (diagState.getValue(ShaftBlock.GEAR_SIZE) == 2) {
+                                    if (!level.isClientSide && context.getPlayer() != null) context.getPlayer().displayClientMessage(net.minecraft.network.chat.Component.literal("§cНет места для шестерни! (Диагональ занята другой шестерней 2x2)"), true);
+                                    return InteractionResult.FAIL;
+                                }
+                            } else {
+                                if (!level.isClientSide && context.getPlayer() != null) context.getPlayer().displayClientMessage(net.minecraft.network.chat.Component.literal("§cНет места для шестерни! (Диагональ заблокирована)"), true);
+                                return InteractionResult.FAIL;
+                            }
+                        }
+                    }
+                }
+
                 if (!level.isClientSide) {
 
                     if (level.getBlockEntity(pos) instanceof ShaftBlockEntity shaftBE) {

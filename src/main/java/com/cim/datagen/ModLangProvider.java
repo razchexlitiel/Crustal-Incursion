@@ -596,6 +596,8 @@ public class ModLangProvider extends LanguageProvider {
                 add(ModBlocks.MINERAL_BLOCK1.get(), "Мінеральний блок");
                 add(ModBlocks.MINERAL_BLOCK2.get(), "Мінеральний блок 2");
                 add(ModBlocks.MINERAL_TILE.get(), "Мінеральна плитка");
+                add(ModBlocks.CONGLOMERATE.get(), "Конгломерат");
+                add(ModBlocks.DEPLETED_CONGLOMERATE.get(), "Виснажений конгломерат");
 
                 // Цегла
                 add(ModBlocks.FIREBRICK_BLOCK.get(), "Блок вогнетривкої цегли");
@@ -633,8 +635,6 @@ public class ModLangProvider extends LanguageProvider {
 
                 // Конгломерати
                 add(ModItems.CONGLOMERATE_CHUNK.get(), "Шматок конгломерату");
-                add(ModBlocks.CONGLOMERATE.get(), "Конгломерат");
-                add(ModBlocks.DEPLETED_CONGLOMERATE.get(), "Виснажений конгломерат");
                 add(ModItems.HARD_ROCK.get(), "Тверда порода");
                 add(ModItems.DOLOMITE_SMES.get(), "Доломітова суміш");
                 add(ModItems.FIRE_SMES.get(), "Вогнетривка суміш");
@@ -676,7 +676,6 @@ public class ModLangProvider extends LanguageProvider {
                 add("item.cim.hot_ingot.tooltip", "§6§lРОЗПЕЧЕНИЙ! §r§7(%s%%)");
 
                 // Литі кайла
-
                 add("item.cim.cast_pickaxe.desc.charge", "§7Затисніть ПКМ для потужного удару");
                 add("item.cim.cast_pickaxe.desc.mining_power", "§6Потужність: %s");
                 add("item.cim.cast_pickaxe.desc.vein_miner_info", "Жильний майнер: %s");

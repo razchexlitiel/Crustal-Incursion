@@ -438,8 +438,8 @@ public class ShaftVisual extends AbstractBlockEntityVisual<ShaftBlockEntity> imp
 
         BlockPos connectedPos = blockEntity.getConnectedPulley();
         if (connectedPos == null) return;
-        if (pos.compareTo(connectedPos) > 0) return;
 
+        if (!level.isLoaded(connectedPos)) return;
         if (!(level.getBlockEntity(connectedPos) instanceof ShaftBlockEntity otherBE)) return;
         if (!blockEntity.hasPulley() || !otherBE.hasPulley()) return;
 

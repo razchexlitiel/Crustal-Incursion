@@ -199,32 +199,42 @@ public class KineticNetwork {
 
 
     public boolean checkConflict(ServerLevel level) {
-        // Если мотор один или их вообще нет — конфликта быть не может
         if (generators.size() <= 1) return false;
 
-        long baselineSpeed = 0;
+        BlockPos rootPos = generators.iterator().next();
+        BlockEntity rootBE = level.getBlockEntity(rootPos);
+        if (!(rootBE instanceof Rotational rootNode)) return false;
+
+        long rootBaseSpeed = rootNode.getGeneratedSpeed();
+        net.minecraft.world.level.block.state.BlockState rootState = level.getBlockState(rootPos);
+        if (rootState.hasProperty(net.minecraft.world.level.block.state.properties.BlockStateProperties.FACING)) {
+            net.minecraft.core.Direction facing = rootState.getValue(net.minecraft.world.level.block.state.properties.BlockStateProperties.FACING);
+            if (facing == net.minecraft.core.Direction.SOUTH || facing == net.minecraft.core.Direction.EAST || facing == net.minecraft.core.Direction.UP) {
+                rootBaseSpeed = -rootBaseSpeed;
+            }
+        }
+        
+        float expectedRootSpeed = rootBaseSpeed;
+        float globalVector = expectedRootSpeed * rootNode.getNetworkScale();
 
         for (BlockPos genPos : generators) {
+            if (genPos.equals(rootPos)) continue;
+
             BlockEntity be = level.getBlockEntity(genPos);
             if (be instanceof Rotational gen) {
-                long speed = gen.getSpeed();
-
-                // Синхронизируем оси так же, как мы это делаем при расчетах скорости
+                long genBaseSpeed = gen.getGeneratedSpeed();
                 net.minecraft.world.level.block.state.BlockState state = level.getBlockState(genPos);
                 if (state.hasProperty(net.minecraft.world.level.block.state.properties.BlockStateProperties.FACING)) {
                     net.minecraft.core.Direction facing = state.getValue(net.minecraft.world.level.block.state.properties.BlockStateProperties.FACING);
-                    if (facing == net.minecraft.core.Direction.SOUTH ||
-                            facing == net.minecraft.core.Direction.EAST ||
-                            facing == net.minecraft.core.Direction.UP) {
-                        speed = -speed;
+                    if (facing == net.minecraft.core.Direction.SOUTH || facing == net.minecraft.core.Direction.EAST || facing == net.minecraft.core.Direction.UP) {
+                        genBaseSpeed = -genBaseSpeed;
                     }
                 }
+                
+                float expectedSpeed = genBaseSpeed;
+                float localVector = expectedSpeed * gen.getNetworkScale();
 
-                // Запоминаем скорость первого мотора
-                if (baselineSpeed == 0) {
-                    baselineSpeed = speed;
-                } else if (baselineSpeed != speed) {
-                    // Как только находим мотор с другой скоростью (или направлением) — трубим тревогу!
+                if (Math.signum(globalVector) != Math.signum(localVector) && globalVector != 0 && localVector != 0) {
                     return true;
                 }
             }
