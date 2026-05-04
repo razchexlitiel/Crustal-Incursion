@@ -68,6 +68,12 @@ public class ModLangProvider extends LanguageProvider {
                 add("item.cim.conglomerate_chunk", "Conglomerate Chunk");
                 add("item.cim.hard_rock", "Hard Rock");
 
+            // Fluid drops
+            add("item.cim.fluid_drop_hydrogen_peroxide", "Hydrogen Peroxide");
+            add("item.cim.fluid_drop_sulfuric_acid", "Sulfuric Acid");
+            add("item.cim.fluid_drop_natural_gas", "Natural Gas");
+            add("item.cim.fluid_drop_steam", "Steam");
+
                 // Metals
                 add("metal.cim.gold", "Gold");
                 add("metal.cim.iron", "Iron");
@@ -253,6 +259,13 @@ public class ModLangProvider extends LanguageProvider {
 
         private void addRussian() {
                 // Секвойя
+
+            // Капли жидкостей
+            add("item.cim.fluid_drop_hydrogen_peroxide", "Пероксид водорода");
+            add("item.cim.fluid_drop_sulfuric_acid", "Серная кислота");
+            add("item.cim.fluid_drop_natural_gas", "Природный газ");
+            add("item.cim.fluid_drop_steam", "Пар");
+
                 add("item.cim.cast_pickaxe_iron", "Литая железная кирка");
                 add("item.cim.cast_pickaxe_steel", "Литая стальная кирка");
 

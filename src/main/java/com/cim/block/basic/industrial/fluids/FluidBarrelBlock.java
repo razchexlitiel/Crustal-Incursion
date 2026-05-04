@@ -1,15 +1,13 @@
-package com.cim.block.basic.fluids;
+package com.cim.block.basic.industrial.fluids;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
-import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.Containers;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.BaseEntityBlock;
@@ -23,12 +21,11 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import net.minecraftforge.common.capabilities.ForgeCapabilities;
-import net.minecraftforge.network.NetworkHooks;
 import net.minecraftforge.registries.ForgeRegistries;
 import org.jetbrains.annotations.Nullable;
 
 import com.cim.block.entity.ModBlockEntities;
-import com.cim.block.entity.fluids.FluidBarrelBlockEntity;
+import com.cim.block.entity.industrial.fluids.FluidBarrelBlockEntity;
 
 public class FluidBarrelBlock extends BaseEntityBlock {
 
@@ -78,7 +75,7 @@ public class FluidBarrelBlock extends BaseEntityBlock {
 
         // 1. Если кликаем Идентификатором
         if (stack.getItem() instanceof com.cim.item.tools.FluidIdentifierItem) {
-            if (!level.isClientSide && level.getBlockEntity(pos) instanceof com.cim.block.entity.fluids.FluidBarrelBlockEntity be) {
+            if (!level.isClientSide && level.getBlockEntity(pos) instanceof FluidBarrelBlockEntity be) {
                 String selectedFluidId = com.cim.item.tools.FluidIdentifierItem.getSelectedFluid(stack);
 
                 be.setFilter(selectedFluidId); // Поддерживает и "none", и обычные ID
@@ -99,8 +96,8 @@ public class FluidBarrelBlock extends BaseEntityBlock {
         // 2. Стандартный код (открытие GUI бочки)
         if (!level.isClientSide) {
             BlockEntity entity = level.getBlockEntity(pos);
-            if (entity instanceof com.cim.block.entity.fluids.FluidBarrelBlockEntity) {
-                net.minecraftforge.network.NetworkHooks.openScreen((net.minecraft.server.level.ServerPlayer) player, (com.cim.block.entity.fluids.FluidBarrelBlockEntity) entity, pos);
+            if (entity instanceof FluidBarrelBlockEntity) {
+                net.minecraftforge.network.NetworkHooks.openScreen((net.minecraft.server.level.ServerPlayer) player, (FluidBarrelBlockEntity) entity, pos);
             }
         }
         return InteractionResult.sidedSuccess(level.isClientSide);
@@ -137,7 +134,7 @@ public class FluidBarrelBlock extends BaseEntityBlock {
 
         if (!pLevel.isClientSide) {
             net.minecraft.world.level.block.entity.BlockEntity be = pLevel.getBlockEntity(pPos);
-            if (be instanceof com.cim.block.entity.fluids.FluidBarrelBlockEntity barrelBE) {
+            if (be instanceof FluidBarrelBlockEntity barrelBE) {
                 net.minecraft.nbt.CompoundTag itemNbt = pStack.getTag();
                 // Если в предмете есть сохраненные внутренности — загружаем их!
                 if (itemNbt != null && itemNbt.contains("BlockEntityTag")) {
@@ -154,7 +151,7 @@ public class FluidBarrelBlock extends BaseEntityBlock {
     public java.util.List<net.minecraft.world.item.ItemStack> getDrops(net.minecraft.world.level.block.state.BlockState pState, net.minecraft.world.level.storage.loot.LootParams.Builder pParams) {
         net.minecraft.world.level.block.entity.BlockEntity blockEntity = pParams.getOptionalParameter(net.minecraft.world.level.storage.loot.parameters.LootContextParams.BLOCK_ENTITY);
 
-        if (blockEntity instanceof com.cim.block.entity.fluids.FluidBarrelBlockEntity barrel) {
+        if (blockEntity instanceof FluidBarrelBlockEntity barrel) {
             net.minecraft.world.item.ItemStack itemStack = new net.minecraft.world.item.ItemStack(this);
             net.minecraft.nbt.CompoundTag nbt = new net.minecraft.nbt.CompoundTag();
 

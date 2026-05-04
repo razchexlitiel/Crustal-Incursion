@@ -10,7 +10,7 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraftforge.common.capabilities.ForgeCapabilities;
 import net.minecraftforge.fluids.FluidStack;
 import net.minecraftforge.items.SlotItemHandler;
-import com.cim.block.entity.fluids.FluidBarrelBlockEntity;
+import com.cim.block.entity.industrial.fluids.FluidBarrelBlockEntity;
 
 public class FluidBarrelMenu extends AbstractContainerMenu {
     public final FluidBarrelBlockEntity blockEntity;
@@ -22,27 +22,16 @@ public class FluidBarrelMenu extends AbstractContainerMenu {
         this.data = data;
 
         this.blockEntity.getCapability(ForgeCapabilities.ITEM_HANDLER).ifPresent(handler -> {
-            // 1. Наполнение: ВХОД (пустые/полупустые предметы)
-            for (int i = 0; i < 4; i++) {
-                this.addSlot(new SlotItemHandler(handler, i, 11, 37 + (i * 18)));
-            }
-            // 2. Наполнение: ВЫХОД (полные предметы)
-            for (int i = 0; i < 4; i++) {
-                this.addSlot(new SlotItemHandler(handler, i + 4, 45, 37 + (i * 18)));
-            }
-            // 3. Опустошение: ВЫХОД (опустошенные предметы)
-            for (int i = 0; i < 4; i++) {
-                this.addSlot(new SlotItemHandler(handler, i + 8, 115, 37 + (i * 18)));
-            }
-            // 4. Опустошение: ВХОД (предметы с жидкостью)
-            for (int i = 0; i < 4; i++) {
-                this.addSlot(new SlotItemHandler(handler, i + 12, 149, 37 + (i * 18)));
-            }
+            // Наполнение: вход (102, 8) -> выход (102, 44)
+            this.addSlot(new SlotItemHandler(handler, 0, 102, 8));
+            this.addSlot(new SlotItemHandler(handler, 1, 102, 44));
 
-            // 5. Слот защитника (индекс 16)
-            if (handler.getSlots() > 16) {
-                this.addSlot(new SlotItemHandler(handler, 16, 19, 6));
-            }
+            // Опустошение: вход (124, 8) -> выход (124, 44)
+            this.addSlot(new SlotItemHandler(handler, 2, 124, 8));
+            this.addSlot(new SlotItemHandler(handler, 3, 124, 44));
+
+            // Защитный слой (40, 8)
+            this.addSlot(new SlotItemHandler(handler, 4, 40, 8));
         });
 
         addPlayerInventory(inv);
@@ -72,23 +61,51 @@ public class FluidBarrelMenu extends AbstractContainerMenu {
                 player, ModBlocks.FLUID_BARREL.get());
     }
 
+    // Инвентарь начинается на 8-66 (GUI высота 148, инвентарь 3*18=54, хотбар 18, итого 72. 148-72=76, но с отступом 66 норм)
     private void addPlayerInventory(Inventory playerInventory) {
         for (int i = 0; i < 3; ++i) {
             for (int l = 0; l < 9; ++l) {
-                this.addSlot(new Slot(playerInventory, l + i * 9 + 9, 8 + l * 18, 114 + i * 18)); // Изменено с 84 на 114
+                this.addSlot(new Slot(playerInventory, l + i * 9 + 9, 8 + l * 18, 66 + i * 18));
             }
         }
     }
 
     private void addPlayerHotbar(Inventory playerInventory) {
         for (int i = 0; i < 9; ++i) {
-            this.addSlot(new Slot(playerInventory, i, 8 + i * 18, 172)); // Изменено с 142 на 172 (114 + 3*18 + 4)
+            this.addSlot(new Slot(playerInventory, i, 8 + i * 18, 66 + 3 * 18 + 4)); // 66 + 54 + 4 = 124
         }
     }
 
     @Override
     public ItemStack quickMoveStack(Player playerIn, int index) {
-        // Базовая логика Shift-клика (можно дописать позже)
-        return ItemStack.EMPTY;
+        ItemStack itemstack = ItemStack.EMPTY;
+        Slot slot = this.slots.get(index);
+        if (slot != null && slot.hasItem()) {
+            ItemStack stack = slot.getItem();
+            itemstack = stack.copy();
+
+            // Из бочки (0-4) в инвентарь (5-41)
+            if (index < 5) {
+                if (!this.moveItemStackTo(stack, 5, 41, true)) {
+                    return ItemStack.EMPTY;
+                }
+            } else {
+                // Из инвентаря в бочку
+                if (!this.moveItemStackTo(stack, 0, 1, false)) {      // FILL_IN
+                    if (!this.moveItemStackTo(stack, 2, 3, false)) {  // DRAIN_IN
+                        if (!this.moveItemStackTo(stack, 4, 5, false)) { // PROTECTOR
+                            return ItemStack.EMPTY;
+                        }
+                    }
+                }
+            }
+
+            if (stack.isEmpty()) {
+                slot.set(ItemStack.EMPTY);
+            } else {
+                slot.setChanged();
+            }
+        }
+        return itemstack;
     }
 }

@@ -1,5 +1,6 @@
 package com.cim.datagen.assets;
 
+import com.cim.block.basic.industrial.fluids.FluidPipeBlock;
 import com.cim.main.ResourceRegistry;
 import com.cim.block.basic.necrosis.hive.HiveRootsBlock;
 import net.minecraft.data.PackOutput;
@@ -313,51 +314,51 @@ public class ModBlockStateProvider extends BlockStateProvider {
         builder.part().modelFile(coreModel).addModel().end();
 
         // Основные 6 рукавов (если есть подключение)
-        builder.part().modelFile(armModel).addModel().condition(com.cim.block.basic.fluids.FluidPipeBlock.NORTH, true).end();
-        builder.part().modelFile(armModel).rotationY(90).addModel().condition(com.cim.block.basic.fluids.FluidPipeBlock.EAST, true).end();
-        builder.part().modelFile(armModel).rotationY(180).addModel().condition(com.cim.block.basic.fluids.FluidPipeBlock.SOUTH, true).end();
-        builder.part().modelFile(armModel).rotationY(270).addModel().condition(com.cim.block.basic.fluids.FluidPipeBlock.WEST, true).end();
-        builder.part().modelFile(armModel).rotationX(270).addModel().condition(com.cim.block.basic.fluids.FluidPipeBlock.UP, true).end();
-        builder.part().modelFile(armModel).rotationX(90).addModel().condition(com.cim.block.basic.fluids.FluidPipeBlock.DOWN, true).end();
+        builder.part().modelFile(armModel).addModel().condition(FluidPipeBlock.NORTH, true).end();
+        builder.part().modelFile(armModel).rotationY(90).addModel().condition(FluidPipeBlock.EAST, true).end();
+        builder.part().modelFile(armModel).rotationY(180).addModel().condition(FluidPipeBlock.SOUTH, true).end();
+        builder.part().modelFile(armModel).rotationY(270).addModel().condition(FluidPipeBlock.WEST, true).end();
+        builder.part().modelFile(armModel).rotationX(270).addModel().condition(FluidPipeBlock.UP, true).end();
+        builder.part().modelFile(armModel).rotationX(90).addModel().condition(FluidPipeBlock.DOWN, true).end();
 
         // NONE (когда труба стоит одна - рисуем все 6 рукавов)
-        builder.part().modelFile(armModel).addModel().condition(com.cim.block.basic.fluids.FluidPipeBlock.NONE, true).end();
-        builder.part().modelFile(armModel).rotationY(90).addModel().condition(com.cim.block.basic.fluids.FluidPipeBlock.NONE, true).end();
-        builder.part().modelFile(armModel).rotationY(180).addModel().condition(com.cim.block.basic.fluids.FluidPipeBlock.NONE, true).end();
-        builder.part().modelFile(armModel).rotationY(270).addModel().condition(com.cim.block.basic.fluids.FluidPipeBlock.NONE, true).end();
-        builder.part().modelFile(armModel).rotationX(270).addModel().condition(com.cim.block.basic.fluids.FluidPipeBlock.NONE, true).end();
-        builder.part().modelFile(armModel).rotationX(90).addModel().condition(com.cim.block.basic.fluids.FluidPipeBlock.NONE, true).end();
+        builder.part().modelFile(armModel).addModel().condition(FluidPipeBlock.NONE, true).end();
+        builder.part().modelFile(armModel).rotationY(90).addModel().condition(FluidPipeBlock.NONE, true).end();
+        builder.part().modelFile(armModel).rotationY(180).addModel().condition(FluidPipeBlock.NONE, true).end();
+        builder.part().modelFile(armModel).rotationY(270).addModel().condition(FluidPipeBlock.NONE, true).end();
+        builder.part().modelFile(armModel).rotationX(270).addModel().condition(FluidPipeBlock.NONE, true).end();
+        builder.part().modelFile(armModel).rotationX(90).addModel().condition(FluidPipeBlock.NONE, true).end();
 
         // ЗАГЛУШКИ (противоположный рукав, если подключена только с одной стороны)
         builder.part().modelFile(armModel).rotationY(180).addModel()
-                .condition(com.cim.block.basic.fluids.FluidPipeBlock.NORTH, true).condition(com.cim.block.basic.fluids.FluidPipeBlock.SOUTH, false)
-                .condition(com.cim.block.basic.fluids.FluidPipeBlock.EAST, false).condition(com.cim.block.basic.fluids.FluidPipeBlock.WEST, false)
-                .condition(com.cim.block.basic.fluids.FluidPipeBlock.UP, false).condition(com.cim.block.basic.fluids.FluidPipeBlock.DOWN, false).end();
+                .condition(FluidPipeBlock.NORTH, true).condition(FluidPipeBlock.SOUTH, false)
+                .condition(FluidPipeBlock.EAST, false).condition(FluidPipeBlock.WEST, false)
+                .condition(FluidPipeBlock.UP, false).condition(FluidPipeBlock.DOWN, false).end();
 
         builder.part().modelFile(armModel).addModel()
-                .condition(com.cim.block.basic.fluids.FluidPipeBlock.NORTH, false).condition(com.cim.block.basic.fluids.FluidPipeBlock.SOUTH, true)
-                .condition(com.cim.block.basic.fluids.FluidPipeBlock.EAST, false).condition(com.cim.block.basic.fluids.FluidPipeBlock.WEST, false)
-                .condition(com.cim.block.basic.fluids.FluidPipeBlock.UP, false).condition(com.cim.block.basic.fluids.FluidPipeBlock.DOWN, false).end();
+                .condition(FluidPipeBlock.NORTH, false).condition(FluidPipeBlock.SOUTH, true)
+                .condition(FluidPipeBlock.EAST, false).condition(FluidPipeBlock.WEST, false)
+                .condition(FluidPipeBlock.UP, false).condition(FluidPipeBlock.DOWN, false).end();
 
         builder.part().modelFile(armModel).rotationY(270).addModel()
-                .condition(com.cim.block.basic.fluids.FluidPipeBlock.NORTH, false).condition(com.cim.block.basic.fluids.FluidPipeBlock.SOUTH, false)
-                .condition(com.cim.block.basic.fluids.FluidPipeBlock.EAST, true).condition(com.cim.block.basic.fluids.FluidPipeBlock.WEST, false)
-                .condition(com.cim.block.basic.fluids.FluidPipeBlock.UP, false).condition(com.cim.block.basic.fluids.FluidPipeBlock.DOWN, false).end();
+                .condition(FluidPipeBlock.NORTH, false).condition(FluidPipeBlock.SOUTH, false)
+                .condition(FluidPipeBlock.EAST, true).condition(FluidPipeBlock.WEST, false)
+                .condition(FluidPipeBlock.UP, false).condition(FluidPipeBlock.DOWN, false).end();
 
         builder.part().modelFile(armModel).rotationY(90).addModel()
-                .condition(com.cim.block.basic.fluids.FluidPipeBlock.NORTH, false).condition(com.cim.block.basic.fluids.FluidPipeBlock.SOUTH, false)
-                .condition(com.cim.block.basic.fluids.FluidPipeBlock.EAST, false).condition(com.cim.block.basic.fluids.FluidPipeBlock.WEST, true)
-                .condition(com.cim.block.basic.fluids.FluidPipeBlock.UP, false).condition(com.cim.block.basic.fluids.FluidPipeBlock.DOWN, false).end();
+                .condition(FluidPipeBlock.NORTH, false).condition(FluidPipeBlock.SOUTH, false)
+                .condition(FluidPipeBlock.EAST, false).condition(FluidPipeBlock.WEST, true)
+                .condition(FluidPipeBlock.UP, false).condition(FluidPipeBlock.DOWN, false).end();
 
         builder.part().modelFile(armModel).rotationX(90).addModel()
-                .condition(com.cim.block.basic.fluids.FluidPipeBlock.NORTH, false).condition(com.cim.block.basic.fluids.FluidPipeBlock.SOUTH, false)
-                .condition(com.cim.block.basic.fluids.FluidPipeBlock.EAST, false).condition(com.cim.block.basic.fluids.FluidPipeBlock.WEST, false)
-                .condition(com.cim.block.basic.fluids.FluidPipeBlock.UP, true).condition(com.cim.block.basic.fluids.FluidPipeBlock.DOWN, false).end();
+                .condition(FluidPipeBlock.NORTH, false).condition(FluidPipeBlock.SOUTH, false)
+                .condition(FluidPipeBlock.EAST, false).condition(FluidPipeBlock.WEST, false)
+                .condition(FluidPipeBlock.UP, true).condition(FluidPipeBlock.DOWN, false).end();
 
         builder.part().modelFile(armModel).rotationX(270).addModel()
-                .condition(com.cim.block.basic.fluids.FluidPipeBlock.NORTH, false).condition(com.cim.block.basic.fluids.FluidPipeBlock.SOUTH, false)
-                .condition(com.cim.block.basic.fluids.FluidPipeBlock.EAST, false).condition(com.cim.block.basic.fluids.FluidPipeBlock.WEST, false)
-                .condition(com.cim.block.basic.fluids.FluidPipeBlock.UP, false).condition(com.cim.block.basic.fluids.FluidPipeBlock.DOWN, true).end();
+                .condition(FluidPipeBlock.NORTH, false).condition(FluidPipeBlock.SOUTH, false)
+                .condition(FluidPipeBlock.EAST, false).condition(FluidPipeBlock.WEST, false)
+                .condition(FluidPipeBlock.UP, false).condition(FluidPipeBlock.DOWN, true).end();
 
         // ==========================================
         // 3. ГЕНЕРИРУЕМ МОДЕЛЬ ПРЕДМЕТА (ДЛЯ ИНВЕНТАРЯ)

@@ -1,5 +1,8 @@
-package com.cim.api.fluids;
+package com.cim.api.fluids.system;
 
+import com.cim.block.basic.industrial.fluids.FluidPipeBlock;
+import com.cim.block.entity.industrial.fluids.FluidBarrelBlockEntity;
+import com.cim.block.entity.industrial.fluids.FluidPipeBlockEntity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
@@ -38,10 +41,10 @@ public class FluidNetwork {
             if (!level.isLoaded(pos)) continue;
 
             BlockEntity be = level.getBlockEntity(pos);
-            if (be == null || be instanceof com.cim.block.entity.fluids.FluidPipeBlockEntity) continue;
+            if (be == null || be instanceof FluidPipeBlockEntity) continue;
 
             be.getCapability(ForgeCapabilities.FLUID_HANDLER).ifPresent(handler -> {
-                if (be instanceof com.cim.block.entity.fluids.FluidBarrelBlockEntity barrel) {
+                if (be instanceof FluidBarrelBlockEntity barrel) {
                     if (barrel.mode == 1) pureReceivers.add(handler);
                     else if (barrel.mode == 2) pureProviders.add(handler);
                     else if (barrel.mode == 0) buffers.add(handler);
@@ -90,7 +93,7 @@ public class FluidNetwork {
                                 BlockPos nodePos = node.getPos();
                                 if (level.isLoaded(nodePos)) {
                                     BlockEntity be = level.getBlockEntity(nodePos);
-                                    if (be instanceof com.cim.block.entity.fluids.FluidPipeBlockEntity pipeBE) {
+                                    if (be instanceof FluidPipeBlockEntity pipeBE) {
                                         pipeBE.setHasFlowed(true);
                                     }
                                 }
@@ -190,7 +193,7 @@ public class FluidNetwork {
             if (!level.isLoaded(pos)) continue;
 
             BlockState state = level.getBlockState(pos);
-            if (state.getBlock() instanceof com.cim.block.basic.fluids.FluidPipeBlock pipeBlock) {
+            if (state.getBlock() instanceof FluidPipeBlock pipeBlock) {
                 PipeTier tier = pipeBlock.getTier();
                 // Сравниваем характеристики
                 if (fluidTemp > tier.getMaxTemperature() || fluidAcid > tier.getMaxAcidity() || fluidRad > tier.getMaxRadiation()) {

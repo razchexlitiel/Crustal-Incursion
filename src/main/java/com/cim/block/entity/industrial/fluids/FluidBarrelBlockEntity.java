@@ -1,5 +1,9 @@
-package com.cim.block.entity.fluids;
+package com.cim.block.entity.industrial.fluids;
 
+import com.cim.api.fluids.system.FluidNetworkManager;
+import com.cim.block.entity.ModBlockEntities;
+import com.cim.item.ModItems;
+import com.cim.menu.FluidBarrelMenu;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
@@ -14,10 +18,13 @@ import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.ContainerData;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.material.Fluid;
+import net.minecraft.world.level.material.Fluids;
 import net.minecraftforge.common.capabilities.Capability;
 import net.minecraftforge.common.capabilities.ForgeCapabilities;
 import net.minecraftforge.common.util.LazyOptional;
@@ -31,26 +38,28 @@ import net.minecraftforge.registries.ForgeRegistries;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import com.cim.menu.FluidBarrelMenu;
-import com.cim.block.entity.ModBlockEntities;
-
 public class FluidBarrelBlockEntity extends BlockEntity implements MenuProvider {
 
-    // ПРОПУСКНАЯ СПОСОБНОСТЬ СЕТИ: 1000 mB/tick (1 ведро в тик = 20 ведер в секунду)
     public static final int MAX_TRANSFER_RATE = 200;
 
     // 0 = BOTH, 1 = INPUT, 2 = OUTPUT, 3 = DISABLED
     public int mode = 0;
 
-    public static final int TOTAL_SLOTS = 17;
-    public static final int FILL_IN_START = 0, FILL_IN_END = 4;
-    public static final int FILL_OUT_START = 4, FILL_OUT_END = 8;
-    public static final int DRAIN_OUT_START = 8, DRAIN_OUT_END = 12;
-    public static final int DRAIN_IN_START = 12, DRAIN_IN_END = 16;
+    // Новая схема слотов (5 штук):
+    // 0 — FILL_IN   (предмет для наполнения из бочки)
+    // 1 — FILL_OUT  (результат наполнения)
+    // 2 — DRAIN_IN  (предмет для опустошения в бочку)
+    // 3 — DRAIN_OUT (результат опустошения)
+    // 4 — PROTECTOR (защитный слой)
+    public static final int TOTAL_SLOTS = 5;
+    public static final int FILL_IN_SLOT = 0;
+    public static final int FILL_OUT_SLOT = 1;
+    public static final int DRAIN_IN_SLOT = 2;
+    public static final int DRAIN_OUT_SLOT = 3;
+    public static final int PROTECTOR_SLOT = 4;
 
     public String fluidFilter = "none";
 
-    // Физическое хранилище жидкости
     public final FluidTank fluidTank = new FluidTank(16000) {
         @Override
         protected void onContentsChanged() {
@@ -62,38 +71,25 @@ public class FluidBarrelBlockEntity extends BlockEntity implements MenuProvider 
 
         @Override
         public boolean isFluidValid(FluidStack stack) {
-            // === НОВАЯ СТРОКА: БЛОКИРУЕМ БОЧКУ, ПОКА НЕ ТКНУЛИ ИДЕНТИФИКАТОРОМ ===
-            if (fluidFilter.equals("none")) {
-                return false;
-            }
+            if (fluidFilter.equals("none")) return false;
 
-            if (!fluidFilter.equals("none")) {
-                ResourceLocation stackLoc = ForgeRegistries.FLUIDS.getKey(stack.getFluid());
-                if (stackLoc != null && !stackLoc.toString().equals(fluidFilter)) {
-                    return false;
-                }
+            ResourceLocation stackLoc = ForgeRegistries.FLUIDS.getKey(stack.getFluid());
+            if (stackLoc != null && !stackLoc.toString().equals(fluidFilter)) {
+                return false;
             }
             return super.isFluidValid(stack);
         }
     };
 
-    // ==========================================
-    // СЕТЕВАЯ ОБЕРТКА (Лимиты + Режимы)
-    // ==========================================
     private final IFluidHandler networkFluidHandler = new IFluidHandler() {
-        @Override
-        public int getTanks() { return fluidTank.getTanks(); }
-        @Override
-        public @NotNull FluidStack getFluidInTank(int tank) { return fluidTank.getFluidInTank(tank); }
-        @Override
-        public int getTankCapacity(int tank) { return fluidTank.getTankCapacity(tank); }
-        @Override
-        public boolean isFluidValid(int tank, @NotNull FluidStack stack) { return fluidTank.isFluidValid(tank, stack); }
+        @Override public int getTanks() { return fluidTank.getTanks(); }
+        @Override public @NotNull FluidStack getFluidInTank(int tank) { return fluidTank.getFluidInTank(tank); }
+        @Override public int getTankCapacity(int tank) { return fluidTank.getTankCapacity(tank); }
+        @Override public boolean isFluidValid(int tank, @NotNull FluidStack stack) { return fluidTank.isFluidValid(tank, stack); }
 
         @Override
         public int fill(FluidStack resource, FluidAction action) {
-            if (mode == 2 || mode == 3) return 0; // В режиме OUTPUT или DISABLED нельзя принимать жидкость из трубы
-
+            if (mode == 2 || mode == 3) return 0;
             FluidStack toFill = resource.copy();
             toFill.setAmount(Math.min(toFill.getAmount(), MAX_TRANSFER_RATE));
             return fluidTank.fill(toFill, action);
@@ -101,8 +97,7 @@ public class FluidBarrelBlockEntity extends BlockEntity implements MenuProvider 
 
         @Override
         public @NotNull FluidStack drain(FluidStack resource, FluidAction action) {
-            if (mode == 1 || mode == 3) return FluidStack.EMPTY; // В режиме INPUT или DISABLED нельзя отдавать жидкость
-
+            if (mode == 1 || mode == 3) return FluidStack.EMPTY;
             int maxDrain = Math.min(resource.getAmount(), MAX_TRANSFER_RATE);
             FluidStack toDrain = resource.copy();
             toDrain.setAmount(maxDrain);
@@ -122,12 +117,17 @@ public class FluidBarrelBlockEntity extends BlockEntity implements MenuProvider 
 
         @Override
         public boolean isItemValid(int slot, @NotNull ItemStack stack) {
-            if (slot >= FILL_IN_START && slot < FILL_IN_END) return stack.getCapability(ForgeCapabilities.FLUID_HANDLER_ITEM).isPresent();
-            if (slot >= DRAIN_IN_START && slot < DRAIN_IN_END) {
+            if (slot == FILL_IN_SLOT) return stack.getCapability(ForgeCapabilities.FLUID_HANDLER_ITEM).isPresent();
+            if (slot == DRAIN_IN_SLOT) {
                 if (stack.getItem() instanceof com.cim.item.tools.InfiniteFluidBarrelItem) return true;
                 return stack.getCapability(ForgeCapabilities.FLUID_HANDLER_ITEM).isPresent();
             }
-            if (slot == 16) return true;
+            if (slot == PROTECTOR_SLOT) {
+                Item item = stack.getItem();
+                return item == ModItems.PROTECTOR_STEEL.get()
+                        || item == ModItems.PROTECTOR_LEAD.get()
+                        || item == ModItems.PROTECTOR_TUNGSTEN.get();
+            }
             return false;
         }
 
@@ -157,83 +157,71 @@ public class FluidBarrelBlockEntity extends BlockEntity implements MenuProvider 
     }
 
     private void processBuckets() {
-        for (int i = DRAIN_IN_START; i < DRAIN_IN_END; i++) {
-            ItemStack inStack = itemHandler.getStackInSlot(i);
-            if (inStack.isEmpty()) continue;
-
-            if (inStack.getItem() instanceof com.cim.item.tools.InfiniteFluidBarrelItem) {
+        // --- ОПУСТОШЕНИЕ: предмет -> бочка (слот 2 -> слот 3) ---
+        ItemStack drainIn = itemHandler.getStackInSlot(DRAIN_IN_SLOT);
+        if (!drainIn.isEmpty()) {
+            if (drainIn.getItem() instanceof com.cim.item.tools.InfiniteFluidBarrelItem) {
                 if (!this.fluidFilter.equals("none")) {
-                    net.minecraft.world.level.material.Fluid filterFluid = ForgeRegistries.FLUIDS.getValue(new ResourceLocation(this.fluidFilter));
-                    if (filterFluid != null && filterFluid != net.minecraft.world.level.material.Fluids.EMPTY) {
+                    Fluid filterFluid = ForgeRegistries.FLUIDS.getValue(new ResourceLocation(this.fluidFilter));
+                    if (filterFluid != null && filterFluid != Fluids.EMPTY) {
                         int space = fluidTank.getSpace();
                         if (space > 0) {
-                            fluidTank.fill(new FluidStack(filterFluid, space), IFluidHandler.FluidAction.EXECUTE);
+                            fluidTank.fill(new FluidStack(filterFluid, Math.min(space, MAX_TRANSFER_RATE)), IFluidHandler.FluidAction.EXECUTE);
                         }
                     }
                 }
-                continue;
-            }
-
-            var result = FluidUtil.tryEmptyContainer(inStack, fluidTank, fluidTank.getSpace(), null, true);
-            if (result.isSuccess()) {
-                ItemStack emptyOut = result.getResult();
-                if (insertToOutput(DRAIN_OUT_START, DRAIN_OUT_END, emptyOut)) inStack.shrink(1);
+            } else {
+                var result = FluidUtil.tryEmptyContainer(drainIn, fluidTank, fluidTank.getSpace(), null, true);
+                if (result.isSuccess()) {
+                    ItemStack emptyOut = result.getResult();
+                    if (insertOrMerge(DRAIN_OUT_SLOT, emptyOut)) {
+                        drainIn.shrink(1);
+                    }
+                }
             }
         }
 
+        // --- НАПОЛНЕНИЕ: бочка -> предмет (слот 0 -> слот 1) ---
         if (fluidTank.getFluidAmount() > 0) {
-            for (int i = FILL_IN_START; i < FILL_IN_END; i++) {
-                ItemStack inStack = itemHandler.getStackInSlot(i);
-                if (inStack.isEmpty()) continue;
-
-                var result = FluidUtil.tryFillContainer(inStack, fluidTank, fluidTank.getFluidAmount(), null, true);
+            ItemStack fillIn = itemHandler.getStackInSlot(FILL_IN_SLOT);
+            if (!fillIn.isEmpty()) {
+                var result = FluidUtil.tryFillContainer(fillIn, fluidTank, fluidTank.getFluidAmount(), null, true);
                 if (result.isSuccess()) {
                     ItemStack fullOut = result.getResult();
-                    if (insertToOutput(FILL_OUT_START, FILL_OUT_END, fullOut)) inStack.shrink(1);
+                    if (insertOrMerge(FILL_OUT_SLOT, fullOut)) {
+                        fillIn.shrink(1);
+                    }
                 }
             }
         }
     }
 
-    private boolean insertToOutput(int startSlot, int endSlot, ItemStack stackToInsert) {
-        if (stackToInsert.isEmpty()) return true;
-        for (int i = startSlot; i < endSlot; i++) {
-            ItemStack existing = itemHandler.getStackInSlot(i);
-            if (!existing.isEmpty() && ItemStack.isSameItemSameTags(existing, stackToInsert)) {
-                if (existing.getCount() + stackToInsert.getCount() <= existing.getMaxStackSize()) {
-                    existing.grow(stackToInsert.getCount());
-                    return true;
-                }
-            }
-        }
-        for (int i = startSlot; i < endSlot; i++) {
-            ItemStack existing = itemHandler.getStackInSlot(i);
-            if (existing.isEmpty()) {
-                itemHandler.setStackInSlot(i, stackToInsert.copy());
-                return true;
-            }
+    private boolean insertOrMerge(int slot, ItemStack stack) {
+        if (stack.isEmpty()) return true;
+        ItemStack existing = itemHandler.getStackInSlot(slot);
+        if (existing.isEmpty()) {
+            itemHandler.setStackInSlot(slot, stack.copy());
+            return true;
+        } else if (ItemStack.isSameItemSameTags(existing, stack)
+                && existing.getCount() + stack.getCount() <= existing.getMaxStackSize()) {
+            existing.grow(stack.getCount());
+            return true;
         }
         return false;
     }
 
     public void setFilter(String newFilter) {
         this.fluidFilter = newFilter;
-
-        // Если фильтр изменился и в бочке есть чужая жидкость — уничтожаем её
         if (!newFilter.equals("none") && !fluidTank.isEmpty()) {
             ResourceLocation currentFluidLoc = ForgeRegistries.FLUIDS.getKey(fluidTank.getFluid().getFluid());
             if (currentFluidLoc != null && !currentFluidLoc.toString().equals(newFilter)) {
                 fluidTank.setFluid(FluidStack.EMPTY);
             }
         }
-
         setChanged();
         if (level != null && !level.isClientSide) {
             level.sendBlockUpdated(getBlockPos(), getBlockState(), getBlockState(), 3);
-
-            // === ВОЛШЕБНЫЙ ПИНОК СЕТИ ===
-            // Заставляем бочку переподключиться к трубам с новыми правилами
-            com.cim.api.fluids.FluidNetworkManager manager = com.cim.api.fluids.FluidNetworkManager.get((net.minecraft.server.level.ServerLevel) level);
+            FluidNetworkManager manager = FluidNetworkManager.get((ServerLevel) level);
             manager.removeNode(this.getBlockPos());
             manager.addNode(this.getBlockPos());
         }
@@ -245,28 +233,21 @@ public class FluidBarrelBlockEntity extends BlockEntity implements MenuProvider 
         if (level != null && !level.isClientSide) level.sendBlockUpdated(getBlockPos(), getBlockState(), getBlockState(), 3);
     }
 
-    // ==========================================
-    // ЖИЗНЕННЫЙ ЦИКЛ БОЧКИ В СЕТИ
-    // ==========================================
     @Override
     public void onLoad() {
         super.onLoad();
-        // Используем нашу защитную обертку!
         lazyFluidHandler = LazyOptional.of(() -> networkFluidHandler);
         lazyItemHandler = LazyOptional.of(() -> itemHandler);
-
-        // Интегрируем бочку в жидкостную сеть при установке
         if (level != null && !level.isClientSide) {
-            com.cim.api.fluids.FluidNetworkManager.get((ServerLevel) level).addNode(worldPosition);
+            FluidNetworkManager.get((ServerLevel) level).addNode(worldPosition);
         }
     }
 
     @Override
     public void setRemoved() {
         super.setRemoved();
-        // Удаляем бочку из жидкостной сети при разрушении
         if (this.level != null && !this.level.isClientSide) {
-            com.cim.api.fluids.FluidNetworkManager.get((ServerLevel) this.level).removeNode(this.getBlockPos());
+            FluidNetworkManager.get((ServerLevel) this.level).removeNode(this.getBlockPos());
         }
     }
 

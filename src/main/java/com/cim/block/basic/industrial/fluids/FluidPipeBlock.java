@@ -1,10 +1,9 @@
-package com.cim.block.basic.fluids;
+package com.cim.block.basic.industrial.fluids;
 
-import com.cim.api.fluids.FluidNetwork;
-import com.cim.api.fluids.FluidNetworkManager;
-import com.cim.api.fluids.FluidNode;
-import com.cim.api.fluids.PipeTier;
-import com.cim.block.entity.fluids.FluidPipeBlockEntity;
+import com.cim.api.fluids.system.*;
+import com.cim.api.fluids.system.PipeTier;
+import com.cim.block.entity.industrial.fluids.FluidPipeBlockEntity;
+import com.cim.block.entity.industrial.fluids.FluidBarrelBlockEntity;
 import com.cim.item.tools.FluidIdentifierItem;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -139,7 +138,7 @@ public class FluidPipeBlock extends Block implements EntityBlock, SimpleWaterlog
     @Override
     public void onPlace(BlockState state, Level level, BlockPos pos, BlockState oldState, boolean isMoving) {
         if (!level.isClientSide && !oldState.is(this)) {
-            com.cim.api.fluids.FluidNetworkManager.get((ServerLevel) level).addNode(pos);
+            FluidNetworkManager.get((ServerLevel) level).addNode(pos);
             // Запускаем отложенную проверку среды (чтобы не лагало при массовой застройке)
             level.scheduleTick(pos, this, 2);
         }
@@ -180,7 +179,7 @@ public class FluidPipeBlock extends Block implements EntityBlock, SimpleWaterlog
                 if (network != null && !network.isEmpty()) {
 
                     java.util.List<BlockPos> positionsToUpdate = new java.util.ArrayList<>();
-                    for (com.cim.api.fluids.FluidNode node : network.getNodes()) {
+                    for (FluidNode node : network.getNodes()) {
                         positionsToUpdate.add(node.getPos());
                     }
 
@@ -197,7 +196,7 @@ public class FluidPipeBlock extends Block implements EntityBlock, SimpleWaterlog
                             if (nodeBe instanceof FluidPipeBlockEntity pipeBE) {
                                 pipeBE.setFilterFluid(fluidToSet);
                                 updateCount++;
-                            } else if (nodeBe instanceof com.cim.block.entity.fluids.FluidBarrelBlockEntity barrelBE) {
+                            } else if (nodeBe instanceof FluidBarrelBlockEntity barrelBE) {
                                 barrelBE.setFilter(selectedFluidId);
                                 updateCount++;
                             }
@@ -263,7 +262,7 @@ public class FluidPipeBlock extends Block implements EntityBlock, SimpleWaterlog
     }
 
     private boolean checkExternalMeltdown(ServerLevel level, BlockPos pos) {
-        com.cim.api.fluids.PipeTier tier = this.getTier();
+        com.cim.api.fluids.system.PipeTier tier = this.getTier();
 
         // Собираем список для проверки: сам блок трубы + 6 соседей
         java.util.List<BlockPos> positionsToCheck = new java.util.ArrayList<>();
@@ -281,7 +280,7 @@ public class FluidPipeBlock extends Block implements EntityBlock, SimpleWaterlog
                 int acid = 0;
 
 
-                if (fluid.getFluidType() instanceof com.cim.api.fluids.BaseFluidType base) {
+                if (fluid.getFluidType() instanceof BaseFluidType base) {
                     acid = base.getAcidity();
 
                 } else if (fluid == Fluids.LAVA || fluid == Fluids.FLOWING_LAVA) {

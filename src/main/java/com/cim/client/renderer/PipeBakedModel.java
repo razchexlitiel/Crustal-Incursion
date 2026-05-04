@@ -1,8 +1,8 @@
 package com.cim.client.renderer;
 
 import com.cim.block.basic.ModBlocks;
-import com.cim.block.basic.fluids.FluidPipeBlock;
-import com.cim.block.entity.fluids.FluidPipeBlockEntity;
+import com.cim.block.basic.industrial.fluids.FluidPipeBlock;
+import com.cim.block.entity.industrial.fluids.FluidPipeBlockEntity;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.block.model.BakedQuad;

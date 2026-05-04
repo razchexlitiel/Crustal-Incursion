@@ -1,17 +1,16 @@
 package com.cim.block.basic;
 
 import com.cim.api.energy.ConnectorTier;
-import com.cim.api.fluids.PipeTier;
+import com.cim.api.fluids.system.PipeTier;
 import com.cim.api.rotation.ShaftDiameter;
 import com.cim.api.rotation.ShaftMaterial;
 import com.cim.block.basic.conglomerate.ConglomerateBlock;
 import com.cim.block.basic.deco.BeamBlock;
 import com.cim.block.basic.deco.BeamCollisionBlock;
 import com.cim.block.basic.deco.SteelPropsBlock;
-import com.cim.block.basic.direction.SideOBlock;
-import com.cim.block.basic.fluids.FluidBarrelBlock;
+import com.cim.block.basic.industrial.fluids.FluidBarrelBlock;
 
-import com.cim.block.basic.fluids.FluidPipeBlock;
+import com.cim.block.basic.industrial.fluids.FluidPipeBlock;
 
 import com.cim.block.basic.industrial.MillstoneBlock;
 import com.cim.block.basic.industrial.casting.CastingDescentBlock;
@@ -396,8 +395,8 @@ public class ModBlocks {
 
     // Техническая болванка, из которой мы будем воровать полигоны в PipeBakedModel
     public static final RegistryObject<Block> PIPE_SPOTS = BLOCKS.register("pipe_spots",
-            () -> new com.cim.block.basic.fluids.FluidPipeBlock(
-                    com.cim.api.fluids.PipeTier.BRONZE, // <--- Просто даем ему любой тир-заглушку
+            () -> new FluidPipeBlock(
+                    com.cim.api.fluids.system.PipeTier.BRONZE, // <--- Просто даем ему любой тир-заглушку
                     net.minecraft.world.level.block.state.BlockBehaviour.Properties.copy(net.minecraft.world.level.block.Blocks.GLASS)
                             .noCollission().noOcclusion().noLootTable()
             ));

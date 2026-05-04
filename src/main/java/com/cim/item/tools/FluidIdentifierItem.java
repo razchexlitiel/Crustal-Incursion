@@ -1,7 +1,7 @@
 package com.cim.item.tools;
 
+import com.cim.block.basic.industrial.fluids.FluidPipeBlock;
 import net.minecraft.core.BlockPos;
-import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.world.InteractionHand;
@@ -32,7 +32,7 @@ public class FluidIdentifierItem extends Item {
     public boolean doesSneakBypassUse(ItemStack stack, LevelReader level, BlockPos pos, Player player) {
         // Если игрок на шифте кликает по нашей трубе - говорим игре:
         // "Не открывай предмет, заставь сработать метод use() самой трубы!"
-        return level.getBlockState(pos).getBlock() instanceof com.cim.block.basic.fluids.FluidPipeBlock;
+        return level.getBlockState(pos).getBlock() instanceof FluidPipeBlock;
     }
 
     // ==========================================
@@ -43,7 +43,7 @@ public class FluidIdentifierItem extends Item {
         // Если мы кликнули по трубе (а её метод use на клиенте вдруг вернул PASS из-за рассинхрона),
         // мы принудительно гасим клик здесь, возвращая SUCCESS.
         // Это не даст игре дойти до метода use() в воздухе и открыть GUI.
-        if (pContext.getLevel().getBlockState(pContext.getClickedPos()).getBlock() instanceof com.cim.block.basic.fluids.FluidPipeBlock) {
+        if (pContext.getLevel().getBlockState(pContext.getClickedPos()).getBlock() instanceof FluidPipeBlock) {
             return InteractionResult.SUCCESS;
         }
         return super.useOn(pContext);

@@ -1,5 +1,6 @@
 package com.cim.datagen.assets;
 
+import com.cim.api.fluids.ModFluids;
 import com.cim.block.basic.ModBlocks;
 import com.cim.datagen.ResourceDatagenHelper;
 import net.minecraft.data.PackOutput;
@@ -113,7 +114,9 @@ public class ModItemModelProvider extends ItemModelProvider {
         simpleItem(ModItems.FUEL_ASH);
         complexBlockItem(ModBlocks.FLUID_BARREL);
         complexBlockItem(ModBlocks.BEARING_BLOCK);
-
+        simpleItem(ModFluids.FLUID_DROP_NONE);
+        simpleItem(ModFluids.FLUID_DROP_WATER);
+        simpleItem(ModFluids.FLUID_DROP_LAVA);
         generateAllGears();
         generateAllPulleys();
         // Пример регистрации блоков как предметов (если это обычный куб)
@@ -121,6 +124,24 @@ public class ModItemModelProvider extends ItemModelProvider {
 
         // Для дверей (плоские иконки как в ванилле)
         // doorItem(ModBlocks.METAL_DOOR);
+
+        // === КАПЛИ ЖИДКОСТЕЙ ===
+        generateFluidDrops();
+    }
+
+    private void generateFluidDrops() {
+        // Базовая модель-заглушка (для "none" и как fallback) — оставляем как есть
+        simpleItem(ModItems.FLUID_IDENTIFIER_DROP);
+
+        // Автогенерация для всех зарегистрированных капель
+        for (var entry : com.cim.api.fluids.ModFluids.getAllFluidDrops().entrySet()) {
+            String name = entry.getKey(); // например "hydrogen_peroxide"
+            RegistryObject<Item> dropItem = entry.getValue();
+
+            // Единая иконка капли, цвет индивидуальный через tint
+            withExistingParent(dropItem.getId().getPath(), mcLoc("item/generated"))
+                    .texture("layer0", modLoc("item/fluid_icon"));
+        }
     }
 
     public void generateAllPulleys() {
