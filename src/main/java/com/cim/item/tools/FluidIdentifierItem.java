@@ -1,22 +1,27 @@
 package com.cim.item.tools;
 
 import com.cim.block.basic.industrial.fluids.FluidPipeBlock;
+import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
+import net.minecraft.network.chat.Component;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.InteractionResultHolder;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LevelReader;
+import net.minecraft.world.level.material.Fluid;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraft.client.Minecraft;
 
+import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -49,16 +54,6 @@ public class FluidIdentifierItem extends Item {
         return super.useOn(pContext);
     }
 
-    // ==========================================
-    // ОТКРЫТИЕ GUI (Только при клике в воздух)
-    // ==========================================
-    @Override
-    public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
-        if (level.isClientSide) {
-            openScreen(player.getItemInHand(hand));
-        }
-        return InteractionResultHolder.sidedSuccess(player.getItemInHand(hand), level.isClientSide());
-    }
 
     @OnlyIn(Dist.CLIENT)
     private void openScreen(ItemStack stack) {
@@ -92,4 +87,75 @@ public class FluidIdentifierItem extends Item {
         }
         return list;
     }
+
+
+    @Override
+    public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
+        ItemStack stack = player.getItemInHand(hand);
+
+        if (player.isShiftKeyDown()) {
+            if (level.isClientSide) openScreen(stack);
+        } else {
+            if (!level.isClientSide) {
+                cycleFluid(stack, 1);
+                String current = getSelectedFluid(stack);
+
+                // ЦВЕТНОЕ СООБЩЕНИЕ
+                player.displayClientMessage(Component.translatable("message.cim.selected_fluid")
+                        .append(": ")
+                        .append(Component.translatable("fluid." + current.replace(":", "."))
+                                .withStyle(style -> style.withColor(getFluidColor(current)))), true);
+            }
+        }
+        return InteractionResultHolder.sidedSuccess(stack, level.isClientSide());
+    }
+
+
+
+
+
+    private void cycleFluid(ItemStack stack, int direction) {
+        List<String> history = getRecentFluids(stack);
+        if (history.isEmpty()) return;
+
+        String current = getSelectedFluid(stack);
+        int currentIndex = history.indexOf(current);
+
+        // Вычисляем новый индекс с зацикливанием
+        int newIndex = (currentIndex + direction) % history.size();
+        if (newIndex < 0) newIndex = history.size() - 1;
+
+        stack.getOrCreateTag().putString("SelectedFluid", history.get(newIndex));
+    }
+
+    @Override
+    public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> tooltip, TooltipFlag flag) {
+        String fluid = getSelectedFluid(stack);
+        if (fluid.equals("none")) {
+            tooltip.add(Component.translatable("tooltip.cim.no_fluid").withStyle(ChatFormatting.GRAY));
+        } else {
+            tooltip.add(Component.literal("Жидкость: ").withStyle(ChatFormatting.GOLD)
+                    .append(Component.translatable("fluid." + fluid.replace(":", "."))
+                            .withStyle(style -> style.withColor(getFluidColor(fluid))))); // Динамический цвет
+        }
+        super.appendHoverText(stack, level, tooltip, flag);
+    }
+
+
+    private int getFluidColor(String fluidName) {
+        if (fluidName.contains("lava")) return 0xe64306;
+        if (fluidName.equals("none")) return 0xFFFFFF;
+
+        try {
+            Fluid fluid = net.minecraftforge.registries.ForgeRegistries.FLUIDS.getValue(new net.minecraft.resources.ResourceLocation(fluidName));
+            if (fluid != null) {
+                return net.minecraftforge.client.extensions.common.IClientFluidTypeExtensions.of(fluid.getFluidType())
+                        .getTintColor(new net.minecraftforge.fluids.FluidStack(fluid, 1000)) | 0xFF000000;
+            }
+        } catch (Exception e) {
+            // На случай если ResourceLocation будет кривой
+        }
+        return 0xFFFFFF;
+    }
+
 }

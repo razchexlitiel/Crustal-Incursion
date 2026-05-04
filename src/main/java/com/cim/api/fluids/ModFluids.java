@@ -42,7 +42,7 @@ public class ModFluids {
             () -> new BaseFluidType(FluidType.Properties.create().density(1450).viscosity(1100).temperature(300),
                     WATER_STILL, WATER_FLOW,
                     new ResourceLocation("cim", "textures/gui/fluid/hydrogen_peroxide.png"),
-                    0xAAFFFFFF, 5, 0));
+                    0xc2b590, 5, 0));
 
     public static final RegistryObject<FlowingFluid> HYDROGEN_PEROXIDE_SOURCE = FLUIDS.register("hydrogen_peroxide",
             () -> new ForgeFlowingFluid.Source(ModFluids.HYDROGEN_PEROXIDE_PROPS));
@@ -57,7 +57,7 @@ public class ModFluids {
             () -> new BaseFluidType(FluidType.Properties.create().density(1830).viscosity(2000).temperature(300),
                     WATER_STILL, WATER_FLOW,
                     new ResourceLocation("cim", "textures/gui/fluid/sulfuric_acid.png"),
-                    0xCCAAAA00, 25, 0));
+                    0xbcc13f, 25, 0));
     public static final RegistryObject<FlowingFluid> SULFURIC_ACID_SOURCE = FLUIDS.register("sulfuric_acid",
             () -> new ForgeFlowingFluid.Source(ModFluids.SULFURIC_ACID_PROPS));
     public static final RegistryObject<FlowingFluid> SULFURIC_ACID_FLOWING = FLUIDS.register("flowing_sulfuric_acid",
@@ -71,7 +71,7 @@ public class ModFluids {
             () -> new BaseFluidType(FluidType.Properties.create().density(-800).viscosity(500).temperature(300),
                     WATER_STILL, WATER_FLOW,
                     new ResourceLocation("cim", "textures/gui/fluid/natural_gas.png"),
-                    0x44B0C4DE, 0, 0));
+                    0xa3b8c4, 0, 0));
     public static final RegistryObject<FlowingFluid> NATURAL_GAS_SOURCE = FLUIDS.register("natural_gas",
             () -> new ForgeFlowingFluid.Source(ModFluids.NATURAL_GAS_PROPS));
     public static final RegistryObject<FlowingFluid> NATURAL_GAS_FLOWING = FLUIDS.register("flowing_natural_gas",

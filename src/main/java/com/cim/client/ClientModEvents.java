@@ -4,6 +4,7 @@ import com.cim.api.fluids.system.FluidDropItem;
 import com.cim.api.fluids.ModFluids;
 import com.cim.api.metallurgy.system.ItemHeatColorRegistry;
 import com.cim.client.gecko.entity.mobs.DepthWormBrutalRenderer;
+import com.cim.item.tools.FluidIdentifierItem;
 import com.cim.main.ResourceRegistry;
 import com.cim.block.basic.ModBlocks;
 import com.cim.block.entity.industrial.fluids.FluidPipeBlockEntity;
@@ -33,11 +34,13 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.material.Fluid;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.*;
 import net.minecraftforge.client.gui.overlay.VanillaGuiOverlay;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fluids.FluidStack;
 import net.minecraftforge.fml.common.Mod;
 import com.cim.block.entity.ModBlockEntities;
 import com.cim.client.config.ModConfigKeybindHandler;
@@ -57,6 +60,7 @@ import com.cim.item.ModItems;
 import com.cim.main.CrustalIncursionMod;
 import com.cim.menu.ModMenuTypes;
 import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent;
+import net.minecraftforge.registries.ForgeRegistries;
 import net.minecraftforge.registries.RegistryObject;
 
 @Mod.EventBusSubscriber(modid = CrustalIncursionMod.MOD_ID, bus = Mod.EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
@@ -306,8 +310,29 @@ public class ClientModEvents {
         }
 
         event.register((stack, tintIndex) -> 0x717070, ModFluids.FLUID_DROP_NONE.get());
-        event.register((stack, tintIndex) -> 0xff6800, ModFluids.FLUID_DROP_LAVA.get());
-        event.register((stack, tintIndex) -> 0x234bff, ModFluids.FLUID_DROP_WATER.get());
+        event.register((stack, tintIndex) -> 0xe64306, ModFluids.FLUID_DROP_LAVA.get());
+        event.register((stack, tintIndex) -> 0x4487ff, ModFluids.FLUID_DROP_WATER.get());
+
+
+        event.getItemColors().register((stack, tintIndex) -> {
+            if (tintIndex == 1 && stack.getItem() instanceof FluidIdentifierItem) {
+                String fluidName = FluidIdentifierItem.getSelectedFluid(stack);
+                if (!fluidName.equals("none")) {
+
+                    if (fluidName.contains("lava")) return 0xe64306;
+                    if (fluidName.contains("none")) return 0x717070;
+
+                    Fluid fluid = ForgeRegistries.FLUIDS.getValue(new ResourceLocation(fluidName));
+                    if (fluid != null) {
+                        return net.minecraftforge.client.extensions.common.IClientFluidTypeExtensions.of(fluid.getFluidType())
+                                .getTintColor(new FluidStack(fluid, 1000)) | 0xFF000000;
+                    }
+                }
+            }
+            return 0xFFFFFFFF;
+        }, ModItems.FLUID_IDENTIFIER.get());
+
+
 
         // === КРАСНОЕ СВЕЧЕНИЕ ===
         ItemHeatColorRegistry.registerMixed(ItemHeatColorRegistry.HeatGradient.RED_TO_WHITE,
