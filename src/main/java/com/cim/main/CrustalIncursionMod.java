@@ -287,7 +287,11 @@ public class CrustalIncursionMod {
             event.accept(ModItems.PROTECTOR_STEEL);
             event.accept(ModItems.PROTECTOR_LEAD);
             event.accept(ModItems.PROTECTOR_TUNGSTEN);
-            event.accept(ModBlocks.FLUID_BARREL);
+            event.accept(ModItems.CORRUPTED_BARREL_ITEM);
+            event.accept(ModItems.LEAKING_BARREL_ITEM);
+            event.accept(ModItems.IRON_BARREL_ITEM);
+            event.accept(ModItems.STEEL_BARREL_ITEM);
+            event.accept(ModItems.LEAD_BARREL_ITEM);
             event.accept(ModBlocks.BRONZE_FLUID_PIPE);
             event.accept(ModBlocks.STEEL_FLUID_PIPE);
             event.accept(ModBlocks.LEAD_FLUID_PIPE);

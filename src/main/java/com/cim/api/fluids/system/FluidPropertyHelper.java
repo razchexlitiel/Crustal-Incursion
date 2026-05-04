@@ -32,14 +32,14 @@ public class FluidPropertyHelper {
         return stack.hasTag() ? stack.getTag().getInt(TAG_TEMPERATURE) : stack.getFluid().getFluidType().getTemperature();
     }
 
-    // --- ПРИМЕР СОЗДАНИЯ (Использовать в механизмах) ---
+
     public static FluidStack createSulfuricAcid(int amount) {
-        // Серная кислота: Высокая коррозия (2), нет радиации (0), комнатная температура (30)
-        return setProperties(new FluidStack(com.cim.api.fluids.ModFluids.SULFURIC_ACID_SOURCE.get(), amount), 1, 0, 30);
+        // Серная кислота: 600 коррозии, комнатная температура
+        return setProperties(new FluidStack(com.cim.api.fluids.ModFluids.SULFURIC_ACID_SOURCE.get(), amount), 600, 0, 300);
     }
 
     public static FluidStack createSteam(int amount) {
-        // Пар: Нет коррозии, нет радиации, высокая температура (373 К)
-        return setProperties(new FluidStack(com.cim.api.fluids.ModFluids.STEAM_SOURCE.get(), amount), 0, 0, 100);
+        // Пар: 373 К, безопасен
+        return setProperties(new FluidStack(com.cim.api.fluids.ModFluids.STEAM_SOURCE.get(), amount), 0, 0, 373);
     }
 }

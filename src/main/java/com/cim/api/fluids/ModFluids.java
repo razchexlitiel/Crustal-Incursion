@@ -36,13 +36,13 @@ public class ModFluids {
     private static final Map<String, RegistryObject<Item>> FLUID_DROPS = new HashMap<>();
 
     // ==========================================
-    // ЖИДКОСТИ
-    // ==========================================
+// ЖИДКОСТИ (шкала 0–2500)
+// ==========================================
     public static final RegistryObject<FluidType> HYDROGEN_PEROXIDE_TYPE = FLUID_TYPES.register("hydrogen_peroxide",
             () -> new BaseFluidType(FluidType.Properties.create().density(1450).viscosity(1100).temperature(300),
                     WATER_STILL, WATER_FLOW,
                     new ResourceLocation("cim", "textures/gui/fluid/hydrogen_peroxide.png"),
-                    0xc2b590, 5, 0));
+                    0xc2b590, 150, 0)); // Слабая кислота
 
     public static final RegistryObject<FlowingFluid> HYDROGEN_PEROXIDE_SOURCE = FLUIDS.register("hydrogen_peroxide",
             () -> new ForgeFlowingFluid.Source(ModFluids.HYDROGEN_PEROXIDE_PROPS));
@@ -57,7 +57,8 @@ public class ModFluids {
             () -> new BaseFluidType(FluidType.Properties.create().density(1830).viscosity(2000).temperature(300),
                     WATER_STILL, WATER_FLOW,
                     new ResourceLocation("cim", "textures/gui/fluid/sulfuric_acid.png"),
-                    0xbcc13f, 25, 0));
+                    0xbcc13f, 600, 0)); // Серьёзная кислота
+
     public static final RegistryObject<FlowingFluid> SULFURIC_ACID_SOURCE = FLUIDS.register("sulfuric_acid",
             () -> new ForgeFlowingFluid.Source(ModFluids.SULFURIC_ACID_PROPS));
     public static final RegistryObject<FlowingFluid> SULFURIC_ACID_FLOWING = FLUIDS.register("flowing_sulfuric_acid",
@@ -72,6 +73,7 @@ public class ModFluids {
                     WATER_STILL, WATER_FLOW,
                     new ResourceLocation("cim", "textures/gui/fluid/natural_gas.png"),
                     0xa3b8c4, 0, 0));
+
     public static final RegistryObject<FlowingFluid> NATURAL_GAS_SOURCE = FLUIDS.register("natural_gas",
             () -> new ForgeFlowingFluid.Source(ModFluids.NATURAL_GAS_PROPS));
     public static final RegistryObject<FlowingFluid> NATURAL_GAS_FLOWING = FLUIDS.register("flowing_natural_gas",
@@ -84,6 +86,7 @@ public class ModFluids {
                     WATER_STILL, WATER_FLOW,
                     new ResourceLocation("cim", "textures/gui/fluid/steam.png"),
                     0x88FFFFFF, 0, 0));
+
     public static final RegistryObject<FlowingFluid> STEAM_SOURCE = FLUIDS.register("steam",
             () -> new ForgeFlowingFluid.Source(ModFluids.STEAM_PROPS));
     public static final RegistryObject<FlowingFluid> STEAM_FLOWING = FLUIDS.register("flowing_steam",
@@ -115,6 +118,7 @@ public class ModFluids {
                             new Item.Properties()
 
                     ));
+
     // ==========================================
     // РЕГИСТРАЦИЯ
     // ==========================================

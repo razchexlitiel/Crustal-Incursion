@@ -28,87 +28,63 @@ public class FluidDropItem extends Item {
     @Override
     public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> tooltip, TooltipFlag flag) {
         super.appendHoverText(stack, level, tooltip, flag);
-
-        FluidType fluidType = getFluidType();
-        if (fluidType == null) return;
-
-        if (fluidType instanceof BaseFluidType baseType) {
-            int temp = fluidType.getTemperature();
-            int acidity = baseType.getAcidity();
-            int radiation = baseType.getRadiation();
-
-            tooltip.add(Component.literal(""));
-            tooltip.add(Component.literal("Свойства жидкости:").withStyle(ChatFormatting.GRAY));
-
-            // Температура
-            String tempStr = temp + " K";
-            ChatFormatting tempColor = ChatFormatting.WHITE;
-            if (temp > 1000) tempColor = ChatFormatting.RED;
-            else if (temp > 373) tempColor = ChatFormatting.GOLD;
-            else if (temp < 273) tempColor = ChatFormatting.AQUA;
-            tooltip.add(Component.literal("  Температура: ").withStyle(ChatFormatting.GRAY)
-                    .append(Component.literal(tempStr).withStyle(tempColor)));
-
-            // Кислотность
-            if (acidity > 0) {
-                String acidStr = acidity >= 50 ? "Высококоррозионная" : acidity >= 25 ? "Коррозионная" : "Низкокоррозионная";
-                ChatFormatting acidColor = acidity >= 50 ? ChatFormatting.DARK_RED : ChatFormatting.YELLOW;
-                tooltip.add(Component.literal("  Кислотность: ").withStyle(ChatFormatting.GRAY)
-                        .append(Component.literal(acidStr + " (" + acidity + ")").withStyle(acidColor)));
-            }
-
-            // Радиация
-            if (radiation > 0) {
-                String radStr = radiation >= 50 ? "Гамма-излучение" : radiation >= 25 ? "Ионизированная" : "Слабая ионизация";
-                ChatFormatting radColor = radiation >= 50 ? ChatFormatting.DARK_GREEN : ChatFormatting.GREEN;
-                tooltip.add(Component.literal("  Радиация: ").withStyle(ChatFormatting.GRAY)
-                        .append(Component.literal(radStr + " (" + radiation + ")").withStyle(radColor)));
-            }
-        } else {
-            tooltip.add(Component.literal("  Температура: " + fluidType.getTemperature() + " K")
-                    .withStyle(ChatFormatting.GRAY));
-        }
+        tooltip.addAll(getFluidPropertiesTooltip(getFluidType()));
     }
 
     public static List<Component> getFluidPropertiesTooltip(FluidType fluidType) {
         List<Component> tooltip = new ArrayList<>();
         if (fluidType == null) return tooltip;
 
+        tooltip.add(Component.literal("Свойства жидкости:").withStyle(ChatFormatting.GRAY));
+
         if (fluidType instanceof BaseFluidType baseType) {
             int temp = fluidType.getTemperature();
             int acidity = baseType.getAcidity();
             int radiation = baseType.getRadiation();
 
-            tooltip.add(Component.literal("Свойства жидкости:").withStyle(ChatFormatting.GRAY));
-
-            // Температура
-            String tempStr = temp + " K";
+            // --- ТЕМПЕРАТУРА ---
             ChatFormatting tempColor = ChatFormatting.WHITE;
-            if (temp > 1000) tempColor = ChatFormatting.RED;
-            else if (temp > 373) tempColor = ChatFormatting.GOLD;
-            else if (temp < 273) tempColor = ChatFormatting.AQUA;
-            tooltip.add(Component.literal("  Температура: ").withStyle(ChatFormatting.GRAY)
-                    .append(Component.literal(tempStr).withStyle(tempColor)));
+            String tempDesc = "Обычная";
+            if (temp >= 2000) { tempColor = ChatFormatting.DARK_RED; tempDesc = "Критическая"; }
+            else if (temp >= 1000) { tempColor = ChatFormatting.RED; tempDesc = "Экстремальная"; }
+            else if (temp >= 500) { tempColor = ChatFormatting.GOLD; tempDesc = "Высокая"; }
+            else if (temp > 373) { tempColor = ChatFormatting.YELLOW; tempDesc = "Горячая"; }
+            else if (temp < 273) { tempColor = ChatFormatting.AQUA; tempDesc = "Низкая"; }
 
-            // Кислотность... и так далее (весь твой код тултипа)
+            tooltip.add(Component.literal("  Температура: ").withStyle(ChatFormatting.GRAY)
+                    .append(Component.literal(temp + " K (" + tempDesc + ")").withStyle(tempColor)));
+
+            // --- КИСЛОТНОСТЬ ---
             if (acidity > 0) {
-                String acidStr = acidity >= 50 ? "Высококоррозионная" : acidity >= 25 ? "Коррозионная" : "Низкокоррозионная";
-                ChatFormatting acidColor = acidity >= 50 ? ChatFormatting.DARK_RED : ChatFormatting.YELLOW;
+                ChatFormatting acidColor = ChatFormatting.YELLOW;
+                String acidDesc = "Следы";
+                if (acidity >= 1500) { acidColor = ChatFormatting.DARK_RED; acidDesc = "Экстремальная коррозия"; }
+                else if (acidity >= 1000) { acidColor = ChatFormatting.RED; acidDesc = "Высококоррозионная"; }
+                else if (acidity >= 500) { acidColor = ChatFormatting.YELLOW; acidDesc = "Коррозионная"; }
+                else if (acidity >= 100) { acidColor = ChatFormatting.GOLD; acidDesc = "Слабокоррозионная"; }
+
                 tooltip.add(Component.literal("  Кислотность: ").withStyle(ChatFormatting.GRAY)
-                        .append(Component.literal(acidStr + " (" + acidity + ")").withStyle(acidColor)));
+                        .append(Component.literal(acidity + " (" + acidDesc + ")").withStyle(acidColor)));
             }
+
+            // --- РАДИАЦИЯ ---
             if (radiation > 0) {
-                String radStr = radiation >= 50 ? "Гамма-излучение" : radiation >= 25 ? "Ионизированная" : "Слабая ионизация";
-                ChatFormatting radColor = radiation >= 50 ? ChatFormatting.DARK_GREEN : ChatFormatting.GREEN;
+                ChatFormatting radColor = ChatFormatting.GREEN;
+                String radDesc = "Следы";
+                if (radiation >= 1500) { radColor = ChatFormatting.DARK_RED; radDesc = "Смертельная"; }
+                else if (radiation >= 1000) { radColor = ChatFormatting.DARK_GREEN; radDesc = "Гамма-излучение"; }
+                else if (radiation >= 500) { radColor = ChatFormatting.GREEN; radDesc = "Ионизированная"; }
+                else if (radiation >= 100) { radColor = ChatFormatting.DARK_AQUA; radDesc = "Слабая ионизация"; }
+
                 tooltip.add(Component.literal("  Радиация: ").withStyle(ChatFormatting.GRAY)
-                        .append(Component.literal(radStr + " (" + radiation + ")").withStyle(radColor)));
+                        .append(Component.literal(radiation + " (" + radDesc + ")").withStyle(radColor)));
             }
         } else {
-            tooltip.add(Component.literal("  Температура: " + fluidType.getTemperature() + " K").withStyle(ChatFormatting.GRAY));
+            tooltip.add(Component.literal("  Температура: " + fluidType.getTemperature() + " K")
+                    .withStyle(ChatFormatting.GRAY));
         }
         return tooltip;
     }
-
 
     public int getFluidTintColor() {
         FluidType type = getFluidType();

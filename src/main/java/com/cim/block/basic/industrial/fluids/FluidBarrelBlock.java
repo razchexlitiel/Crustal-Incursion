@@ -1,5 +1,6 @@
 package com.cim.block.basic.industrial.fluids;
 
+import com.cim.api.fluids.system.BarrelTier;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.sounds.SoundEvents;
@@ -29,12 +30,15 @@ import com.cim.block.entity.industrial.fluids.FluidBarrelBlockEntity;
 
 public class FluidBarrelBlock extends BaseEntityBlock {
 
-    // Хитбокс 12x12x16 (центрированный)
     private static final VoxelShape SHAPE = Block.box(2.0D, 0.0D, 2.0D, 14.0D, 16.0D, 14.0D);
+    private final BarrelTier tier;
 
-    public FluidBarrelBlock(Properties properties) {
+    public FluidBarrelBlock(BarrelTier tier, Properties properties) {
         super(properties);
+        this.tier = tier;
     }
+
+    public BarrelTier getTier() { return tier; }
 
     // ====================== ХИТБОКС И КОЛЛИЗИЯ ======================
     @Override
@@ -170,13 +174,30 @@ public class FluidBarrelBlock extends BaseEntityBlock {
     public void appendHoverText(net.minecraft.world.item.ItemStack pStack, @org.jetbrains.annotations.Nullable net.minecraft.world.level.BlockGetter pLevel, java.util.List<net.minecraft.network.chat.Component> pTooltip, net.minecraft.world.item.TooltipFlag pFlag) {
         super.appendHoverText(pStack, pLevel, pTooltip, pFlag);
 
-        pTooltip.add(net.minecraft.network.chat.Component.literal("§7Хранилище жидкостей"));
+        // === ХАРАКТЕРИСТИКИ БОЧКИ ===
+        pTooltip.add(net.minecraft.network.chat.Component.literal("§8Ёмкость: §f" + tier.getCapacity() + " mB"));
 
+        int c = tier.getCorrosionResistance();
+        int h = tier.getHeatResistance();
+        int r = tier.getRadiationResistance();
+
+        pTooltip.add(net.minecraft.network.chat.Component.literal(
+                "  §eКоррозия: §f" + c + " §7" + bar(c, 2500)));
+        pTooltip.add(net.minecraft.network.chat.Component.literal(
+                "  §cНагрев: §f" + h + " §7" + bar(h, 2500)));
+        pTooltip.add(net.minecraft.network.chat.Component.literal(
+                "  §aРадиация: §f" + r + " §7" + bar(r, 2500)));
+
+        if (tier.isLeaking()) {
+            pTooltip.add(net.minecraft.network.chat.Component.literal(
+                    "§4⚠ Протекает: §c" + tier.getLeakRate() + " mB/сек"));
+        }
+
+        // === СОДЕРЖИМОЕ ИЗ NBT ===
         net.minecraft.nbt.CompoundTag nbt = pStack.getTag();
         if (nbt != null && nbt.contains("BlockEntityTag")) {
             net.minecraft.nbt.CompoundTag beTag = nbt.getCompound("BlockEntityTag");
 
-            // Читаем жидкость
             if (beTag.contains("FluidName")) {
                 String fluidName = beTag.getString("FluidName");
                 int amount = beTag.getInt("Amount");
@@ -186,7 +207,7 @@ public class FluidBarrelBlock extends BaseEntityBlock {
                     if (fluid != null) {
                         String localizedName = net.minecraft.network.chat.Component.translatable(fluid.getFluidType().getDescriptionId()).getString();
                         pTooltip.add(net.minecraft.network.chat.Component.literal("§bЖидкость: §f" + localizedName));
-                        pTooltip.add(net.minecraft.network.chat.Component.literal("§eОбъем: §f" + amount + " / 16000 mB"));
+                        pTooltip.add(net.minecraft.network.chat.Component.literal("§eОбъём: §f" + amount + " / " + tier.getCapacity() + " mB"));
                     }
                 } else {
                     pTooltip.add(net.minecraft.network.chat.Component.literal("§bЖидкость: §7Пусто"));
@@ -195,7 +216,6 @@ public class FluidBarrelBlock extends BaseEntityBlock {
                 pTooltip.add(net.minecraft.network.chat.Component.literal("§bЖидкость: §7Пусто"));
             }
 
-            // Читаем фильтр
             String filter = beTag.getString("FluidFilter");
             if (filter != null && !filter.isEmpty() && !filter.equals("none")) {
                 net.minecraft.world.level.material.Fluid f = net.minecraftforge.registries.ForgeRegistries.FLUIDS.getValue(new net.minecraft.resources.ResourceLocation(filter));
@@ -210,5 +230,16 @@ public class FluidBarrelBlock extends BaseEntityBlock {
             pTooltip.add(net.minecraft.network.chat.Component.literal("§bЖидкость: §7Пусто"));
             pTooltip.add(net.minecraft.network.chat.Component.literal("§aФильтр: §cЗакрыто"));
         }
+    }
+
+    // Визуальный бар [|||||....]
+    private String bar(int val, int max) {
+        int filled = (int) Math.round(val * 10.0 / max);
+        int empty = 10 - filled;
+        StringBuilder sb = new StringBuilder("[");
+        for (int i = 0; i < filled; i++) sb.append("§a|");
+        for (int i = 0; i < empty; i++) sb.append("§8|");
+        sb.append("§7]");
+        return sb.toString();
     }
 }

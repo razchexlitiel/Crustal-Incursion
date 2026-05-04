@@ -1,6 +1,7 @@
 package com.cim.block.basic;
 
 import com.cim.api.energy.ConnectorTier;
+import com.cim.api.fluids.system.BarrelTier;
 import com.cim.api.fluids.system.PipeTier;
 import com.cim.api.rotation.ShaftDiameter;
 import com.cim.api.rotation.ShaftMaterial;
@@ -71,6 +72,21 @@ public class ModBlocks {
             () -> new WireBlock(BlockBehaviour.Properties.copy(Blocks.IRON_BLOCK).noOcclusion()));
     public static final RegistryObject<Block> SWITCH = registerBlock("switch",
             () -> new SwitchBlock(BlockBehaviour.Properties.copy(Blocks.IRON_BLOCK)));
+
+    public static final RegistryObject<Block> CORRUPTED_BARREL = BLOCKS.register("corrupted_barrel",
+            () -> new FluidBarrelBlock(BarrelTier.CORRUPTED, BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_GRAY).strength(1.5f).sound(SoundType.METAL)));
+
+    public static final RegistryObject<Block> LEAKING_BARREL = BLOCKS.register("leaking_barrel",
+            () -> new FluidBarrelBlock(BarrelTier.LEAKING, BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_BROWN).strength(2.0f).sound(SoundType.METAL)));
+
+    public static final RegistryObject<Block> IRON_BARREL = BLOCKS.register("iron_barrel",
+            () -> new FluidBarrelBlock(BarrelTier.IRON, BlockBehaviour.Properties.of().mapColor(MapColor.METAL).strength(3.0f).requiresCorrectToolForDrops().sound(SoundType.METAL)));
+
+    public static final RegistryObject<Block> STEEL_BARREL = BLOCKS.register("steel_barrel",
+            () -> new FluidBarrelBlock(BarrelTier.STEEL, BlockBehaviour.Properties.of().mapColor(MapColor.METAL).strength(4.0f).requiresCorrectToolForDrops().sound(SoundType.METAL)));
+
+    public static final RegistryObject<Block> LEAD_BARREL = BLOCKS.register("lead_barrel",
+            () -> new FluidBarrelBlock(BarrelTier.LEAD, BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_BLUE).strength(4.0f).requiresCorrectToolForDrops().sound(SoundType.METAL)));
 
     // Маленький (Ваш старый)
     public static final RegistryObject<Block> CONNECTOR = registerBlock("connector",
@@ -386,14 +402,8 @@ public class ModBlocks {
                     BlockSetType.DARK_OAK));
 
 
-    //ЖИДКОСТИ
-
-    public static final RegistryObject<Block> FLUID_BARREL = registerBlock("fluid_barrel",
-            () -> new FluidBarrelBlock(BlockBehaviour.Properties.copy(Blocks.IRON_BLOCK)
-                    .strength(3.0f, 4.0f).noOcclusion().requiresCorrectToolForDrops()));
 
 
-    // Техническая болванка, из которой мы будем воровать полигоны в PipeBakedModel
     public static final RegistryObject<Block> PIPE_SPOTS = BLOCKS.register("pipe_spots",
             () -> new FluidPipeBlock(
                     com.cim.api.fluids.system.PipeTier.BRONZE, // <--- Просто даем ему любой тир-заглушку

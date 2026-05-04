@@ -157,6 +157,28 @@ public class FluidPipeBlock extends Block implements EntityBlock, SimpleWaterlog
         return this.tier;
     }
 
+    @Override
+    public void appendHoverText(net.minecraft.world.item.ItemStack stack, @org.jetbrains.annotations.Nullable net.minecraft.world.level.BlockGetter level, java.util.List<net.minecraft.network.chat.Component> tooltip, net.minecraft.world.item.TooltipFlag flag) {
+        super.appendHoverText(stack, level, tooltip, flag);
+        
+        tooltip.add(net.minecraft.network.chat.Component.literal(
+                "  §eКоррозия: §f" + tier.getMaxAcidity() + " §7" + bar(tier.getMaxAcidity(), 2500)));
+        tooltip.add(net.minecraft.network.chat.Component.literal(
+                "  §cНагрев: §f" + tier.getMaxTemperature() + " §7" + bar(tier.getMaxTemperature(), 2500)));
+        tooltip.add(net.minecraft.network.chat.Component.literal(
+                "  §aРадиация: §f" + tier.getMaxRadiation() + " §7" + bar(tier.getMaxRadiation(), 2500)));
+    }
+
+    private String bar(int val, int max) {
+        int filled = (int) Math.round(val * 10.0 / max);
+        int empty = 10 - filled;
+        StringBuilder sb = new StringBuilder("[");
+        for (int i = 0; i < filled; i++) sb.append("§a|");
+        for (int i = 0; i < empty; i++) sb.append("§8|");
+        sb.append("§7]");
+        return sb.toString();
+    }
+
     // ==========================================
     // ИДЕНТИФИКАТОР + ШИФТ (ОБЫЧНАЯ НАСТРОЙКА БЕЗ ВЗРЫВОВ)
     // ==========================================
