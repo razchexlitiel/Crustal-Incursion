@@ -1,4 +1,4 @@
-package com.cim.api.fluids;
+package com.cim.api.fluids.system;
 
 import net.minecraft.nbt.CompoundTag;
 import net.minecraftforge.fluids.FluidStack;

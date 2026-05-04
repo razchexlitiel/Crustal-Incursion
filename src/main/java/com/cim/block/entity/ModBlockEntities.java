@@ -2,9 +2,9 @@ package com.cim.block.entity;
 
 import com.cim.block.entity.conglomerate.ConglomerateBlockEntity;
 import com.cim.block.entity.deco.BeamCollisionBlockEntity;
-import com.cim.block.entity.fluids.FluidBarrelBlockEntity;
+import com.cim.block.entity.industrial.fluids.FluidBarrelBlockEntity;
 
-import com.cim.block.entity.fluids.FluidPipeBlockEntity;
+import com.cim.block.entity.industrial.fluids.FluidPipeBlockEntity;
 
 import com.cim.block.entity.industrial.MillstoneBlockEntity;
 import com.cim.block.entity.industrial.casting.SmallSmelterBlockEntity;
@@ -17,7 +17,6 @@ import com.cim.block.entity.industrial.casting.CastingDescentBlockEntity;
 import com.cim.block.entity.industrial.casting.CastingPotBlockEntity;
 import com.cim.block.entity.industrial.energy.*;
 
-import com.cim.multiblock.industrial.HeaterBlockEntity;
 import com.cim.multiblock.industrial.SmelterBlockEntity;
 
 import com.cim.multiblock.system.MultiblockPartEntity;
@@ -33,8 +32,6 @@ import com.cim.block.entity.hive.HiveSoilBlockEntity;
 import com.cim.block.entity.weapons.TurretLightPlacerBlockEntity;
 import com.cim.main.CrustalIncursionMod;
 import com.cim.block.basic.ModBlocks;
-
-import static com.cim.block.basic.ModBlocks.BLOCKS;
 
 public class ModBlockEntities {
     public static final DeferredRegister<BlockEntityType<?>> BLOCK_ENTITIES =

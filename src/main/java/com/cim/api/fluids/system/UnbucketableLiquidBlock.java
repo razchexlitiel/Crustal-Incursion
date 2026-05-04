@@ -1,4 +1,4 @@
-package com.cim.api.fluids;
+package com.cim.api.fluids.system;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.item.ItemStack;

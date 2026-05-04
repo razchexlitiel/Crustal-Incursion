@@ -1,6 +1,6 @@
-package com.cim.api.fluids;
+package com.cim.api.fluids.system;
 
-import com.cim.block.entity.fluids.FluidPipeBlockEntity;
+import com.cim.block.entity.industrial.fluids.FluidPipeBlockEntity;
 import com.google.common.collect.Sets;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
@@ -9,13 +9,10 @@ import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.material.Fluid;
-import net.minecraft.world.level.material.Fluids;
 import net.minecraft.world.level.saveddata.SavedData;
 import org.jetbrains.annotations.NotNull;
 
 import javax.annotation.Nullable;
-import java.util.HashSet;
 import java.util.Set;
 
 public class FluidNetworkManager extends SavedData {
@@ -53,7 +50,7 @@ public class FluidNetworkManager extends SavedData {
         new java.util.HashSet<>(networks).forEach(net -> net.tick(level));
 
         // 2. Безопасно удаляем все пустые сети в одну строчку (без создания доп. списков)
-        networks.removeIf(com.cim.api.fluids.FluidNetwork::isEmpty);
+        networks.removeIf(FluidNetwork::isEmpty);
     }
 
     // ==================== ЛОГИКА ДОБАВЛЕНИЯ УЗЛА ====================
@@ -109,13 +106,13 @@ public class FluidNetworkManager extends SavedData {
         BlockEntity be1 = level.getBlockEntity(pos1);
         BlockEntity be2 = level.getBlockEntity(pos2);
 
-        boolean isPipe1 = be1 instanceof com.cim.block.entity.fluids.FluidPipeBlockEntity;
-        boolean isPipe2 = be2 instanceof com.cim.block.entity.fluids.FluidPipeBlockEntity;
+        boolean isPipe1 = be1 instanceof FluidPipeBlockEntity;
+        boolean isPipe2 = be2 instanceof FluidPipeBlockEntity;
 
         // 1. Если это две трубы - они должны иметь одинаковый фильтр
         if (isPipe1 && isPipe2) {
-            net.minecraft.world.level.material.Fluid f1 = ((com.cim.block.entity.fluids.FluidPipeBlockEntity) be1).getFilterFluid();
-            net.minecraft.world.level.material.Fluid f2 = ((com.cim.block.entity.fluids.FluidPipeBlockEntity) be2).getFilterFluid();
+            net.minecraft.world.level.material.Fluid f1 = ((FluidPipeBlockEntity) be1).getFilterFluid();
+            net.minecraft.world.level.material.Fluid f2 = ((FluidPipeBlockEntity) be2).getFilterFluid();
             return f1 == f2;
         }
 

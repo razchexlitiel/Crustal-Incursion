@@ -6,7 +6,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraftforge.network.NetworkEvent;
-import com.cim.block.entity.fluids.FluidBarrelBlockEntity;
+import com.cim.block.entity.industrial.fluids.FluidBarrelBlockEntity;
 
 import java.util.function.Supplier;
 

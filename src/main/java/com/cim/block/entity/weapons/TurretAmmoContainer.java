@@ -1,12 +1,14 @@
 package com.cim.block.entity.weapons;
 
-
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.world.item.ItemStack;
+import net.minecraftforge.common.capabilities.ForgeCapabilities;
 import net.minecraftforge.items.ItemStackHandler;
 import org.jetbrains.annotations.NotNull;
+import com.cim.item.energy.EnergyCellItem;
+import com.cim.item.energy.ModBatteryItem;
 import com.cim.item.tags.IAmmoItem;
 import com.cim.item.weapons.turrets.TurretChipItem;
 
@@ -15,18 +17,24 @@ public class TurretAmmoContainer extends ItemStackHandler {
     private static final int SLOT_COUNT = 11;
     private Runnable onContentsChanged;
 
+    public TurretAmmoContainer() {
+        super(SLOT_COUNT);
+    }
 
     @Override
     public boolean isItemValid(int slot, @NotNull ItemStack stack) {
+        // Слот 9 — чип
         if (slot == 9) {
             return stack.getItem() instanceof TurretChipItem;
         }
-        // Для остальных слотов (0-8) логика патронов (если она была)
-        return true;
-    }
-
-    public TurretAmmoContainer() {
-        super(SLOT_COUNT);
+        // [ФИКС] Слот 10 — только батарейки / предметы с энергией
+        if (slot == 10) {
+            return stack.getCapability(ForgeCapabilities.ENERGY).isPresent()
+                    || stack.getItem() instanceof ModBatteryItem
+                    || stack.getItem() instanceof EnergyCellItem;
+        }
+        // Слоты 0-8 — только патроны
+        return stack.getItem() instanceof IAmmoItem;
     }
 
     public void setOnContentsChanged(Runnable callback) {
@@ -45,13 +53,11 @@ public class TurretAmmoContainer extends ItemStackHandler {
         return 64;
     }
 
-
     /**
      * Проверяет наличие патрона нужного калибра, но НЕ забирает его.
-     * Нужен для расчетов баллистики перед выстрелом.
      */
     public IAmmoItem peekAmmo(String caliber) {
-        for (int i = 0; i < SLOT_COUNT; i++) {
+        for (int i = 0; i < 9; i++) { // [ИЗМЕНЕНО] Только слоты патронов 0-8
             ItemStack stack = getStackInSlot(i);
             if (stack.isEmpty()) continue;
             if (stack.getItem() instanceof IAmmoItem ammo) {
@@ -63,27 +69,23 @@ public class TurretAmmoContainer extends ItemStackHandler {
         return null;
     }
 
-
     public IAmmoItem takeAmmoAndGet(String caliber) {
-        for (int i = 0; i < SLOT_COUNT; i++) {
+        for (int i = 0; i < 9; i++) { // [ИЗМЕНЕНО] Только слоты патронов 0-8
             ItemStack stack = getStackInSlot(i);
             if (stack.isEmpty()) continue;
             if (stack.getItem() instanceof IAmmoItem ammo) {
-                // Для совместимости с IAmmoItem который может зависеть от NBT, лучше проверять stack
-                // Но в твоем случае getCaliber() без аргументов в интерфейсе
-                if (ammo.getCaliber().equals(caliber)) { // или ammo.getCaliber(stack)
+                if (ammo.getCaliber().equals(caliber)) {
                     stack.shrink(1);
-                    return ammo; // Возвращаем сам предмет (интерфейс)
+                    return ammo;
                 }
             }
         }
         return null;
     }
 
-
     public int countAmmo(String caliber) {
         int count = 0;
-        for (int i = 0; i < SLOT_COUNT; i++) {
+        for (int i = 0; i < 9; i++) { // [ИЗМЕНЕНО] Только слоты патронов 0-8
             ItemStack stack = getStackInSlot(i);
             if (stack.isEmpty()) continue;
             if (stack.getItem() instanceof IAmmoItem ammo) {
@@ -96,7 +98,7 @@ public class TurretAmmoContainer extends ItemStackHandler {
     }
 
     public boolean takeAmmo(String caliber) {
-        for (int i = 0; i < SLOT_COUNT; i++) {
+        for (int i = 0; i < 9; i++) { // [ИЗМЕНЕНО] Только слоты патронов 0-8
             ItemStack stack = getStackInSlot(i);
             if (stack.isEmpty()) continue;
             if (stack.getItem() instanceof IAmmoItem ammo) {
@@ -109,6 +111,7 @@ public class TurretAmmoContainer extends ItemStackHandler {
         return false;
     }
 
+    @Override
     public CompoundTag serializeNBT() {
         CompoundTag tag = new CompoundTag();
         ListTag nbtList = new ListTag();
@@ -124,6 +127,7 @@ public class TurretAmmoContainer extends ItemStackHandler {
         return tag;
     }
 
+    @Override
     public void deserializeNBT(CompoundTag tag) {
         ListTag nbtList = tag.getList("Items", Tag.TAG_COMPOUND);
         for (int i = 0; i < nbtList.size(); i++) {

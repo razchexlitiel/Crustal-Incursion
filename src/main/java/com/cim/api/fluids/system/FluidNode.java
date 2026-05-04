@@ -1,5 +1,6 @@
-package com.cim.api.fluids;
+package com.cim.api.fluids.system;
 
+import com.cim.block.entity.industrial.fluids.FluidPipeBlockEntity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.entity.BlockEntity;
@@ -34,7 +35,7 @@ public class FluidNode {
         if (be == null) return false;
 
         // Валиден, если это труба или блок с инвентарем для жидкостей
-        return be instanceof com.cim.block.entity.fluids.FluidPipeBlockEntity ||
+        return be instanceof FluidPipeBlockEntity ||
                 be.getCapability(ForgeCapabilities.FLUID_HANDLER).isPresent();
     }
 

@@ -7,6 +7,8 @@ import com.cim.main.CrustalIncursionMod;
 import com.cim.block.basic.ModBlocks;
 import com.cim.item.ModItems;
 
+import javax.annotation.Nullable;
+
 public class ModLangProvider extends LanguageProvider {
 
         protected final String locale;
@@ -19,7 +21,39 @@ public class ModLangProvider extends LanguageProvider {
                 ResourceRegistry.init();
         }
 
-        @Override
+    /**
+     * Универсальная регистрация перевода для жидкости, её капли и ключа fluid.*
+     * @param fluidId   короткое имя жидкости (например "hydrogen_peroxide")
+     * @param nameRu    перевод на русский
+     * @param nameUa    перевод на украинский (можно null)
+     * @param nameEn    перевод на английский (можно null, но тогда будет пропущен)
+     */
+    private void addFluidTranslations(String fluidId, String nameRu, @Nullable String nameUa, @Nullable String nameEn) {
+        switch (locale) {
+            case "ru_ru":
+                add("fluid_type.cim." + fluidId, nameRu);
+                add("fluid.cim." + fluidId, nameRu);
+                add("item.cim.fluid_drop_" + fluidId, nameRu);
+                break;
+            case "uk_ua":
+                if (nameUa != null) {
+                    add("fluid_type.cim." + fluidId, nameUa);
+                    add("fluid.cim." + fluidId, nameUa);
+                    add("item.cim.fluid_drop_" + fluidId, nameUa);
+                }
+                break;
+            case "en_us":
+                if (nameEn != null) {
+                    add("fluid_type.cim." + fluidId, nameEn);
+                    add("fluid.cim." + fluidId, nameEn);
+                    add("item.cim.fluid_drop_" + fluidId, nameEn);
+                }
+                break;
+            // другие локали можно добавить аналогично
+        }
+    }
+
+    @Override
         protected void addTranslations() {
                 // Сначала автоматические переводы для ресурсов
                 ResourceDatagenHelper.generateTranslations(this, locale);
@@ -42,11 +76,7 @@ public class ModLangProvider extends LanguageProvider {
                 add("itemGroup.cim.cim_weapons_tab", " Arsenal");
                 add("itemGroup.cim.cim_recourses_tab", "Recourses");
                 add("itemGroup.cim.cim_nature_tab", "Nature");
-                // Fluid Identifier
-                add("item.cim.fluid_identifier", "Fluid Identifier");
-                add("fluid.cim.none", "None");
-                add("tooltip.cim.fluid.unknown", "Unknown Fluid");
-                add("tooltip.cim.fluid.invalid", "Invalid Fluid");
+
 
                 // Fluid Pipes
                 add(ModBlocks.BRONZE_FLUID_PIPE.get(), "Bronze Fluid Pipe");
@@ -54,11 +84,7 @@ public class ModLangProvider extends LanguageProvider {
                 add(ModBlocks.LEAD_FLUID_PIPE.get(), "Lead Fluid Pipe");
                 add(ModBlocks.TUNGSTEN_FLUID_PIPE.get(), "Tungsten Fluid Pipe");
 
-                // Fluids
-                add("fluid_type.cim.hydrogen_peroxide", "Hydrogen Peroxide");
-                add("fluid_type.cim.sulfuric_acid", "Sulfuric Acid");
-                add("fluid_type.cim.natural_gas", "Natural Gas");
-                add("fluid_type.cim.steam", "Steam");
+
 
                 add("tooltip.cim.detminer.desc", "Breaks blocks in a natural blast pattern");
                 add("tooltip.cim.detminer.hardness", "Only affects blocks with hardness < 30");
@@ -68,7 +94,21 @@ public class ModLangProvider extends LanguageProvider {
                 add("item.cim.conglomerate_chunk", "Conglomerate Chunk");
                 add("item.cim.hard_rock", "Hard Rock");
 
-                // Metals
+            // Основные строки
+            add("item.cim.fluid_identifier", "Fluid Identifier");
+            add("message.cim.selected_fluid", "Selected");
+            add("tooltip.cim.no_fluid", "No fluid selected");
+
+
+            addFluidTranslations("hydrogen_peroxide", "Пероксид водорода", null, "Hydrogen Peroxide");
+            addFluidTranslations("sulfuric_acid", "Серная кислота", null, "Sulfuric Acid");
+            addFluidTranslations("natural_gas", "Природный газ", null, "Natural Gas");
+            addFluidTranslations("steam", "Пар", null, "Steam");
+// Для ванильных жидкостей можно тоже добавить (если нужно переопределить):
+            addFluidTranslations("water", "Вода", "Вода", "Water");
+            addFluidTranslations("lava", "Лава", "Лава", "Lava");
+
+            // Metals
                 add("metal.cim.gold", "Gold");
                 add("metal.cim.iron", "Iron");
                 add("metal.cim.copper", "Copper");
@@ -253,6 +293,8 @@ public class ModLangProvider extends LanguageProvider {
 
         private void addRussian() {
                 // Секвойя
+
+
                 add("item.cim.cast_pickaxe_iron", "Литая железная кирка");
                 add("item.cim.cast_pickaxe_steel", "Литая стальная кирка");
 
@@ -423,17 +465,7 @@ public class ModLangProvider extends LanguageProvider {
                 add("itemGroup.cim.cim_recourses_tab", "Ресурсы");
                 add("itemGroup.cim.cim_nature_tab", "Природа");
 
-                // Жискосные идентификаторы
-                add("item.cim.fluid_identifier", "Жидкостный индефикатор");
-                add("fluid.cim.none", "Ничего");
-                add("tooltip.cim.fluid.unknown", "Неизвестная жидкость");
-                add("tooltip.cim.fluid.invalid", "Недействительная жидкость");
 
-                // Жыжкости
-                add("fluid_type.cim.hydrogen_peroxide", "Пероксид водорода");
-                add("fluid_type.cim.sulfuric_acid", "Серная кислота");
-                add("fluid_type.cim.natural_gas", "Природный газ");
-                add("fluid_type.cim.steam", "Пар");
 
                 // Трубы для жижкостей
                 add(ModBlocks.BRONZE_FLUID_PIPE.get(), "Бронзовая жидкостная труба");
@@ -441,7 +473,18 @@ public class ModLangProvider extends LanguageProvider {
                 add(ModBlocks.LEAD_FLUID_PIPE.get(), "Свинцовая жидкостная труба");
                 add(ModBlocks.TUNGSTEN_FLUID_PIPE.get(), "Вольфрамовая жидкостная труба");
 
-                // Энтити
+            // Основные строки
+            add("item.cim.fluid_identifier", "Жидкостный Идентификатор");
+            add("message.cim.selected_fluid", "Выбрано");
+            add("tooltip.cim.no_fluid", "Жидкость не выбрана");
+
+
+            addFluidTranslations("hydrogen_peroxide", "Пероксид водорода", null, null);
+            addFluidTranslations("sulfuric_acid", "Серная кислота", null, null);
+            addFluidTranslations("natural_gas", "Природный газ", null, null);
+            addFluidTranslations("steam", "Пар", null, null);
+
+            // Энтити
                 add("entity.cim.turret_light", "Лёгкая турель");
                 add("entity.cim.turret_light_linked", "Связанная лёгкая турель");
                 add("entity.cim.turret_bullet", "Пуля турели");
@@ -471,15 +514,17 @@ public class ModLangProvider extends LanguageProvider {
                 add("itemGroup.cim.cim_nature_tab", "Природа");
                 add("itemGroup.cim.cim_recourses_tab", "Ресурси");
 
+            addFluidTranslations("hydrogen_peroxide", "Пероксид водорода", "Перекис водню", null);
+            addFluidTranslations("sulfuric_acid", "Серная кислота", "Сірчана кислота", null);
+            addFluidTranslations("natural_gas", "Природный газ", "Природний газ", null);
+            addFluidTranslations("steam", "Пар", "Пара", null);
+
                 // Рідини
                 add("item.cim.fluid_identifier", "Ідентифікатор рідин");
                 add("fluid.cim.none", "Нічого");
                 add("tooltip.cim.fluid.unknown", "Невідома рідина");
                 add("tooltip.cim.fluid.invalid", "Недійсна рідина");
-                add("fluid_type.cim.hydrogen_peroxide", "Перекис водню");
-                add("fluid_type.cim.sulfuric_acid", "Сірчана кислота");
-                add("fluid_type.cim.natural_gas", "Природний газ");
-                add("fluid_type.cim.steam", "Пара");
+
 
                 // Труби для рідин
                 add(ModBlocks.BRONZE_FLUID_PIPE.get(), "Бронзова труба для рідин");

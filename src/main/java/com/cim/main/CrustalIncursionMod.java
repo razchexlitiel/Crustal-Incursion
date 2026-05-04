@@ -293,6 +293,10 @@ public class CrustalIncursionMod {
             event.accept(ModBlocks.LEAD_FLUID_PIPE);
             event.accept(ModBlocks.TUNGSTEN_FLUID_PIPE);
 
+            // Капли жидкостей
+            for (var entry : com.cim.api.fluids.ModFluids.getAllFluidDrops().values()) {
+                event.accept(entry.get());
+            }
 
 
 

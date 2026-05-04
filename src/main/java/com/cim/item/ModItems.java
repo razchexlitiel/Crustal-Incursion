@@ -26,7 +26,6 @@ import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.item.ArmorItem;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
-import net.minecraft.world.item.SpawnEggItem;
 import net.minecraftforge.common.ForgeSpawnEggItem;
 import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.ForgeRegistries;
@@ -68,6 +67,10 @@ public class ModItems {
     // ИНСТРУМЕНТЫ
     public static final RegistryObject<Item> BELT = ITEMS.register("belt",
             () -> new com.cim.item.rotation.BeltItem(new Item.Properties()));
+
+    // Базовый предмет-капля (без привязки к жидкости, используется как "none" / заглушка)
+    public static final RegistryObject<Item> FLUID_IDENTIFIER_DROP = ITEMS.register("fluid_identifier_drop",
+            () -> new Item(new Item.Properties()));
 
     // ШКИВЫ
     public static final RegistryObject<Item> PULLEY = ITEMS.register("pulley",
