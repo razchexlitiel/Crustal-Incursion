@@ -61,6 +61,14 @@ public class ModItems {
     public static final RegistryObject<Item> LEAD_BARREL_ITEM = ITEMS.register("lead_barrel",
             () -> new BlockItem(ModBlocks.LEAD_BARREL.get(), new Item.Properties()));
 
+    public static final RegistryObject<Item> PROTECTOR_STEEL = ITEMS.register("protector_steel",
+            () -> new ProtectorItem(50, 75, 5, new Item.Properties().stacksTo(1)));
+
+    public static final RegistryObject<Item> PROTECTOR_LEAD = ITEMS.register("protector_lead",
+            () -> new ProtectorItem(125, 225, 25, new Item.Properties().stacksTo(1)));
+
+    public static final RegistryObject<Item> PROTECTOR_TUNGSTEN = ITEMS.register("protector_tungsten",
+            () -> new ProtectorItem(250, 750, 30, new Item.Properties().stacksTo(1)));
 
     //ОБЫЧНЫЕ ПРЕДМЕТЫ
     public static final RegistryObject<Item> DEPTH_WORM_SPAWN_EGG = ITEMS.register("depth_worm_spawn_egg",
@@ -167,15 +175,6 @@ public class ModItems {
 
     public static final RegistryObject<Item> FUEL_ASH = ITEMS.register("fuel_ash",
             () -> new Item(new Item.Properties()));
-
-    public static final RegistryObject<Item> PROTECTOR_LEAD = ITEMS.register("protector_lead",
-            () -> new Item(new Item.Properties().stacksTo(1)));
-
-    public static final RegistryObject<Item> PROTECTOR_STEEL = ITEMS.register("protector_steel",
-            () -> new Item(new Item.Properties().stacksTo(1)));
-
-    public static final RegistryObject<Item> PROTECTOR_TUNGSTEN = ITEMS.register("protector_tungsten",
-            () -> new Item(new Item.Properties().stacksTo(1)));
 
 
     public static final RegistryObject<Item> INFINITE_FLUID_BARREL = ITEMS.register("infinite_fluid_barrel",

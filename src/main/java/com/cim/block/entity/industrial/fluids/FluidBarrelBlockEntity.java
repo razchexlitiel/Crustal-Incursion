@@ -1,6 +1,7 @@
 package com.cim.block.entity.industrial.fluids;
 
 import com.cim.api.fluids.system.BarrelTier;
+import com.cim.api.fluids.system.BaseFluidType;
 import com.cim.api.fluids.system.FluidNetworkManager;
 import com.cim.api.fluids.system.FluidPropertyHelper;
 import com.cim.block.basic.ModBlocks;
@@ -218,9 +219,9 @@ public class FluidBarrelBlockEntity extends BlockEntity implements MenuProvider 
         if (fluidTank.isEmpty()) return;
 
         FluidStack fluid = fluidTank.getFluid();
-        int acid = FluidPropertyHelper.getCorrosivity(fluid);
+        int acid = getFluidCorrosivity(fluid);
         int temp = FluidPropertyHelper.getTemperature(fluid);
-        int rad  = FluidPropertyHelper.getRadioactivity(fluid);
+        int rad  = getFluidRadiation(fluid);
 
         int cRes = getTotalCorrosionResistance();
         int hRes = getTotalHeatResistance();
@@ -338,6 +339,20 @@ public class FluidBarrelBlockEntity extends BlockEntity implements MenuProvider 
         super.invalidateCaps();
         lazyFluidHandler.invalidate();
         lazyItemHandler.invalidate();
+    }
+
+    private int getFluidCorrosivity(FluidStack stack) {
+        int nbt = FluidPropertyHelper.getCorrosivity(stack);
+        if (nbt > 0) return nbt;
+        if (stack.getFluid().getFluidType() instanceof BaseFluidType base) return base.getAcidity();
+        return 0;
+    }
+
+    private int getFluidRadiation(FluidStack stack) {
+        int nbt = FluidPropertyHelper.getRadioactivity(stack);
+        if (nbt > 0) return nbt;
+        if (stack.getFluid().getFluidType() instanceof BaseFluidType base) return base.getRadiation();
+        return 0;
     }
 
     @Override public @NotNull <T> LazyOptional<T> getCapability(@NotNull Capability<T> cap, @Nullable Direction side) {
