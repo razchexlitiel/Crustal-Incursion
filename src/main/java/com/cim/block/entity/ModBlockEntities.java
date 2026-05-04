@@ -33,6 +33,8 @@ import com.cim.block.entity.weapons.TurretLightPlacerBlockEntity;
 import com.cim.main.CrustalIncursionMod;
 import com.cim.block.basic.ModBlocks;
 
+import static com.cim.block.basic.ModBlocks.*;
+
 public class ModBlockEntities {
     public static final DeferredRegister<BlockEntityType<?>> BLOCK_ENTITIES =
             DeferredRegister.create(ForgeRegistries.BLOCK_ENTITY_TYPES, CrustalIncursionMod.MOD_ID);
@@ -182,9 +184,10 @@ public class ModBlockEntities {
 
 
     public static final RegistryObject<BlockEntityType<FluidBarrelBlockEntity>> FLUID_BARREL_BE =
-            BLOCK_ENTITIES.register("fluid_barrel_be",
-                    () -> BlockEntityType.Builder.of(FluidBarrelBlockEntity::new, ModBlocks.FLUID_BARREL.get()).build(null));
-
+            BLOCK_ENTITIES.register("fluid_barrel",
+                    () -> BlockEntityType.Builder.of(FluidBarrelBlockEntity::new,
+                            CORRUPTED_BARREL.get(), LEAKING_BARREL.get(), IRON_BARREL.get(),
+                            STEEL_BARREL.get(), LEAD_BARREL.get()).build(null));
     public static void register(IEventBus eventBus) {
         BLOCK_ENTITIES.register(eventBus);
     }

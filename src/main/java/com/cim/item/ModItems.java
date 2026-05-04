@@ -49,6 +49,17 @@ public class ModItems {
             DeferredRegister.create(ForgeRegistries.ITEMS, CrustalIncursionMod.MOD_ID);
 
 
+    public static final RegistryObject<Item> CORRUPTED_BARREL_ITEM = ITEMS.register("corrupted_barrel",
+            () -> new BlockItem(ModBlocks.CORRUPTED_BARREL.get(), new Item.Properties()));
+
+    public static final RegistryObject<Item> LEAKING_BARREL_ITEM = ITEMS.register("leaking_barrel",
+            () -> new BlockItem(ModBlocks.LEAKING_BARREL.get(), new Item.Properties()));
+    public static final RegistryObject<Item> IRON_BARREL_ITEM = ITEMS.register("iron_barrel",
+            () -> new BlockItem(ModBlocks.IRON_BARREL.get(), new Item.Properties()));
+    public static final RegistryObject<Item> STEEL_BARREL_ITEM = ITEMS.register("steel_barrel",
+            () -> new BlockItem(ModBlocks.STEEL_BARREL.get(), new Item.Properties()));
+    public static final RegistryObject<Item> LEAD_BARREL_ITEM = ITEMS.register("lead_barrel",
+            () -> new BlockItem(ModBlocks.LEAD_BARREL.get(), new Item.Properties()));
 
 
     //ОБЫЧНЫЕ ПРЕДМЕТЫ

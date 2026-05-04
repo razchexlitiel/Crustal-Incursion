@@ -1,6 +1,8 @@
 package com.cim.menu;
 
 import com.cim.block.basic.ModBlocks;
+import com.cim.block.basic.industrial.fluids.FluidBarrelBlock;
+import net.minecraft.core.BlockPos;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
@@ -57,8 +59,10 @@ public class FluidBarrelMenu extends AbstractContainerMenu {
 
     @Override
     public boolean stillValid(Player player) {
-        return stillValid(ContainerLevelAccess.create(blockEntity.getLevel(), blockEntity.getBlockPos()),
-                player, ModBlocks.FLUID_BARREL.get());
+        if (blockEntity.getLevel() == null) return false;
+        BlockPos pos = blockEntity.getBlockPos();
+        return blockEntity.getLevel().getBlockState(pos).getBlock() instanceof FluidBarrelBlock
+                && player.distanceToSqr(pos.getCenter()) < 64.0;
     }
 
     // Инвентарь начинается на 8-66 (GUI высота 148, инвентарь 3*18=54, хотбар 18, итого 72. 148-72=76, но с отступом 66 норм)

@@ -112,7 +112,6 @@ public class ModItemModelProvider extends ItemModelProvider {
         simpleBlockItem(ModBlocks.MEDIUM_CONNECTOR);
         simpleBlockItem(ModBlocks.LARGE_CONNECTOR);
         simpleItem(ModItems.FUEL_ASH);
-        complexBlockItem(ModBlocks.FLUID_BARREL);
         complexBlockItem(ModBlocks.BEARING_BLOCK);
         simpleItem(ModFluids.FLUID_DROP_NONE);
         simpleItem(ModFluids.FLUID_DROP_WATER);

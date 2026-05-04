@@ -1,5 +1,6 @@
 package com.cim.block.basic.industrial.fluids;
 
+import com.cim.api.fluids.system.BarrelTier;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.sounds.SoundEvents;
@@ -29,12 +30,15 @@ import com.cim.block.entity.industrial.fluids.FluidBarrelBlockEntity;
 
 public class FluidBarrelBlock extends BaseEntityBlock {
 
-    // Хитбокс 12x12x16 (центрированный)
     private static final VoxelShape SHAPE = Block.box(2.0D, 0.0D, 2.0D, 14.0D, 16.0D, 14.0D);
+    private final BarrelTier tier;
 
-    public FluidBarrelBlock(Properties properties) {
+    public FluidBarrelBlock(BarrelTier tier, Properties properties) {
         super(properties);
+        this.tier = tier;
     }
+
+    public BarrelTier getTier() { return tier; }
 
     // ====================== ХИТБОКС И КОЛЛИЗИЯ ======================
     @Override
