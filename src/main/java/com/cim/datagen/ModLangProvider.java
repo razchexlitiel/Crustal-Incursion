@@ -7,6 +7,8 @@ import com.cim.main.CrustalIncursionMod;
 import com.cim.block.basic.ModBlocks;
 import com.cim.item.ModItems;
 
+import javax.annotation.Nullable;
+
 public class ModLangProvider extends LanguageProvider {
 
         protected final String locale;
@@ -19,13 +21,36 @@ public class ModLangProvider extends LanguageProvider {
                 ResourceRegistry.init();
         }
 
-    private void addFluid(String id, String name) {
-        add("fluid.cim." + id, name);
-        add("item.cim.fluid_drop_" + id, name);
-    }
-    private void addFluidRu(String id, String name) {
-        add("fluid.cim." + id, name);
-        add("item.cim.fluid_drop_" + id, name);
+    /**
+     * Универсальная регистрация перевода для жидкости, её капли и ключа fluid.*
+     * @param fluidId   короткое имя жидкости (например "hydrogen_peroxide")
+     * @param nameRu    перевод на русский
+     * @param nameUa    перевод на украинский (можно null)
+     * @param nameEn    перевод на английский (можно null, но тогда будет пропущен)
+     */
+    private void addFluidTranslations(String fluidId, String nameRu, @Nullable String nameUa, @Nullable String nameEn) {
+        switch (locale) {
+            case "ru_ru":
+                add("fluid_type.cim." + fluidId, nameRu);
+                add("fluid.cim." + fluidId, nameRu);
+                add("item.cim.fluid_drop_" + fluidId, nameRu);
+                break;
+            case "uk_ua":
+                if (nameUa != null) {
+                    add("fluid_type.cim." + fluidId, nameUa);
+                    add("fluid.cim." + fluidId, nameUa);
+                    add("item.cim.fluid_drop_" + fluidId, nameUa);
+                }
+                break;
+            case "en_us":
+                if (nameEn != null) {
+                    add("fluid_type.cim." + fluidId, nameEn);
+                    add("fluid.cim." + fluidId, nameEn);
+                    add("item.cim.fluid_drop_" + fluidId, nameEn);
+                }
+                break;
+            // другие локали можно добавить аналогично
+        }
     }
 
     @Override
@@ -59,11 +84,7 @@ public class ModLangProvider extends LanguageProvider {
                 add(ModBlocks.LEAD_FLUID_PIPE.get(), "Lead Fluid Pipe");
                 add(ModBlocks.TUNGSTEN_FLUID_PIPE.get(), "Tungsten Fluid Pipe");
 
-                // Fluids
-                add("fluid_type.cim.hydrogen_peroxide", "Hydrogen Peroxide");
-                add("fluid_type.cim.sulfuric_acid", "Sulfuric Acid");
-                add("fluid_type.cim.natural_gas", "Natural Gas");
-                add("fluid_type.cim.steam", "Steam");
+
 
                 add("tooltip.cim.detminer.desc", "Breaks blocks in a natural blast pattern");
                 add("tooltip.cim.detminer.hardness", "Only affects blocks with hardness < 30");
@@ -78,19 +99,14 @@ public class ModLangProvider extends LanguageProvider {
             add("message.cim.selected_fluid", "Selected");
             add("tooltip.cim.no_fluid", "No fluid selected");
 
-            // Наши жидкости (автоматически создает ключи для капли и для самой жидкости)
-            addFluid("hydrogen_peroxide", "Hydrogen Peroxide");
-            addFluid("sulfuric_acid", "Sulfuric Acid");
-            addFluid("natural_gas", "Natural Gas");
-            addFluid("steam", "Steam");
 
-            // Ванильные жидкости (только имена, капли если нужны - отдельно)
-            add("fluid.minecraft.water", "Water");
-            add("fluid.minecraft.lava", "Lava");
-            // Если у тебя есть свои айтемы капель для ванильной воды/лавы:
-            add("item.cim.fluid_drop_water", "Water Drop");
-            add("item.cim.fluid_drop_lava", "Lava Drop");
-
+            addFluidTranslations("hydrogen_peroxide", "Пероксид водорода", null, "Hydrogen Peroxide");
+            addFluidTranslations("sulfuric_acid", "Серная кислота", null, "Sulfuric Acid");
+            addFluidTranslations("natural_gas", "Природный газ", null, "Natural Gas");
+            addFluidTranslations("steam", "Пар", null, "Steam");
+// Для ванильных жидкостей можно тоже добавить (если нужно переопределить):
+            addFluidTranslations("water", "Вода", "Вода", "Water");
+            addFluidTranslations("lava", "Лава", "Лава", "Lava");
 
             // Metals
                 add("metal.cim.gold", "Gold");
@@ -462,18 +478,11 @@ public class ModLangProvider extends LanguageProvider {
             add("message.cim.selected_fluid", "Выбрано");
             add("tooltip.cim.no_fluid", "Жидкость не выбрана");
 
-            // Наши жидкости
-            addFluidRu("hydrogen_peroxide", "Пероксид водорода");
-            addFluidRu("sulfuric_acid", "Серная кислота");
-            addFluidRu("natural_gas", "Природный газ");
-            addFluidRu("steam", "Пар");
 
-            // Ванильные жидкости
-            add("fluid.minecraft.water", "Вода");
-            add("fluid.minecraft.lava", "Лава");
-            // Капли для ванильных жидкостей
-            add("item.cim.fluid_drop_water", "Капля воды");
-            add("item.cim.fluid_drop_lava", "Капля лавы");
+            addFluidTranslations("hydrogen_peroxide", "Пероксид водорода", null, null);
+            addFluidTranslations("sulfuric_acid", "Серная кислота", null, null);
+            addFluidTranslations("natural_gas", "Природный газ", null, null);
+            addFluidTranslations("steam", "Пар", null, null);
 
             // Энтити
                 add("entity.cim.turret_light", "Лёгкая турель");
@@ -505,15 +514,17 @@ public class ModLangProvider extends LanguageProvider {
                 add("itemGroup.cim.cim_nature_tab", "Природа");
                 add("itemGroup.cim.cim_recourses_tab", "Ресурси");
 
+            addFluidTranslations("hydrogen_peroxide", "Пероксид водорода", "Перекис водню", null);
+            addFluidTranslations("sulfuric_acid", "Серная кислота", "Сірчана кислота", null);
+            addFluidTranslations("natural_gas", "Природный газ", "Природний газ", null);
+            addFluidTranslations("steam", "Пар", "Пара", null);
+
                 // Рідини
                 add("item.cim.fluid_identifier", "Ідентифікатор рідин");
                 add("fluid.cim.none", "Нічого");
                 add("tooltip.cim.fluid.unknown", "Невідома рідина");
                 add("tooltip.cim.fluid.invalid", "Недійсна рідина");
-                add("fluid_type.cim.hydrogen_peroxide", "Перекис водню");
-                add("fluid_type.cim.sulfuric_acid", "Сірчана кислота");
-                add("fluid_type.cim.natural_gas", "Природний газ");
-                add("fluid_type.cim.steam", "Пара");
+
 
                 // Труби для рідин
                 add(ModBlocks.BRONZE_FLUID_PIPE.get(), "Бронзова труба для рідин");

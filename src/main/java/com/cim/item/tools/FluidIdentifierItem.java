@@ -89,30 +89,6 @@ public class FluidIdentifierItem extends Item {
     }
 
 
-    @Override
-    public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
-        ItemStack stack = player.getItemInHand(hand);
-
-        if (player.isShiftKeyDown()) {
-            if (level.isClientSide) openScreen(stack);
-        } else {
-            if (!level.isClientSide) {
-                cycleFluid(stack, 1);
-                String current = getSelectedFluid(stack);
-
-                // ЦВЕТНОЕ СООБЩЕНИЕ
-                player.displayClientMessage(Component.translatable("message.cim.selected_fluid")
-                        .append(": ")
-                        .append(Component.translatable("fluid." + current.replace(":", "."))
-                                .withStyle(style -> style.withColor(getFluidColor(current)))), true);
-            }
-        }
-        return InteractionResultHolder.sidedSuccess(stack, level.isClientSide());
-    }
-
-
-
-
 
     private void cycleFluid(ItemStack stack, int direction) {
         List<String> history = getRecentFluids(stack);
@@ -128,18 +104,6 @@ public class FluidIdentifierItem extends Item {
         stack.getOrCreateTag().putString("SelectedFluid", history.get(newIndex));
     }
 
-    @Override
-    public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> tooltip, TooltipFlag flag) {
-        String fluid = getSelectedFluid(stack);
-        if (fluid.equals("none")) {
-            tooltip.add(Component.translatable("tooltip.cim.no_fluid").withStyle(ChatFormatting.GRAY));
-        } else {
-            tooltip.add(Component.literal("Жидкость: ").withStyle(ChatFormatting.GOLD)
-                    .append(Component.translatable("fluid." + fluid.replace(":", "."))
-                            .withStyle(style -> style.withColor(getFluidColor(fluid))))); // Динамический цвет
-        }
-        super.appendHoverText(stack, level, tooltip, flag);
-    }
 
 
     private int getFluidColor(String fluidName) {
@@ -157,5 +121,51 @@ public class FluidIdentifierItem extends Item {
         }
         return 0xFFFFFF;
     }
+
+    // Добавь эти методы в FluidIdentifierItem
+
+    public Component getFluidDisplayName(String fluidName) {
+        if (fluidName.equals("none")) {
+            return Component.translatable("tooltip.cim.no_fluid").withStyle(ChatFormatting.GRAY);
+        }
+
+        // Пытаемся найти предмет капли
+        // Формируем путь: если жидкость cim:peroxide, то капля cim:fluid_drop_peroxide
+        String dropId = fluidName.replace(":", ":fluid_drop_").replace("minecraft:fluid_drop_", "cim:fluid_drop_");
+        var item = net.minecraftforge.registries.ForgeRegistries.ITEMS.getValue(new net.minecraft.resources.ResourceLocation(dropId));
+
+        if (item != null && item != net.minecraft.world.item.Items.AIR) {
+            // Берем имя прямо из предмета капли и красим его
+            return item.getDescription().copy().withStyle(style -> style.withColor(getFluidColor(fluidName)));
+        }
+
+        // Если капли нет, просто красиво форматируем ключ
+        return Component.translatable("fluid." + fluidName.replace(":", "."))
+                .withStyle(style -> style.withColor(getFluidColor(fluidName)));
+    }
+
+    @Override
+    public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
+        ItemStack stack = player.getItemInHand(hand);
+        if (player.isShiftKeyDown()) {
+            if (level.isClientSide) openScreen(stack);
+        } else {
+            if (!level.isClientSide) {
+                cycleFluid(stack, 1);
+                String current = getSelectedFluid(stack);
+                player.displayClientMessage(Component.translatable("message.cim.selected_fluid")
+                        .append(": ").append(getFluidDisplayName(current)), true);
+            }
+        }
+        return InteractionResultHolder.sidedSuccess(stack, level.isClientSide());
+    }
+
+    @Override
+    public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> tooltip, TooltipFlag flag) {
+        String fluid = getSelectedFluid(stack);
+        tooltip.add(Component.literal("Жидкость: ").withStyle(ChatFormatting.GOLD).append(getFluidDisplayName(fluid)));
+        super.appendHoverText(stack, level, tooltip, flag);
+    }
+
 
 }

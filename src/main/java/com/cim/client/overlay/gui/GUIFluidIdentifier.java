@@ -1,6 +1,7 @@
 package com.cim.client.overlay.gui;
 
 import com.cim.api.fluids.ModFluids;
+import com.cim.api.fluids.system.FluidDropItem;
 import com.cim.api.fluids.system.FluidPropertyHelper;
 import com.cim.item.tools.FluidIdentifierItem;
 import com.cim.main.CrustalIncursionMod;
@@ -15,6 +16,7 @@ import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.TextColor;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -22,6 +24,7 @@ import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.material.Fluids;
 import net.minecraftforge.client.extensions.common.IClientFluidTypeExtensions;
 import net.minecraftforge.fluids.FluidStack;
+import net.minecraftforge.registries.ForgeRegistries;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -208,19 +211,29 @@ public class GUIFluidIdentifier extends Screen {
     }
 
     private Component getFluidDisplayName(String fluidId) {
+        Component name;
         if (fluidId.equals("none")) {
-            return Component.literal("Ничего");
+            name = Component.translatable("tooltip.cim.no_fluid");
+        } else {
+            Fluid fluid = BuiltInRegistries.FLUID.get(new ResourceLocation(fluidId));
+            if (fluid != null) {
+                name = fluid.getFluidType().getDescription().copy();
+            } else {
+                name = Component.literal(fluidId.replace("minecraft:", "").replace("cim:", ""));
+            }
         }
-        Fluid fluid = BuiltInRegistries.FLUID.get(new ResourceLocation(fluidId));
-        if (fluid != null) {
-            return fluid.getFluidType().getDescription();
-        }
-        return Component.literal(fluidId.replace("minecraft:", "").replace("cim:", ""));
+        int color = getFluidColor(fluidId);
+        TextColor textColor = TextColor.fromRgb(color);
+        return name.copy().withStyle(style -> style.withColor(textColor));
     }
 
     private void renderScrollableList(GuiGraphics graphics, int x, int y, int mouseX, int mouseY) {
         int listX = x + 22;
         int listY = y + 75;
+
+        // 1. ИСПРАВЛЕНО: Теперь это список, и мы будем использовать его для отрисовки
+        List<Component> tooltipToRender = null;
+
         graphics.enableScissor(listX, listY, listX + 99, listY + 141);
 
         int maxScroll = Math.max(0, (displayList.size() * 19) - 141);
@@ -239,19 +252,42 @@ public class GUIFluidIdentifier extends Screen {
 
             graphics.blit(TEXTURE, listX, entryY, 154, vOffset, 99, 19);
 
-            // Рендерим каплю вместо старой иконки
-            renderFluidDropIcon(graphics, fluidId, listX + 3, entryY + 3);
+            int iconX = listX + 3;
+            int iconY = entryY + 3;
+            int iconSize = 13;
 
+            renderFluidDropIcon(graphics, fluidId, iconX, iconY);
+
+            // 2. ИСПРАВЛЕНО: Проверка наведения
+            if (mouseX >= iconX && mouseX <= iconX + iconSize && mouseY >= iconY && mouseY <= iconY + iconSize) {
+                List<Component> fullTooltip = new ArrayList<>();
+
+                if (identifierStack.getItem() instanceof FluidIdentifierItem item) {
+                    fullTooltip.add(item.getFluidDisplayName(fluidId));
+                    fullTooltip.add(Component.literal(""));
+                }
+
+                Fluid fluid = ForgeRegistries.FLUIDS.getValue(new ResourceLocation(fluidId));
+                if (fluid != null) {
+                    // Вызываем наш новый статический метод из предмета капли
+                    fullTooltip.addAll(FluidDropItem.getFluidPropertiesTooltip(fluid.getFluidType()));
+                }
+
+                // Записываем в локальную переменную, которую отрисуем после disableScissor
+                tooltipToRender = fullTooltip;
+            }
+
+            // Рендер индикаторов опасности
             if (!fluidId.equals("none")) {
                 Fluid fluid = BuiltInRegistries.FLUID.get(new ResourceLocation(fluidId));
                 if (fluid != null) {
-                    FluidStack stack = new FluidStack(fluid, 1000);
+                    FluidStack fStack = new FluidStack(fluid, 1000);
                     int cx = listX + 88;
-                    if (FluidPropertyHelper.getCorrosivity(stack) > 0) {
+                    if (FluidPropertyHelper.getCorrosivity(fStack) > 0) {
                         graphics.fill(cx, entryY + 4, cx + 2, entryY + 6, COLOR_HAZARDOUS);
                         cx -= 3;
                     }
-                    if (FluidPropertyHelper.getRadioactivity(stack) > 0) {
+                    if (FluidPropertyHelper.getRadioactivity(fStack) > 0) {
                         graphics.fill(cx, entryY + 4, cx + 2, entryY + 6, COLOR_RADIOACTIVE);
                     }
                 }
@@ -260,8 +296,16 @@ public class GUIFluidIdentifier extends Screen {
             Component name = getFluidDisplayName(fluidId);
             graphics.drawString(this.font, name, listX + 20, entryY + 5, getFluidColor(fluidId), false);
         }
+
         graphics.disableScissor();
+
+        // 3. ИСПРАВЛЕНО: Отрисовка списка компонентов
+        if (tooltipToRender != null) {
+            // Используем renderComponentTooltip для списков (List<Component>)
+            graphics.renderComponentTooltip(this.font, tooltipToRender, mouseX, mouseY);
+        }
     }
+
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {

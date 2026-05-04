@@ -9,6 +9,9 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.network.chat.Style;
+import net.minecraft.network.chat.TextColor;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.entity.player.Inventory;
@@ -72,7 +75,11 @@ public class GUIFluidBarrel extends AbstractContainerScreen<FluidBarrelMenu> {
             if (fluid.isEmpty()) {
                 tooltip.add(Component.literal("Пусто").withStyle(ChatFormatting.GRAY));
             } else {
-                tooltip.add(fluid.getDisplayName());
+                MutableComponent fluidName = fluid.getDisplayName().copy(); // ← тип MutableComponent
+                int tintColor = IClientFluidTypeExtensions.of(fluid.getFluid()).getTintColor() | 0xFF000000;
+                Style coloredStyle = Style.EMPTY.withColor(TextColor.fromRgb(tintColor));
+                fluidName = fluidName.withStyle(coloredStyle); // теперь компилируется
+                tooltip.add(fluidName);
                 tooltip.add(Component.literal(fluid.getAmount() + " / " + menu.getCapacity() + " mB")
                         .withStyle(ChatFormatting.GRAY));
             }
