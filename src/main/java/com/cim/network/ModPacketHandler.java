@@ -172,5 +172,12 @@ public class ModPacketHandler {
                 SelectFluidPacket::toBytes,
                 SelectFluidPacket::new,
                 SelectFluidPacket::handle);
+
+        INSTANCE.registerMessage(id++,
+                com.cim.network.packet.energy.SyncMotorRpmPacket.class,
+                com.cim.network.packet.energy.SyncMotorRpmPacket::encode,
+                com.cim.network.packet.energy.SyncMotorRpmPacket::decode,
+                com.cim.network.packet.energy.SyncMotorRpmPacket::handle
+        );
     }
 }
