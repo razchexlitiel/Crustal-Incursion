@@ -65,6 +65,10 @@ public class FluidBarrelMenu extends AbstractContainerMenu {
                 && player.distanceToSqr(pos.getCenter()) < 64.0;
     }
 
+    public FluidBarrelBlockEntity getBlockEntity() {
+        return this.blockEntity;
+    }
+
     // Инвентарь начинается на 8-66 (GUI высота 148, инвентарь 3*18=54, хотбар 18, итого 72. 148-72=76, но с отступом 66 норм)
     private void addPlayerInventory(Inventory playerInventory) {
         for (int i = 0; i < 3; ++i) {

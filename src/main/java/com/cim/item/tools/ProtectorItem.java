@@ -13,7 +13,7 @@ import java.util.List;
 public class ProtectorItem extends Item {
     private final int corrosion;
     private final int heat;
-    private final int radiation;
+    private final int radiation; // оставлено для совместимости конструктора, но не используется
 
     public ProtectorItem(int corrosion, int heat, int radiation, Properties properties) {
         super(properties);
@@ -24,9 +24,8 @@ public class ProtectorItem extends Item {
 
     @Override
     public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> tooltip, TooltipFlag flag) {
-        tooltip.add(Component.literal("  +" + corrosion + " к коррозии").withStyle(ChatFormatting.YELLOW));
-        tooltip.add(Component.literal("  +" + heat + " к нагреву").withStyle(ChatFormatting.GOLD));
-        tooltip.add(Component.literal("  +" + radiation + " к радиации").withStyle(ChatFormatting.GREEN));
+        tooltip.add(Component.literal("  +" + corrosion + " к коррозионной стойкости").withStyle(ChatFormatting.YELLOW));
+        tooltip.add(Component.literal("  +" + heat + "°C к точке плавления").withStyle(ChatFormatting.GOLD));
         tooltip.add(Component.literal("§7Устанавливается в бочку"));
     }
 }

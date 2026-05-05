@@ -7,6 +7,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.LiquidBlock;
+
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.material.FlowingFluid;
 import net.minecraft.world.level.material.Fluid;
@@ -30,19 +31,14 @@ public class ModFluids {
 
     private static final ResourceLocation WATER_STILL = new ResourceLocation("block/water_still");
     private static final ResourceLocation WATER_FLOW = new ResourceLocation("block/water_flow");
-    private static final ResourceLocation DEFAULT_GUI_TEXTURE =
-            new ResourceLocation("cim", "textures/gui/fluid/fluid_base.png");
-
+    private static final ResourceLocation DEFAULT_GUI_TEXTURE = new ResourceLocation("cim", "textures/gui/fluid/fluid_base.png");
     private static final Map<String, RegistryObject<Item>> FLUID_DROPS = new HashMap<>();
 
-    // ==========================================
-// ЖИДКОСТИ (шкала 0–2500)
-// ==========================================
     public static final RegistryObject<FluidType> HYDROGEN_PEROXIDE_TYPE = FLUID_TYPES.register("hydrogen_peroxide",
             () -> new BaseFluidType(FluidType.Properties.create().density(1450).viscosity(1100).temperature(300),
                     WATER_STILL, WATER_FLOW,
                     new ResourceLocation("cim", "textures/gui/fluid/hydrogen_peroxide.png"),
-                    0xc2b590, 150, 0)); // Слабая кислота
+                    0xc2b590, 20, 40));
 
     public static final RegistryObject<FlowingFluid> HYDROGEN_PEROXIDE_SOURCE = FLUIDS.register("hydrogen_peroxide",
             () -> new ForgeFlowingFluid.Source(ModFluids.HYDROGEN_PEROXIDE_PROPS));
@@ -57,7 +53,7 @@ public class ModFluids {
             () -> new BaseFluidType(FluidType.Properties.create().density(1830).viscosity(2000).temperature(300),
                     WATER_STILL, WATER_FLOW,
                     new ResourceLocation("cim", "textures/gui/fluid/sulfuric_acid.png"),
-                    0xbcc13f, 600, 0)); // Серьёзная кислота
+                    0xbcc13f, 20, 80));
 
     public static final RegistryObject<FlowingFluid> SULFURIC_ACID_SOURCE = FLUIDS.register("sulfuric_acid",
             () -> new ForgeFlowingFluid.Source(ModFluids.SULFURIC_ACID_PROPS));
@@ -72,7 +68,7 @@ public class ModFluids {
             () -> new BaseFluidType(FluidType.Properties.create().density(-800).viscosity(500).temperature(300),
                     WATER_STILL, WATER_FLOW,
                     new ResourceLocation("cim", "textures/gui/fluid/natural_gas.png"),
-                    0xa3b8c4, 0, 0));
+                    0xa3b8c4, 20, 0));
 
     public static final RegistryObject<FlowingFluid> NATURAL_GAS_SOURCE = FLUIDS.register("natural_gas",
             () -> new ForgeFlowingFluid.Source(ModFluids.NATURAL_GAS_PROPS));
@@ -85,7 +81,7 @@ public class ModFluids {
             () -> new BaseFluidType(FluidType.Properties.create().density(-1000).viscosity(200).temperature(373),
                     WATER_STILL, WATER_FLOW,
                     new ResourceLocation("cim", "textures/gui/fluid/steam.png"),
-                    0x88FFFFFF, 0, 0));
+                    0x88FFFFFF, 100, 0));
 
     public static final RegistryObject<FlowingFluid> STEAM_SOURCE = FLUIDS.register("steam",
             () -> new ForgeFlowingFluid.Source(ModFluids.STEAM_PROPS));
@@ -94,34 +90,12 @@ public class ModFluids {
     private static final ForgeFlowingFluid.Properties STEAM_PROPS = new ForgeFlowingFluid.Properties(
             STEAM_TYPE, STEAM_SOURCE, STEAM_FLOWING);
 
+    public static final RegistryObject<Item> FLUID_DROP_NONE = FLUID_DROP_ITEMS.register("fluid_drop_none", () -> new Item(new Item.Properties()));
+    public static final RegistryObject<Item> FLUID_DROP_WATER = FLUID_DROP_ITEMS.register("fluid_drop_water",
+            () -> new FluidDropItem(() -> ForgeRegistries.FLUID_TYPES.get().getValue(new ResourceLocation("water")), new Item.Properties()));
+    public static final RegistryObject<Item> FLUID_DROP_LAVA = FLUID_DROP_ITEMS.register("fluid_drop_lava",
+            () -> new FluidDropItem(() -> ForgeRegistries.FLUID_TYPES.get().getValue(new ResourceLocation("lava")), new Item.Properties()));
 
-    // В классе ModFluids добавить:
-
-    // Капля «ничего»
-    public static final RegistryObject<Item> FLUID_DROP_NONE =
-            FLUID_DROP_ITEMS.register("fluid_drop_none",
-                    () -> new Item(new Item.Properties()));
-
-    // Капля воды
-    public static final RegistryObject<Item> FLUID_DROP_WATER =
-            FLUID_DROP_ITEMS.register("fluid_drop_water",
-                    () -> new FluidDropItem(
-                            () -> ForgeRegistries.FLUID_TYPES.get().getValue(new ResourceLocation("water")), // ← вот так
-                            new Item.Properties()
-                    ));
-
-    // Капля лавы
-    public static final RegistryObject<Item> FLUID_DROP_LAVA =
-            FLUID_DROP_ITEMS.register("fluid_drop_lava",
-                    () -> new FluidDropItem(
-                            () -> ForgeRegistries.FLUID_TYPES.get().getValue(new ResourceLocation("lava")),
-                            new Item.Properties()
-
-                    ));
-
-    // ==========================================
-    // РЕГИСТРАЦИЯ
-    // ==========================================
     public static void register(IEventBus eventBus) {
         FLUID_TYPES.register(eventBus);
         FLUIDS.register(eventBus);
@@ -132,9 +106,6 @@ public class ModFluids {
         FLUID_DROP_ITEMS.register(eventBus);
     }
 
-    // ==========================================
-    // КАПЛИ (Авто-генерация)
-    // ==========================================
     private static void registerFluidDrops() {
         registerDrop("hydrogen_peroxide", HYDROGEN_PEROXIDE_TYPE);
         registerDrop("sulfuric_acid", SULFURIC_ACID_TYPE);
@@ -142,49 +113,24 @@ public class ModFluids {
         registerDrop("steam", STEAM_TYPE);
     }
 
-    /**
-     * НЕ вызываем .get()! Передаём Supplier, который выполнится позже.
-     */
     private static void registerDrop(String name, RegistryObject<FluidType> fluidTypeObj) {
         RegistryObject<Item> dropItem = FLUID_DROP_ITEMS.register("fluid_drop_" + name,
                 () -> new FluidDropItem(fluidTypeObj::get, new Item.Properties()));
-
         FLUID_DROPS.put(name, dropItem);
     }
 
-    // ==========================================
-    // ГЕТТЕРЫ
-    // ==========================================
     public static ResourceLocation getGuiTexture(Fluid fluid) {
         FluidType type = fluid.getFluidType();
-
-        // Если это наша кастомная жидкость
-        if (type instanceof BaseFluidType base) {
-            return base.getGuiTexture();
-        }
-
-        // Если это ванильная вода
-        if (type == ForgeMod.WATER_TYPE.get()) {
-            return new ResourceLocation("cim", "textures/item/water.png");
-        }
-
-
-        // Если это ванильная лава
-        if (type == ForgeMod.LAVA_TYPE.get()) {
-            return new ResourceLocation("cim", "textures/item/lava.png");
-        }
-
-        // В остальных случаях (для других модов или дефолта)
+        if (type instanceof BaseFluidType base) return base.getGuiTexture();
+        if (type == ForgeMod.WATER_TYPE.get()) return new ResourceLocation("cim", "textures/item/water.png");
+        if (type == ForgeMod.LAVA_TYPE.get()) return new ResourceLocation("cim", "textures/item/lava.png");
         return DEFAULT_GUI_TEXTURE;
     }
-
 
     public static Item getFluidDrop(FluidType fluidType) {
         for (RegistryObject<Item> dropObj : FLUID_DROPS.values()) {
             Item item = dropObj.get();
-            if (item instanceof FluidDropItem drop && drop.getFluidType() == fluidType) {
-                return item;
-            }
+            if (item instanceof FluidDropItem drop && drop.getFluidType() == fluidType) return item;
         }
         return null;
     }

@@ -104,16 +104,11 @@ public class GUIFluidIdentifier extends Screen {
 
         FluidStack stack = new FluidStack(fluid, 1000);
         int corrosivity = FluidPropertyHelper.getCorrosivity(stack);
-        int radioactivity = FluidPropertyHelper.getRadioactivity(stack);
         int temperature = FluidPropertyHelper.getTemperature(stack);
 
         if (corrosivity > 0) {
             sb.append("corrosive acid кислота коррозия едкий ");
             if (corrosivity >= 2) sb.append("strong сильный ");
-        }
-        if (radioactivity > 0) {
-            sb.append("radioactive radiation радиоактивный радиация ");
-            if (radioactivity >= 2) sb.append("nuclear ядерный ");
         }
         if (temperature > 500) sb.append("hot heat горячий пар steam ");
         if (temperature < 273) sb.append("cold ice холодный лед ");
@@ -286,9 +281,6 @@ public class GUIFluidIdentifier extends Screen {
                     if (FluidPropertyHelper.getCorrosivity(fStack) > 0) {
                         graphics.fill(cx, entryY + 4, cx + 2, entryY + 6, COLOR_HAZARDOUS);
                         cx -= 3;
-                    }
-                    if (FluidPropertyHelper.getRadioactivity(fStack) > 0) {
-                        graphics.fill(cx, entryY + 4, cx + 2, entryY + 6, COLOR_RADIOACTIVE);
                     }
                 }
             }
