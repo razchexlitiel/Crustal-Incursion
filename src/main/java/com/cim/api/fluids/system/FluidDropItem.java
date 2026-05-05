@@ -35,62 +35,46 @@ public class FluidDropItem extends Item {
         List<Component> tooltip = new ArrayList<>();
         if (fluidType == null) return tooltip;
 
-        tooltip.add(Component.literal("Свойства жидкости:").withStyle(ChatFormatting.GRAY));
+        int tempC = 20;
+        int corrosivity = 0;
 
-        if (fluidType instanceof BaseFluidType baseType) {
-            int temp = fluidType.getTemperature();
-            int acidity = baseType.getAcidity();
-            int radiation = baseType.getRadiation();
-
-            // --- ТЕМПЕРАТУРА ---
-            ChatFormatting tempColor = ChatFormatting.WHITE;
-            String tempDesc = "Обычная";
-            if (temp >= 2000) { tempColor = ChatFormatting.DARK_RED; tempDesc = "Критическая"; }
-            else if (temp >= 1000) { tempColor = ChatFormatting.RED; tempDesc = "Экстремальная"; }
-            else if (temp >= 500) { tempColor = ChatFormatting.GOLD; tempDesc = "Высокая"; }
-            else if (temp > 373) { tempColor = ChatFormatting.YELLOW; tempDesc = "Горячая"; }
-            else if (temp < 273) { tempColor = ChatFormatting.AQUA; tempDesc = "Низкая"; }
-
-            tooltip.add(Component.literal("  Температура: ").withStyle(ChatFormatting.GRAY)
-                    .append(Component.literal(temp + " K (" + tempDesc + ")").withStyle(tempColor)));
-
-            // --- КИСЛОТНОСТЬ ---
-            if (acidity > 0) {
-                ChatFormatting acidColor = ChatFormatting.YELLOW;
-                String acidDesc = "Следы";
-                if (acidity >= 1500) { acidColor = ChatFormatting.DARK_RED; acidDesc = "Экстремальная коррозия"; }
-                else if (acidity >= 1000) { acidColor = ChatFormatting.RED; acidDesc = "Высококоррозионная"; }
-                else if (acidity >= 500) { acidColor = ChatFormatting.YELLOW; acidDesc = "Коррозионная"; }
-                else if (acidity >= 100) { acidColor = ChatFormatting.GOLD; acidDesc = "Слабокоррозионная"; }
-
-                tooltip.add(Component.literal("  Кислотность: ").withStyle(ChatFormatting.GRAY)
-                        .append(Component.literal(acidity + " (" + acidDesc + ")").withStyle(acidColor)));
-            }
-
-            // --- РАДИАЦИЯ ---
-            if (radiation > 0) {
-                ChatFormatting radColor = ChatFormatting.GREEN;
-                String radDesc = "Следы";
-                if (radiation >= 1500) { radColor = ChatFormatting.DARK_RED; radDesc = "Смертельная"; }
-                else if (radiation >= 1000) { radColor = ChatFormatting.DARK_GREEN; radDesc = "Гамма-излучение"; }
-                else if (radiation >= 500) { radColor = ChatFormatting.GREEN; radDesc = "Ионизированная"; }
-                else if (radiation >= 100) { radColor = ChatFormatting.DARK_AQUA; radDesc = "Слабая ионизация"; }
-
-                tooltip.add(Component.literal("  Радиация: ").withStyle(ChatFormatting.GRAY)
-                        .append(Component.literal(radiation + " (" + radDesc + ")").withStyle(radColor)));
-            }
+        if (fluidType instanceof BaseFluidType base) {
+            tempC = base.getDisplayTemperature();
+            corrosivity = base.getCorrosivity();
         } else {
-            tooltip.add(Component.literal("  Температура: " + fluidType.getTemperature() + " K")
-                    .withStyle(ChatFormatting.GRAY));
+            if (fluidType == net.minecraftforge.common.ForgeMod.WATER_TYPE.get()) tempC = 20;
+            else if (fluidType == net.minecraftforge.common.ForgeMod.LAVA_TYPE.get()) tempC = 1000;
+            else tempC = fluidType.getTemperature() - 273;
+        }
+
+        ChatFormatting tempColor = ChatFormatting.GOLD;
+        String tempDesc = "Обычная";
+        if (tempC >= 2000) { tempColor = ChatFormatting.DARK_RED; tempDesc = "Критическая"; }
+        else if (tempC >= 1000) { tempColor = ChatFormatting.RED; tempDesc = "Экстремальная"; }
+        else if (tempC >= 500) { tempColor = ChatFormatting.GOLD; tempDesc = "Перегретая"; }
+        else if (tempC > 100) { tempColor = ChatFormatting.YELLOW; tempDesc = "Горячая"; }
+        else if (tempC < 0) { tempColor = ChatFormatting.AQUA; tempDesc = "Холодная"; }
+
+        tooltip.add(Component.literal("  Температура: ").withStyle(ChatFormatting.GRAY)
+                .append(Component.literal(tempC + "°C (" + tempDesc + ")").withStyle(tempColor)));
+
+        if (corrosivity > 0) {
+            ChatFormatting acidColor = ChatFormatting.YELLOW;
+            String acidDesc = "Следы";
+            if (corrosivity >= 150) { acidColor = ChatFormatting.DARK_RED; acidDesc = "Экстремальная коррозия"; }
+            else if (corrosivity >= 100) { acidColor = ChatFormatting.RED; acidDesc = "Высококоррозионная"; }
+            else if (corrosivity >= 60) { acidColor = ChatFormatting.YELLOW; acidDesc = "Коррозионная"; }
+            else if (corrosivity >= 20) { acidColor = ChatFormatting.GOLD; acidDesc = "Слабокоррозионная"; }
+
+            tooltip.add(Component.literal("  Коррозионность: ").withStyle(ChatFormatting.GRAY)
+                    .append(Component.literal(corrosivity + " (" + acidDesc + ")").withStyle(acidColor)));
         }
         return tooltip;
     }
 
     public int getFluidTintColor() {
         FluidType type = getFluidType();
-        if (type instanceof BaseFluidType base) {
-            return base.getTintColor();
-        }
+        if (type instanceof BaseFluidType base) return base.getTintColor();
         return 0xFFFFFFFF;
     }
 }
