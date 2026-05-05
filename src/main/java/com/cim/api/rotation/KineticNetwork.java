@@ -65,7 +65,7 @@ public class KineticNetwork {
         // 1. РАЗГОН (если генераторы работают)
         if (totalGeneratedTorque > 0) {
             // Формула из плана
-            long effectiveTorque = totalGeneratedTorque - totalFriction;
+            long effectiveTorque = totalGeneratedTorque - totalFriction - totalConsumedTorque;
 
             if (effectiveTorque > 0) {
                 // Умножаем на 10 для запаса точности при RPM-масштабе
@@ -80,6 +80,18 @@ public class KineticNetwork {
                     deltaSpeed = targetNetworkSpeed - currentSpeed;
                 } else if (targetNetworkSpeed < 0 && currentSpeed + deltaSpeed < targetNetworkSpeed) {
                     deltaSpeed = targetNetworkSpeed - currentSpeed;
+                }
+            } else if (this.currentSpeed != 0) {
+                // Плавное замедление (торможение под нагрузкой)
+                long overload = Math.abs(effectiveTorque);
+                long overloadBrake = overload / totalInertia;
+                long percentBrake = Math.abs(this.currentSpeed) / 10;
+                deltaSpeed = Math.max(Math.max(overloadBrake, percentBrake), 1);
+                
+                if (this.currentSpeed > 0) {
+                    deltaSpeed = -Math.min(deltaSpeed, this.currentSpeed);
+                } else {
+                    deltaSpeed = Math.min(deltaSpeed, -this.currentSpeed);
                 }
             }
         }
@@ -97,7 +109,9 @@ public class KineticNetwork {
 
                     // Трение всегда против движения [cite: 28, 29]
                     if (this.currentSpeed > 0) {
-                        deltaSpeed = -deltaSpeed;
+                        deltaSpeed = -Math.min(deltaSpeed, this.currentSpeed);
+                    } else {
+                        deltaSpeed = Math.min(deltaSpeed, -this.currentSpeed);
                     }
                 }
             }
@@ -157,6 +171,7 @@ public class KineticNetwork {
         this.totalGeneratedTorque = 0;
         this.totalInertia = 0;
         this.totalFriction = 0;
+        this.totalConsumedTorque = 0;
         this.targetNetworkSpeed = 0;
 
         // 1. Собираем физику со всех участников
@@ -165,11 +180,10 @@ public class KineticNetwork {
             if (level.isLoaded(pos) && level.getBlockEntity(pos) instanceof Rotational node) {
                 this.totalInertia += node.getInertiaContribution();
                 this.totalFriction += node.getFrictionContribution();
+                this.totalConsumedTorque += (long) (node.getConsumedTorque() * node.getFrictionMultiplier());
 
                 node.setSpeed(this.currentSpeed);
             }
-
-
         }
 
         // 2. Опрашиваем генераторы

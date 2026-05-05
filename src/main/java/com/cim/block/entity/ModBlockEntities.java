@@ -150,6 +150,10 @@ public class ModBlockEntities {
             BLOCK_ENTITIES.register("motor_electro",
                     () -> BlockEntityType.Builder.of(MotorElectroBlockEntity::new, ModBlocks.MOTOR_ELECTRO.get()).build(null));
 
+    public static final RegistryObject<BlockEntityType<com.cim.block.entity.industrial.rotation.StatorBlockEntity>> STATOR_BE =
+            BLOCK_ENTITIES.register("stator",
+                    () -> BlockEntityType.Builder.of(com.cim.block.entity.industrial.rotation.StatorBlockEntity::new, ModBlocks.STATOR_BLOCK.get()).build(null));
+
     public static final RegistryObject<BlockEntityType<FluidPipeBlockEntity>> FLUID_PIPE_BE =
             BLOCK_ENTITIES.register("fluid_pipe_be",
                     () -> BlockEntityType.Builder.of(FluidPipeBlockEntity::new,

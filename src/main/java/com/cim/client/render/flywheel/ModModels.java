@@ -19,6 +19,7 @@ public class ModModels {
     public static final PartialModel TACHOMETER = PartialModel.of(new ResourceLocation("cim", "block/tachometr"));
     public static final Map<String, PartialModel> PULLEY_MODELS = new HashMap<>();
     public static final PartialModel BELT_SEGMENT = PartialModel.of(new ResourceLocation("cim", "block/belt_segment"));
+    public static final PartialModel ROTOR = PartialModel.of(new ResourceLocation("cim", "block/rotor"));
 
     // Статический блок вызывается самым первым, как только Java видит этот класс!
     // Flywheel 100% получит эти модели вовремя.

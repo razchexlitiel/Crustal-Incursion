@@ -433,6 +433,12 @@ public class ModBlocks {
     public static final RegistryObject<Block> MOTOR_ELECTRO = registerBlock("motor_electro",
             () -> new MotorElectroBlock(BlockBehaviour.Properties.copy(Blocks.IRON_BLOCK).noOcclusion()));
 
+    public static final RegistryObject<Block> STATOR_BLOCK = registerBlock("stator",
+            () -> new com.cim.block.basic.industrial.rotation.StatorBlock(BlockBehaviour.Properties.copy(Blocks.IRON_BLOCK)
+                    .noOcclusion()
+                    .strength(5.0f, 6.0f)
+                    .requiresCorrectToolForDrops()));
+
     public static final RegistryObject<Block> SHAFT_LIGHT_IRON = registerShaft(ShaftMaterial.IRON, ShaftDiameter.LIGHT);
     public static final RegistryObject<Block> SHAFT_MEDIUM_IRON = registerShaft(ShaftMaterial.IRON, ShaftDiameter.MEDIUM);
     public static final RegistryObject<Block> SHAFT_HEAVY_IRON = registerShaft(ShaftMaterial.IRON, ShaftDiameter.HEAVY);
