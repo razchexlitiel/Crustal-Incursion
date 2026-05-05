@@ -19,6 +19,9 @@ import net.minecraft.network.protocol.game.ClientGamePacketListener;
 import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.MenuProvider;
 import net.minecraft.world.entity.player.Inventory;
@@ -149,8 +152,6 @@ public class FluidBarrelBlockEntity extends BlockEntity implements MenuProvider 
         };
     }
 
-    // ==================== ТИР И ЗАЩИТА ====================
-
     public BarrelTier getTier() {
         Block b = getBlockState().getBlock();
         return (b instanceof FluidBarrelBlock barrel) ? barrel.getTier() : BarrelTier.IRON;
@@ -158,19 +159,16 @@ public class FluidBarrelBlockEntity extends BlockEntity implements MenuProvider 
 
     private int[] getProtectorBonus() {
         ItemStack stack = itemHandler.getStackInSlot(PROTECTOR_SLOT);
-        if (stack.isEmpty()) return new int[]{0,0,0};
+        if (stack.isEmpty()) return new int[]{0, 0};
         Item it = stack.getItem();
-        if (it == ModItems.PROTECTOR_STEEL.get()) return new int[]{50, 75, 5};
-        if (it == ModItems.PROTECTOR_LEAD.get()) return new int[]{125, 225, 25};
-        if (it == ModItems.PROTECTOR_TUNGSTEN.get()) return new int[]{250, 750, 30};
-        return new int[]{0,0,0};
+        if (it == ModItems.PROTECTOR_STEEL.get()) return new int[]{720, 40};
+        if (it == ModItems.PROTECTOR_LEAD.get()) return new int[]{135, 225};
+        if (it == ModItems.PROTECTOR_TUNGSTEN.get()) return new int[]{1700, 270};
+        return new int[]{0, 0};
     }
 
-    public int getTotalCorrosionResistance() { return getTier().getCorrosionResistance() + getProtectorBonus()[0]; }
-    public int getTotalHeatResistance()     { return getTier().getHeatResistance()     + getProtectorBonus()[1]; }
-    public int getTotalRadiationResistance(){ return getTier().getRadiationResistance()+ getProtectorBonus()[2]; }
-
-    // ==================== ТИК ====================
+    public int getTotalMeltingPoint() { return getTier().getMeltingPoint() + getProtectorBonus()[0]; }
+    public int getTotalCorrosionResistance() { return getTier().getCorrosionResistance() + getProtectorBonus()[1]; }
 
     public static void tick(Level level, BlockPos pos, BlockState state, FluidBarrelBlockEntity be) {
         if (level.isClientSide) {
@@ -182,20 +180,16 @@ public class FluidBarrelBlockEntity extends BlockEntity implements MenuProvider 
         be.checkDamage();
     }
 
-    // --- УТЕЧКА ---
     private void processLeaking() {
         if (!getTier().isLeaking() || fluidTank.isEmpty()) return;
-        if (level.getGameTime() % 20 != 0) return; // раз в секунду
-
+        if (level.getGameTime() % 20 != 0) return;
         int rate = getTier().getLeakRate();
         if (rate > 0) fluidTank.drain(rate, IFluidHandler.FluidAction.EXECUTE);
     }
 
-    // --- ЧАСТИЦЫ (только клиент) ---
     @OnlyIn(Dist.CLIENT)
     private void spawnLeakParticles() {
         if (!getTier().isLeaking() || fluidTank.isEmpty()) return;
-
         RandomSource rnd = level.random;
         int chance = (getTier() == BarrelTier.CORRUPTED) ? 3 : 15;
         if (rnd.nextInt(chance) != 0) return;
@@ -214,40 +208,48 @@ public class FluidBarrelBlockEntity extends BlockEntity implements MenuProvider 
         level.addParticle(new DustParticleOptions(new Vector3f(r, g, b), 1.0f), x, y, z, 0.0, vy, 0.0);
     }
 
-    // --- ПОВРЕЖДЕНИЕ ---
     private void checkDamage() {
         if (fluidTank.isEmpty()) return;
 
+        Block currentBlock = getBlockState().getBlock();
+        if (currentBlock == ModBlocks.CORRUPTED_BARREL.get() || currentBlock == ModBlocks.LEAKING_BARREL.get())
+            return;
+
         FluidStack fluid = fluidTank.getFluid();
-        int acid = getFluidCorrosivity(fluid);
-        int temp = FluidPropertyHelper.getTemperature(fluid);
-        int rad  = getFluidRadiation(fluid);
+        int temp = getFluidTemperatureCelsius(fluid);
+        int corr = getFluidCorrosivity(fluid);
 
+        int melt = getTotalMeltingPoint();
         int cRes = getTotalCorrosionResistance();
-        int hRes = getTotalHeatResistance();
-        int rRes = getTotalRadiationResistance();
 
-        boolean exceeded = acid > cRes || temp > hRes || rad > rRes;
-        boolean doubled  = acid > cRes * 2 || temp > hRes * 2 || rad > rRes * 2;
-
-        Block current = getBlockState().getBlock();
-        if (current == ModBlocks.CORRUPTED_BARREL.get()) return;
+        int tempExcess = temp - melt;
+        int corrExcess = corr - cRes;
+        int maxExcess = Math.max(tempExcess, corrExcess);
 
         Block target = null;
-        if (doubled) {
+        if (maxExcess > 100) {
             target = ModBlocks.CORRUPTED_BARREL.get();
-        } else if (exceeded && current != ModBlocks.LEAKING_BARREL.get()) {
+        } else if (maxExcess > 0) {
             target = ModBlocks.LEAKING_BARREL.get();
         }
 
         if (target != null) {
+            // === ЗАКРЫВАЕМ GUI ВСЕХ ИГРОКОВ, СМОТРЯЩИХ В ЭТУ БОЧКУ ===
+            closeAllViewers();
+
+            // === СОХРАНЯЕМ NBT ПЕРЕД ЗАМЕНОЙ ===
             CompoundTag tag = saveWithoutMetadata();
+
+            // === ЗАМЕНЯЕМ БЛОК ===
             level.setBlock(worldPosition, target.defaultBlockState(), 3);
 
+            // === ЗВУК: ВОДА КАСАЕТСЯ ЛАВЫ (как будто жидкость проедает бочку) ===
+            level.playSound(null, worldPosition, SoundEvents.LAVA_EXTINGUISH, SoundSource.BLOCKS, 1.0F, 1.2F);
+
+            // === ЗАГРУЖАЕМ ДАННЫЕ В НОВУЮ БОЧКУ ===
             BlockEntity newBe = level.getBlockEntity(worldPosition);
             if (newBe instanceof FluidBarrelBlockEntity newBarrel) {
                 newBarrel.load(tag);
-                // Обрезаем переполнение, если стальная (24к) превратилась в протекающую (16к)
                 int cap = newBarrel.getTier().getCapacity();
                 if (newBarrel.fluidTank.getFluidAmount() > cap) {
                     newBarrel.fluidTank.getFluid().setAmount(cap);
@@ -257,7 +259,25 @@ public class FluidBarrelBlockEntity extends BlockEntity implements MenuProvider 
         }
     }
 
-    // ==================== ВЁДРА / КРАФТ СЛОТОВ ====================
+    /**
+     * Принудительно закрывает GUI у всех игроков, которые смотрят в инвентарь этой бочки
+     */
+    private void closeAllViewers() {
+        if (level == null || level.isClientSide) return;
+
+        // Получаем список всех игроков на сервере
+        for (Player player : level.players()) {
+            if (player instanceof ServerPlayer serverPlayer) {
+                // Если игрок открыл контейнер и этот контейнер принадлежит нашей бочке
+                if (serverPlayer.containerMenu instanceof FluidBarrelMenu menu) {
+                    // Проверяем, что это именно наша бочка по позиции
+                    if (menu.getBlockEntity() == this) {
+                        serverPlayer.closeContainer();
+                    }
+                }
+            }
+        }
+    }
 
     private void processBuckets() {
         ItemStack drainIn = itemHandler.getStackInSlot(DRAIN_IN_SLOT);
@@ -267,7 +287,9 @@ public class FluidBarrelBlockEntity extends BlockEntity implements MenuProvider 
                     Fluid filterFluid = ForgeRegistries.FLUIDS.getValue(new ResourceLocation(this.fluidFilter));
                     if (filterFluid != null && filterFluid != Fluids.EMPTY) {
                         int space = fluidTank.getSpace();
-                        if (space > 0) fluidTank.fill(new FluidStack(filterFluid, Math.min(space, MAX_TRANSFER_RATE)), IFluidHandler.FluidAction.EXECUTE);
+                        if (space > 0) {
+                            fluidTank.fill(new FluidStack(filterFluid, space), IFluidHandler.FluidAction.EXECUTE);
+                        }
                     }
                 }
             } else {
@@ -341,17 +363,21 @@ public class FluidBarrelBlockEntity extends BlockEntity implements MenuProvider 
         lazyItemHandler.invalidate();
     }
 
+    private int getFluidTemperatureCelsius(FluidStack stack) {
+        int nbtTemp = FluidPropertyHelper.getTemperature(stack);
+        Fluid fluid = stack.getFluid();
+        int defaultTemp = fluid.getFluidType().getTemperature();
+        if (nbtTemp != defaultTemp) return nbtTemp;
+        if (fluid == Fluids.WATER || fluid == Fluids.FLOWING_WATER) return 20;
+        if (fluid == Fluids.LAVA || fluid == Fluids.FLOWING_LAVA) return 1000;
+        if (fluid.getFluidType() instanceof BaseFluidType base) return base.getDisplayTemperature();
+        return defaultTemp - 273;
+    }
+
     private int getFluidCorrosivity(FluidStack stack) {
         int nbt = FluidPropertyHelper.getCorrosivity(stack);
         if (nbt > 0) return nbt;
-        if (stack.getFluid().getFluidType() instanceof BaseFluidType base) return base.getAcidity();
-        return 0;
-    }
-
-    private int getFluidRadiation(FluidStack stack) {
-        int nbt = FluidPropertyHelper.getRadioactivity(stack);
-        if (nbt > 0) return nbt;
-        if (stack.getFluid().getFluidType() instanceof BaseFluidType base) return base.getRadiation();
+        if (stack.getFluid().getFluidType() instanceof BaseFluidType base) return base.getCorrosivity();
         return 0;
     }
 
@@ -367,7 +393,6 @@ public class FluidBarrelBlockEntity extends BlockEntity implements MenuProvider 
         itemHandler.deserializeNBT(tag.getCompound("Inventory"));
         mode = tag.getInt("Mode");
         if (tag.contains("FluidFilter")) this.fluidFilter = tag.getString("FluidFilter");
-        // защита от переполнения при "даунгрейде" блока
         if (fluidTank.getFluidAmount() > getTier().getCapacity()) {
             fluidTank.getFluid().setAmount(getTier().getCapacity());
         }

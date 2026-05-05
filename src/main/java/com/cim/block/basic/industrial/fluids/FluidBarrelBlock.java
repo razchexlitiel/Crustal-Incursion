@@ -1,6 +1,7 @@
 package com.cim.block.basic.industrial.fluids;
 
 import com.cim.api.fluids.system.BarrelTier;
+import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.sounds.SoundEvents;
@@ -40,7 +41,6 @@ public class FluidBarrelBlock extends BaseEntityBlock {
 
     public BarrelTier getTier() { return tier; }
 
-    // ====================== ХИТБОКС И КОЛЛИЗИЯ ======================
     @Override
     public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
         return SHAPE;
@@ -51,7 +51,6 @@ public class FluidBarrelBlock extends BaseEntityBlock {
         return SHAPE;
     }
 
-    // ====================== ПРИВЯЗКА BLOCK ENTITY ======================
     @Nullable
     @Override
     public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
@@ -61,15 +60,11 @@ public class FluidBarrelBlock extends BaseEntityBlock {
     @Nullable
     @Override
     public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState state, BlockEntityType<T> type) {
-        // Регистрируем метод tick из нашего FluidBarrelBlockEntity
         return createTickerHelper(type, ModBlockEntities.FLUID_BARREL_BE.get(), FluidBarrelBlockEntity::tick);
     }
 
-    // ====================== РЕНДЕР ======================
     @Override
     public RenderShape getRenderShape(BlockState state) {
-        // Если используешь GeckoLib для бочки, смени на ENTITYBLOCK_ANIMATED
-        // Если обычная JSON-модель, оставляй MODEL
         return RenderShape.MODEL;
     }
 
@@ -77,13 +72,10 @@ public class FluidBarrelBlock extends BaseEntityBlock {
     public InteractionResult use(BlockState state, Level level, BlockPos pos, Player player, InteractionHand hand, BlockHitResult hit) {
         net.minecraft.world.item.ItemStack stack = player.getItemInHand(hand);
 
-        // 1. Если кликаем Идентификатором
         if (stack.getItem() instanceof com.cim.item.tools.FluidIdentifierItem) {
             if (!level.isClientSide && level.getBlockEntity(pos) instanceof FluidBarrelBlockEntity be) {
                 String selectedFluidId = com.cim.item.tools.FluidIdentifierItem.getSelectedFluid(stack);
-
-                be.setFilter(selectedFluidId); // Поддерживает и "none", и обычные ID
-
+                be.setFilter(selectedFluidId);
                 if (selectedFluidId.equals("none")) {
                     player.displayClientMessage(Component.literal("§eBarrel filter reset (Closed)"), true);
                     level.playSound(null, pos, SoundEvents.ENDERMAN_TELEPORT, SoundSource.BLOCKS, 1.0F, 0.8F);
@@ -97,7 +89,6 @@ public class FluidBarrelBlock extends BaseEntityBlock {
             return InteractionResult.sidedSuccess(level.isClientSide);
         }
 
-        // 2. Стандартный код (открытие GUI бочки)
         if (!level.isClientSide) {
             BlockEntity entity = level.getBlockEntity(pos);
             if (entity instanceof FluidBarrelBlockEntity) {
@@ -107,40 +98,31 @@ public class FluidBarrelBlock extends BaseEntityBlock {
         return InteractionResult.sidedSuccess(level.isClientSide);
     }
 
-    // ====================== РАЗРУШЕНИЕ БЛОКА ======================
     @Override
     public void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean isMoving) {
         if (!state.is(newState.getBlock())) {
-            BlockEntity be = level.getBlockEntity(pos);
-            if (be instanceof FluidBarrelBlockEntity barrel) {
-                // Выбрасываем предметы (вёдра) из слотов GUI
-                barrel.getCapability(ForgeCapabilities.ITEM_HANDLER).ifPresent(handler -> {
-                    for (int i = 0; i < handler.getSlots(); i++) {
-                        Containers.dropItemStack(level, pos.getX(), pos.getY(), pos.getZ(), handler.getStackInSlot(i));
-                    }
-                });
-
-                // (Опционально) Если хочешь, чтобы при разрушении бочки с жидкостью она выливалась в мир лужей,
-                // это можно добавить здесь, проверяя barrel.fluidTank.getFluid().
+            // ФИКС ДЮПА: не дропаем предметы при переходе между типами бочек (повреждение)
+            if (!(newState.getBlock() instanceof FluidBarrelBlock)) {
+                BlockEntity be = level.getBlockEntity(pos);
+                if (be instanceof FluidBarrelBlockEntity barrel) {
+                    barrel.getCapability(ForgeCapabilities.ITEM_HANDLER).ifPresent(handler -> {
+                        for (int i = 0; i < handler.getSlots(); i++) {
+                            Containers.dropItemStack(level, pos.getX(), pos.getY(), pos.getZ(), handler.getStackInSlot(i));
+                        }
+                    });
+                }
             }
             super.onRemove(state, level, pos, newState, isMoving);
         }
     }
 
-    // ==========================================
-    // СОХРАНЕНИЕ ДАННЫХ ПРИ СЛОМЕ И УСТАНОВКЕ
-    // ==========================================
-
-    // 1. Установка бочки (восстановление жидкости, фильтра и инвентаря)
     @Override
     public void setPlacedBy(net.minecraft.world.level.Level pLevel, net.minecraft.core.BlockPos pPos, net.minecraft.world.level.block.state.BlockState pState, @org.jetbrains.annotations.Nullable net.minecraft.world.entity.LivingEntity pPlacer, net.minecraft.world.item.ItemStack pStack) {
         super.setPlacedBy(pLevel, pPos, pState, pPlacer, pStack);
-
         if (!pLevel.isClientSide) {
             net.minecraft.world.level.block.entity.BlockEntity be = pLevel.getBlockEntity(pPos);
             if (be instanceof FluidBarrelBlockEntity barrelBE) {
                 net.minecraft.nbt.CompoundTag itemNbt = pStack.getTag();
-                // Если в предмете есть сохраненные внутренности — загружаем их!
                 if (itemNbt != null && itemNbt.contains("BlockEntityTag")) {
                     barrelBE.load(itemNbt.getCompound("BlockEntityTag"));
                     barrelBE.setChanged();
@@ -149,51 +131,38 @@ public class FluidBarrelBlock extends BaseEntityBlock {
         }
     }
 
-    // 2. Дроп бочки с сохранением NBT при разрушении киркой (игнорирует стандартный лут)
     @Override
     @SuppressWarnings("deprecation")
     public java.util.List<net.minecraft.world.item.ItemStack> getDrops(net.minecraft.world.level.block.state.BlockState pState, net.minecraft.world.level.storage.loot.LootParams.Builder pParams) {
         net.minecraft.world.level.block.entity.BlockEntity blockEntity = pParams.getOptionalParameter(net.minecraft.world.level.storage.loot.parameters.LootContextParams.BLOCK_ENTITY);
-
         if (blockEntity instanceof FluidBarrelBlockEntity barrel) {
             net.minecraft.world.item.ItemStack itemStack = new net.minecraft.world.item.ItemStack(this);
             net.minecraft.nbt.CompoundTag nbt = new net.minecraft.nbt.CompoundTag();
-
-            // Сохраняем все жидкости, инвентарь и режимы в тег
             barrel.saveAdditional(nbt);
             itemStack.addTagElement("BlockEntityTag", nbt);
-
             return java.util.Collections.singletonList(itemStack);
         }
-
         return super.getDrops(pState, pParams);
     }
 
-    // 3. Красивый тултип в инвентаре (как у твоей батарейки)
     @Override
     public void appendHoverText(net.minecraft.world.item.ItemStack pStack, @org.jetbrains.annotations.Nullable net.minecraft.world.level.BlockGetter pLevel, java.util.List<net.minecraft.network.chat.Component> pTooltip, net.minecraft.world.item.TooltipFlag pFlag) {
         super.appendHoverText(pStack, pLevel, pTooltip, pFlag);
 
-        // === ХАРАКТЕРИСТИКИ БОЧКИ ===
-        pTooltip.add(net.minecraft.network.chat.Component.literal("§8Ёмкость: §f" + tier.getCapacity() + " mB"));
+        pTooltip.add(Component.literal("Ёмкость: ").withStyle(ChatFormatting.GRAY)
+                .append(Component.literal(tier.getCapacity() + "mB").withStyle(ChatFormatting.WHITE)));
 
-        int c = tier.getCorrosionResistance();
-        int h = tier.getHeatResistance();
-        int r = tier.getRadiationResistance();
+        pTooltip.add(Component.literal("Точка плавления: ").withStyle(ChatFormatting.GRAY)
+                .append(Component.literal(tier.getMeltingPoint() + "°C").withStyle(ChatFormatting.GOLD)));
 
-        pTooltip.add(net.minecraft.network.chat.Component.literal(
-                "  §eКоррозия: §f" + c + " §7" + bar(c, 2500)));
-        pTooltip.add(net.minecraft.network.chat.Component.literal(
-                "  §cНагрев: §f" + h + " §7" + bar(h, 2500)));
-        pTooltip.add(net.minecraft.network.chat.Component.literal(
-                "  §aРадиация: §f" + r + " §7" + bar(r, 2500)));
+        pTooltip.add(Component.literal("Коррозионная стойкость: ").withStyle(ChatFormatting.GRAY)
+                .append(Component.literal(String.valueOf(tier.getCorrosionResistance())).withStyle(ChatFormatting.YELLOW)));
 
         if (tier.isLeaking()) {
-            pTooltip.add(net.minecraft.network.chat.Component.literal(
-                    "§4⚠ Протекает: §c" + tier.getLeakRate() + " mB/сек"));
+            pTooltip.add(Component.literal("⚠ Протекает: ").withStyle(ChatFormatting.DARK_RED)
+                    .append(Component.literal(tier.getLeakRate() + "mB/сек").withStyle(ChatFormatting.RED)));
         }
 
-        // === СОДЕРЖИМОЕ ИЗ NBT ===
         net.minecraft.nbt.CompoundTag nbt = pStack.getTag();
         if (nbt != null && nbt.contains("BlockEntityTag")) {
             net.minecraft.nbt.CompoundTag beTag = nbt.getCompound("BlockEntityTag");
@@ -201,7 +170,6 @@ public class FluidBarrelBlock extends BaseEntityBlock {
             if (beTag.contains("FluidName")) {
                 String fluidName = beTag.getString("FluidName");
                 int amount = beTag.getInt("Amount");
-
                 if (!fluidName.equals("minecraft:empty") && amount > 0) {
                     net.minecraft.world.level.material.Fluid fluid = net.minecraftforge.registries.ForgeRegistries.FLUIDS.getValue(new net.minecraft.resources.ResourceLocation(fluidName));
                     if (fluid != null) {
@@ -228,18 +196,6 @@ public class FluidBarrelBlock extends BaseEntityBlock {
             }
         } else {
             pTooltip.add(net.minecraft.network.chat.Component.literal("§bЖидкость: §7Пусто"));
-            pTooltip.add(net.minecraft.network.chat.Component.literal("§aФильтр: §cЗакрыто"));
         }
-    }
-
-    // Визуальный бар [|||||....]
-    private String bar(int val, int max) {
-        int filled = (int) Math.round(val * 10.0 / max);
-        int empty = 10 - filled;
-        StringBuilder sb = new StringBuilder("[");
-        for (int i = 0; i < filled; i++) sb.append("§a|");
-        for (int i = 0; i < empty; i++) sb.append("§8|");
-        sb.append("§7]");
-        return sb.toString();
     }
 }
