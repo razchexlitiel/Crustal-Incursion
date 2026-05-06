@@ -157,6 +157,10 @@ public class ModBlocks {
             () -> new HiveRootsBlock(BlockBehaviour.Properties.copy(Blocks.SPORE_BLOSSOM).noCollission().instabreak()));
 
 
+    public static final RegistryObject<Block> FUEL_TANK_BIG = registerBlock("fuel_tank_big",
+            () -> new Block(BlockBehaviour.Properties.of()
+                    .strength(1.0F, 5.0F).sound(SoundType.STONE).requiresCorrectToolForDrops().noOcclusion()));
+
     public static final RegistryObject<Block> SMALL_SMELTER = registerBlock("small_smelter",
             () -> new SmallSmelterBlock(BlockBehaviour.Properties.of()
                     .strength(1.2F, 6.0F).sound(SoundType.STONE).requiresCorrectToolForDrops()));

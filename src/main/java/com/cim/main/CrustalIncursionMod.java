@@ -292,6 +292,7 @@ public class CrustalIncursionMod {
             event.accept(ModItems.IRON_BARREL_ITEM);
             event.accept(ModItems.STEEL_BARREL_ITEM);
             event.accept(ModItems.LEAD_BARREL_ITEM);
+            event.accept(ModBlocks.FUEL_TANK_BIG);
             event.accept(ModBlocks.BRONZE_FLUID_PIPE);
             event.accept(ModBlocks.STEEL_FLUID_PIPE);
             event.accept(ModBlocks.LEAD_FLUID_PIPE);
