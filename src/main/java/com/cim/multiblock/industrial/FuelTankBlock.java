@@ -65,7 +65,7 @@ public class FuelTankBlock extends BaseEntityBlock implements IMultiblockControl
 
     @Override
     public RenderShape getRenderShape(BlockState state) {
-        return RenderShape.MODEL;
+        return RenderShape.ENTITYBLOCK_ANIMATED;
     }
 
     @Override

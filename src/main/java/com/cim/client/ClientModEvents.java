@@ -15,6 +15,7 @@ import com.cim.client.render.flywheel.ModModels;
 import com.cim.client.render.flywheel.ShaftVisual;
 import com.cim.client.renderer.*;
 
+import com.cim.multiblock.industrial.FuelTankBlockEntity;
 import dev.engine_room.flywheel.api.visual.BlockEntityVisual;
 import dev.engine_room.flywheel.api.visualization.VisualizationContext;
 import dev.engine_room.flywheel.api.visualization.VisualizerRegistry;
@@ -140,6 +141,7 @@ public class ClientModEvents {
         event.register(new net.minecraft.resources.ResourceLocation("cim", "block/electro_motor"));
         event.register(new net.minecraft.resources.ResourceLocation("cim", "block/bearing_shaft"));
         event.register(new net.minecraft.resources.ResourceLocation("cim", "block/tachometr"));
+        event.register(new ResourceLocation("cim", "block/fuel_tank_big"));
 
         // 3. Динамические модели
         for (String name : ModModels.GEAR_MODELS.keySet()) {
@@ -214,6 +216,22 @@ public class ClientModEvents {
             });
         });
 
+
+        // === ЦИСТЕРНА (Flywheel рендер) ===
+        VisualizerRegistry.setVisualizer(ModBlockEntities.FUEL_TANK_BE.get(),
+                new dev.engine_room.flywheel.api.visualization.BlockEntityVisualizer<FuelTankBlockEntity>() {
+
+                    @Override
+                    public BlockEntityVisual<? super FuelTankBlockEntity> createVisual(
+                            VisualizationContext ctx, FuelTankBlockEntity be, float partialTick) {
+                        return new com.cim.client.render.flywheel.FuelTankVisual(ctx, be, partialTick);
+                    }
+
+                    @Override
+                    public boolean skipVanillaRender(FuelTankBlockEntity be) {
+                        return true; // Отключаем ванильный рендер полностью
+                    }
+                });
 
     }
     //================================================================================================
