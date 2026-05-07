@@ -39,10 +39,12 @@ public class FluidNetwork {
             BlockEntity be = level.getBlockEntity(pos);
             if (be == null || be instanceof FluidPipeBlockEntity) continue;
             be.getCapability(ForgeCapabilities.FLUID_HANDLER).ifPresent(handler -> {
-                if (be instanceof FluidBarrelBlockEntity barrel) {
-                    if (barrel.mode == 1) pureReceivers.add(handler);
-                    else if (barrel.mode == 2) pureProviders.add(handler);
-                    else if (barrel.mode == 0) buffers.add(handler);
+                // ФИКС: проверяем любой блок с режимом, а не только обычную бочку
+                if (be instanceof ITankWithMode tank) {
+                    int m = tank.getMode();
+                    if (m == 1) pureReceivers.add(handler);
+                    else if (m == 2) pureProviders.add(handler);
+                    else buffers.add(handler); // mode 0 = балансировка
                 } else {
                     pureProviders.add(handler);
                     pureReceivers.add(handler);
