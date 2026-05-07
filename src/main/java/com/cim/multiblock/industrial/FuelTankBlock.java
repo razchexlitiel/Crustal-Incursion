@@ -33,7 +33,7 @@ import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.DirectionProperty;
 import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.phys.BlockHitResult;
-import net.minecraft.world.phys.shapes.CollisionContext;
+import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import net.minecraftforge.items.ItemStackHandler;
 import org.jetbrains.annotations.Nullable;
@@ -48,7 +48,8 @@ public class FuelTankBlock extends BaseEntityBlock implements IMultiblockControl
     private static MultiblockStructureHelper helper;
 
     public FuelTankBlock(Properties properties) {
-        super(properties);
+        // ФИКС: noOcclusion() отключает затемнение граней, не ломая lightmap
+        super(properties.noOcclusion());
         this.registerDefaultState(this.stateDefinition.any().setValue(FACING, Direction.NORTH));
     }
 
@@ -77,18 +78,14 @@ public class FuelTankBlock extends BaseEntityBlock implements IMultiblockControl
         return 1.0F;
     }
 
-    // ===== ФИКС ЗАТЕМНЕНИЯ: возвращаем шейп всего мультиблока =====
+    // ФИКС: пустой occlusion shape — блок не считается сплошным для соседей
     @Override
-    public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
-        Direction facing = state.getValue(FACING);
-        return getStructureHelper().generateShapeFromParts(facing);
+    public VoxelShape getOcclusionShape(BlockState state, BlockGetter level, BlockPos pos) {
+        return Shapes.empty();
     }
 
-    @Override
-    public VoxelShape getCollisionShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
-        return getShape(state, level, pos, context);
-    }
-    // ==============================================================
+    // УБРАНЫ кастомные getShape / getCollisionShape — оставляем стандартные 1×1×1.
+    // Коллизии всего мультиблока обеспечивают MultiblockPartBlock'и.
 
     @Override
     public MultiblockStructureHelper getStructureHelper() {

@@ -136,7 +136,10 @@ public class MultiblockPartBlock extends BaseEntityBlock {
         }
         super.playerWillDestroy(level, pos, state, player);
     }
-
+    @Override
+    public VoxelShape getOcclusionShape(BlockState state, BlockGetter level, BlockPos pos) {
+        return Shapes.empty();
+    }
     @Nullable
     @Override
     public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
@@ -144,8 +147,12 @@ public class MultiblockPartBlock extends BaseEntityBlock {
     }
 
     @Override
-    public float getShadeBrightness(BlockState state, BlockGetter level, BlockPos pos) { return 1.0F; }
+    public float getShadeBrightness(BlockState state, BlockGetter world, BlockPos pos) {
+        return 1.0F;
+    }
 
     @Override
-    public boolean propagatesSkylightDown(BlockState state, BlockGetter level, BlockPos pos) { return true; }
+    public int getLightBlock(BlockState state, BlockGetter world, BlockPos pos) {
+        return 0;
+    }
 }
