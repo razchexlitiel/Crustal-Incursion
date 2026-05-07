@@ -33,6 +33,8 @@ import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.DirectionProperty;
 import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.shapes.CollisionContext;
+import net.minecraft.world.phys.shapes.VoxelShape;
 import net.minecraftforge.items.ItemStackHandler;
 import org.jetbrains.annotations.Nullable;
 
@@ -66,35 +68,55 @@ public class FuelTankBlock extends BaseEntityBlock implements IMultiblockControl
     }
 
     @Override
+    public boolean propagatesSkylightDown(BlockState state, BlockGetter reader, BlockPos pos) {
+        return true;
+    }
+
+    @Override
+    public float getShadeBrightness(BlockState state, BlockGetter worldIn, BlockPos pos) {
+        return 1.0F;
+    }
+
+    // ===== ФИКС ЗАТЕМНЕНИЯ: возвращаем шейп всего мультиблока =====
+    @Override
+    public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+        Direction facing = state.getValue(FACING);
+        return getStructureHelper().generateShapeFromParts(facing);
+    }
+
+    @Override
+    public VoxelShape getCollisionShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+        return getShape(state, level, pos, context);
+    }
+    // ==============================================================
+
+    @Override
     public MultiblockStructureHelper getStructureHelper() {
         if (helper == null) {
-            // Символы и их поставщики блоков
             Map<Character, Supplier<BlockState>> symbols = Map.of(
                     '#', () -> ModBlocks.MULTIBLOCK_PART.get().defaultBlockState(),
                     '@', () -> this.defaultBlockState(),
                     '$', () -> ModBlocks.MULTIBLOCK_PART.get().defaultBlockState()
             );
 
-            // Роли частей
             Map<Character, PartRole> roles = Map.of(
                     '#', PartRole.DEFAULT,
                     '@', PartRole.CONTROLLER,
                     '$', PartRole.FLUID_CONNECTOR
             );
 
-            // Схема: 3 слоя (нижний, средний, верхний)
             String[][] layers = {
-                    {   // нижний слой (y=0)
+                    {
                             "##$#$##",
                             "###@###",
                             "##$#$##"
                     },
-                    {   // средний слой (y=1)
+                    {
                             "#######",
                             "#######",
                             "#######"
                     },
-                    {   // верхний слой (y=2)
+                    {
                             "#######",
                             "#######",
                             "#######"
@@ -113,7 +135,7 @@ public class FuelTankBlock extends BaseEntityBlock implements IMultiblockControl
 
     @Override
     public PartRole getPartRole(BlockPos localOffset) {
-        return PartRole.DEFAULT; // не используется, роли берутся из карты символов
+        return PartRole.DEFAULT;
     }
 
     @Override
@@ -138,7 +160,6 @@ public class FuelTankBlock extends BaseEntityBlock implements IMultiblockControl
         if (!state.is(newState.getBlock()) && !level.isClientSide) {
             BlockEntity be = level.getBlockEntity(pos);
             if (be instanceof FuelTankBlockEntity tank) {
-                // Выбрасываем весь инвентарь вручную (гарантированно работает)
                 ItemStackHandler inv = tank.getInventory();
                 for (int i = 0; i < inv.getSlots(); i++) {
                     ItemStack stack = inv.getStackInSlot(i);
@@ -146,7 +167,6 @@ public class FuelTankBlock extends BaseEntityBlock implements IMultiblockControl
                         Containers.dropItemStack(level, pos.getX(), pos.getY(), pos.getZ(), stack);
                     }
                 }
-                // Жидкость не выпадает – она сохранится в NBT при выпадении блока (getDrops)
             }
             Direction facing = state.getValue(FACING);
             getStructureHelper().destroyStructure(level, pos, facing);
@@ -182,7 +202,7 @@ public class FuelTankBlock extends BaseEntityBlock implements IMultiblockControl
         }
         BlockEntity be = level.getBlockEntity(pos);
         if (be instanceof FuelTankBlockEntity tank) {
-            net.minecraftforge.network.NetworkHooks.openScreen((net.minecraft.server.level.ServerPlayer) player, tank, pos);
+            net.minecraftforge.network.NetworkHooks.openScreen((ServerPlayer) player, tank, pos);
             return InteractionResult.CONSUME;
         }
         return InteractionResult.PASS;

@@ -55,10 +55,11 @@ public class FuelTankBlockEntity extends BlockEntity implements MenuProvider, IF
                 level.sendBlockUpdated(getBlockPos(), getBlockState(), getBlockState(), 3);
             }
         }
-
         @Override
         public boolean isItemValid(int slot, @NotNull ItemStack stack) {
             if (slot == 0 || slot == 2) {
+                // ФИКС: бесконечный источник не имеет FLUID_HANDLER_ITEM, но должен лезть в слот
+                if (stack.getItem() instanceof InfiniteFluidBarrelItem) return true;
                 return stack.getCapability(ForgeCapabilities.FLUID_HANDLER_ITEM).isPresent();
             }
             if (slot == 4) {
