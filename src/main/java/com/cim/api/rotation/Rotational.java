@@ -23,6 +23,9 @@ public interface Rotational {
     long getFrictionContribution(); // Потери крутящего момента на трение [cite: 35]
     long getMaxTorqueTolerance();
 
+    default long getConsumedTorque() { return 0; }
+    default float getFrictionMultiplier() { return 1.0f; }
+
     default long getGeneratedSpeed() {
         return 0; // По умолчанию обычные блоки ничего не генерируют
     }// Предел прочности до скручивания вала [cite: 36]

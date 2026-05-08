@@ -361,6 +361,9 @@ public class ModItems {
     public static final RegistryObject<Item> BEVEL_GEAR = ITEMS.register("bevel_gear",
             () -> new com.cim.item.rotation.BevelGearItem(new Item.Properties(), ShaftMaterial.STEEL));
 
+    public static final RegistryObject<Item> ROTOR = ITEMS.register("rotor",
+            () -> new com.cim.item.rotation.RotorItem(new Item.Properties()));
+
 //    public static final RegistryObject<Item> GEAR1_TITANIUM = ITEMS.register("gear1_titanium",
 //            () -> new GearItem(new Item.Properties(), 1, ShaftMaterial.TITANIUM));
 //

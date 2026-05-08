@@ -1,0 +1,8 @@
+{
+  "flip_v": true,
+  "loader": "forge:obj",
+  "model": "cim:models/block/rotor.obj",
+  "textures": {
+    "gear_texture": "cim:block/rotor"
+  }
+}

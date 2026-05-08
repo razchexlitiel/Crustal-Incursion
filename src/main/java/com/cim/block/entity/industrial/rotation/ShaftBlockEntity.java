@@ -25,6 +25,23 @@ public class ShaftBlockEntity extends BlockEntity implements Rotational {
 
     private ItemStack attachedBevelStart = ItemStack.EMPTY;
     private ItemStack attachedBevelEnd = ItemStack.EMPTY;
+    private ItemStack attachedRotor = ItemStack.EMPTY;
+
+    public boolean hasRotor() {
+        return !attachedRotor.isEmpty();
+    }
+
+    public ItemStack getAttachedRotor() {
+        return attachedRotor;
+    }
+
+    public void setAttachedRotor(ItemStack rotor) {
+        this.attachedRotor = rotor;
+        this.setChanged();
+        if (level != null && !level.isClientSide) {
+            level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), 2);
+        }
+    }
 
     public ShaftBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.SHAFT_BE.get(), pos, state);
@@ -605,6 +622,8 @@ public class ShaftBlockEntity extends BlockEntity implements Rotational {
             tag.put("AttachedBevelStart", attachedBevelStart.save(new CompoundTag()));
         if (!attachedBevelEnd.isEmpty())
             tag.put("AttachedBevelEnd", attachedBevelEnd.save(new CompoundTag()));
+        if (!attachedRotor.isEmpty())
+            tag.put("AttachedRotor", attachedRotor.save(new CompoundTag()));
         // Сохранение шкивов
         if (!attachedPulley.isEmpty())
             tag.put("AttachedPulley", attachedPulley.save(new CompoundTag()));
@@ -626,6 +645,8 @@ public class ShaftBlockEntity extends BlockEntity implements Rotational {
                 : ItemStack.EMPTY;
         this.attachedBevelEnd = tag.contains("AttachedBevelEnd") ? ItemStack.of(tag.getCompound("AttachedBevelEnd"))
                 : ItemStack.EMPTY;
+        this.attachedRotor = tag.contains("AttachedRotor") ? ItemStack.of(tag.getCompound("AttachedRotor"))
+                : ItemStack.EMPTY;
         // Загрузка шкивов
         this.attachedPulley = tag.contains("AttachedPulley") ? ItemStack.of(tag.getCompound("AttachedPulley"))
                 : ItemStack.EMPTY;
@@ -644,6 +665,8 @@ public class ShaftBlockEntity extends BlockEntity implements Rotational {
             tag.put("AttachedBevelStart", attachedBevelStart.save(new CompoundTag()));
         if (!attachedBevelEnd.isEmpty())
             tag.put("AttachedBevelEnd", attachedBevelEnd.save(new CompoundTag()));
+        if (!attachedRotor.isEmpty())
+            tag.put("AttachedRotor", attachedRotor.save(new CompoundTag()));
         // Синхронизация на клиент
         if (!attachedPulley.isEmpty())
             tag.put("AttachedPulley", attachedPulley.save(new CompoundTag()));
@@ -744,7 +767,45 @@ public class ShaftBlockEntity extends BlockEntity implements Rotational {
 
     @Override
     public long getFrictionContribution() {
-        return 1;
+        return hasRotor() ? 6 : 1;
+    }
+
+    @Override
+    public float getFrictionMultiplier() {
+        return hasRotor() ? 1.2f : 1.0f;
+    }
+
+    @Override
+    public long getConsumedTorque() {
+        if (!hasRotor() || level == null) return 0;
+        
+        long consumed = 0;
+        Direction.Axis axis = getBlockState().getValue(ShaftBlock.FACING).getAxis();
+        Direction[] dirsToCheck;
+        
+        if (axis == Direction.Axis.X) {
+            dirsToCheck = new Direction[]{Direction.UP, Direction.DOWN, Direction.NORTH, Direction.SOUTH};
+        } else if (axis == Direction.Axis.Y) {
+            dirsToCheck = new Direction[]{Direction.EAST, Direction.WEST, Direction.NORTH, Direction.SOUTH};
+        } else {
+            dirsToCheck = new Direction[]{Direction.UP, Direction.DOWN, Direction.EAST, Direction.WEST};
+        }
+        
+        for (Direction dir : dirsToCheck) {
+            BlockPos checkPos = worldPosition.relative(dir);
+            if (level.isLoaded(checkPos)) {
+                BlockEntity be = level.getBlockEntity(checkPos);
+                if (be instanceof com.cim.block.entity.industrial.rotation.StatorBlockEntity stator) {
+                    BlockState statorState = level.getBlockState(checkPos);
+                    if (statorState.hasProperty(com.cim.block.basic.industrial.rotation.StatorBlock.FACING) && statorState.getValue(com.cim.block.basic.industrial.rotation.StatorBlock.FACING) == dir.getOpposite()) {
+                        if (stator.getEnergyStored() < stator.getMaxEnergyStored()) {
+                            consumed += 50;
+                        }
+                    }
+                }
+            }
+        }
+        return consumed;
     }
 
     @Override
