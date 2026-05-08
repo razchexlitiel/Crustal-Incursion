@@ -97,8 +97,13 @@ public class ClientModEvents {
         MenuScreens.register(ModMenuTypes.HEATER_MENU.get(), GUIHeater::new);
         MenuScreens.register(ModMenuTypes.SMELTER_MENU.get(), GUISmelter::new);
         MenuScreens.register(ModMenuTypes.FUEL_TANK_MENU.get(), GUIFuelTank::new);
-//        BlockEntityRenderers.register(ModBlockEntities.MOTOR_ELECTRO_BE.get(), MotorElectroRenderer::new);
-//        BlockEntityRenderers.register(ModBlockEntities.SHAFT_BLOCK_BE.get(), ShaftRenderer::new);
+        
+        BlockEntityRenderers.register(ModBlockEntities.MOTOR_ELECTRO_BE.get(), com.cim.client.render.flywheel.DummyFlywheelRenderer::new);
+        BlockEntityRenderers.register(ModBlockEntities.SHAFT_BE.get(), com.cim.client.render.flywheel.DummyFlywheelRenderer::new);
+        BlockEntityRenderers.register(ModBlockEntities.BEARING_BE.get(), com.cim.client.render.flywheel.DummyFlywheelRenderer::new);
+        BlockEntityRenderers.register(ModBlockEntities.TACHOMETER_BE.get(), com.cim.client.render.flywheel.DummyFlywheelRenderer::new);
+        BlockEntityRenderers.register(ModBlockEntities.FUEL_TANK_BE.get(), com.cim.client.render.flywheel.DummyFlywheelRenderer::new);
+
 //        BlockEntityRenderers.register(ModBlockEntities.WIND_GEN_FLUGER_BE.get(), WindGenFlugerRenderer::new);
         BlockEntityRenderers.register(ModBlockEntities.TURRET_LIGHT_PLACER_BE.get(), TurretLightPlacerRenderer::new);
 //        BlockEntityRenderers.register(ModBlockEntities.DRILL_HEAD_BE.get(), DrillHeadRenderer::new);

@@ -316,7 +316,7 @@ public class TachometerBlockEntity extends BlockEntity implements Rotational {
 
     @Override
     public net.minecraft.world.phys.AABB getRenderBoundingBox() {
-        return new net.minecraft.world.phys.AABB(worldPosition).inflate(1.2D);
+        return new net.minecraft.world.phys.AABB(worldPosition).inflate(1.5D);
     }
 
     @Override

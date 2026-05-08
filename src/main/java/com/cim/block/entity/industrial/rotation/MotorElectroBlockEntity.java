@@ -444,7 +444,7 @@ public class MotorElectroBlockEntity extends BlockEntity implements Rotational, 
 
     @Override
     public AABB getRenderBoundingBox() {
-        return new AABB(worldPosition).inflate(1.2D);
+        return new AABB(worldPosition).inflate(1.5D);
     }
 
     public long getCurrentVisualSpeed() {

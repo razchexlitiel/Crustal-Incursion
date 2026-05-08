@@ -23,4 +23,14 @@ public class DummyFlywheelRenderer<T extends BlockEntity> implements BlockEntity
     public void render(T be, float partialTick, PoseStack poseStack, MultiBufferSource bufferSource, int packedLight, int packedOverlay) {
         // Ничего не делаем, реальный рендер берет на себя Flywheel
     }
+
+    @Override
+    public boolean shouldRenderOffScreen(T pBlockEntity) {
+        return true; // ВАЖНО: без этого Embeddium может выкинуть BlockEntity из списка рендера!
+    }
+
+    @Override
+    public int getViewDistance() {
+        return 256; // Увеличиваем дистанцию видимости, чтобы Flywheel мог рендерить издалека
+    }
 }
