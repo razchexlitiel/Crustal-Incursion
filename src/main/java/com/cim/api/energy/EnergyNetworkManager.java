@@ -16,6 +16,7 @@ import org.slf4j.Logger;
 
 import javax.annotation.Nullable;
 import java.util.*;
+import net.minecraftforge.common.util.LazyOptional;
 
 public class EnergyNetworkManager extends SavedData {
     private static final Logger LOGGER = LogUtils.getLogger();
@@ -90,7 +91,12 @@ public class EnergyNetworkManager extends SavedData {
                 newNetwork.addNode(currentNode);
 
                 for (Direction dir : Direction.values()) {
-                    EnergyNode neighbor = allNodes.get(currentNode.getPos().relative(dir).asLong());
+                    BlockPos neighborPos = currentNode.getPos().relative(dir);
+                    if (!canConnectElectrically(currentNode.getPos(), neighborPos, dir)) {
+                        continue;
+                    }
+
+                    EnergyNode neighbor = allNodes.get(neighborPos.asLong());
 
                     if (neighbor != null && !processedNodes.contains(neighbor)) {
                         processedNodes.add(neighbor);
@@ -180,6 +186,10 @@ public class EnergyNetworkManager extends SavedData {
             BlockPos neighborPos = pos.relative(dir);
             long neighborLong = neighborPos.asLong();
 
+            if (!canConnectElectrically(pos, neighborPos, dir)) {
+                continue;
+            }
+
             EnergyNode neighbor = allNodes.get(neighborLong);
 
             // [АВТО-ПОЧИНКА] — итеративная, без рекурсии
@@ -212,14 +222,16 @@ public class EnergyNetworkManager extends SavedData {
             BlockEntity be = level.getBlockEntity(pos);
             if (be instanceof ConnectorBlockEntity connector) {
                 for (BlockPos linkedPos : connector.getConnections()) {
-                    if (linkedPos != null && level.isLoaded(linkedPos)) {
+                    if (linkedPos != null) {
                         long linkedLong = linkedPos.asLong();
                         EnergyNode linkedNeighbor = allNodes.get(linkedLong);
 
                         if (linkedNeighbor == null) {
-                            BlockEntity linkedBe = level.getBlockEntity(linkedPos);
-                            if (linkedBe instanceof ConnectorBlockEntity) {
-                                pendingNodes.add(new AddNodeRequest(linkedPos, null));
+                            if (level.isLoaded(linkedPos)) {
+                                BlockEntity linkedBe = level.getBlockEntity(linkedPos);
+                                if (linkedBe instanceof ConnectorBlockEntity) {
+                                    pendingNodes.add(new AddNodeRequest(linkedPos, null));
+                                }
                             }
                         } else if (linkedNeighbor.getNetwork() != null) {
                             if (linkedNeighbor.getNetwork() != networkToAvoid) {
@@ -303,11 +315,76 @@ public class EnergyNetworkManager extends SavedData {
 
     // ==================== УТИЛИТЫ ====================
 
+    public boolean canConnectElectrically(BlockPos pos1, BlockPos pos2, Direction dir) {
+        if (!level.isLoaded(pos1) || !level.isLoaded(pos2)) {
+            // Если чанк выгружен, мы не можем прочитать BlockEntity. 
+            // Разрешаем соединение условно, чтобы не разорвать выгруженную сеть.
+            return true;
+        }
+
+        BlockEntity be1 = level.getBlockEntity(pos1);
+        BlockEntity be2 = level.getBlockEntity(pos2);
+
+        if (be1 == null || be2 == null) return false;
+
+        boolean can1 = checkConnection(be1, dir);
+        boolean can2 = checkConnection(be2, dir.getOpposite());
+
+        return can1 && can2;
+    }
+
+    private boolean checkConnection(BlockEntity be, Direction side) {
+        // Проверяем Connector
+        LazyOptional<IEnergyConnector> connCap = be.getCapability(ModCapabilities.ENERGY_CONNECTOR, side);
+        if (connCap.isPresent()) {
+            return connCap.resolve().map(c -> c.canConnectEnergy(side)).orElse(false);
+        }
+
+        // Проверяем Provider
+        LazyOptional<IEnergyProvider> provCap = be.getCapability(ModCapabilities.ENERGY_PROVIDER, side);
+        if (provCap.isPresent()) {
+            return provCap.resolve().map(c -> c.canConnectEnergy(side)).orElse(false);
+        }
+
+        // Проверяем Receiver
+        LazyOptional<IEnergyReceiver> recCap = be.getCapability(ModCapabilities.ENERGY_RECEIVER, side);
+        if (recCap.isPresent()) {
+            return recCap.resolve().map(c -> c.canConnectEnergy(side)).orElse(false);
+        }
+
+        // Если блока нет в нашей системе энергии, возможно это ванильный/другой мод Forge Energy?
+        // Наш менеджер работает только с нашей энергией, поэтому возвращаем false.
+        return false;
+    }
+
     public boolean hasNode(BlockPos pos) { return allNodes.containsKey(pos.asLong()); }
     public EnergyNode getNode(BlockPos pos) { return allNodes.get(pos.asLong()); }
     void addNetwork(EnergyNetwork network) { networks.add(network); }
     void removeNetwork(EnergyNetwork network) { networks.remove(network); }
     public ServerLevel getLevel() {
         return this.level;
+    }
+
+    // ==================== P2P ФИКС ====================
+    public void mergeP2PConnections(BlockPos pos, Set<BlockPos> connections) {
+        EnergyNode thisNode = allNodes.get(pos.asLong());
+        if (thisNode == null || thisNode.getNetwork() == null) return;
+
+        EnergyNetwork mainNetwork = thisNode.getNetwork();
+
+        for (BlockPos linkedPos : connections) {
+            EnergyNode linkedNode = allNodes.get(linkedPos.asLong());
+            if (linkedNode != null && linkedNode.getNetwork() != null) {
+                EnergyNetwork linkedNetwork = linkedNode.getNetwork();
+                if (mainNetwork != linkedNetwork) {
+                    if (linkedNetwork.getNodeCount() > mainNetwork.getNodeCount()) {
+                        linkedNetwork.merge(mainNetwork);
+                        mainNetwork = linkedNetwork;
+                    } else {
+                        mainNetwork.merge(linkedNetwork);
+                    }
+                }
+            }
+        }
     }
 }

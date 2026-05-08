@@ -21,7 +21,7 @@ import java.util.List;
 public class ConnectorRenderer implements BlockEntityRenderer<ConnectorBlockEntity> {
 
     private static final int SEGMENTS = 24; // увеличено для плавности
-    private static final double SLACK = 1.03;
+    private static final double SLACK = 1.002;
 
     // NEW: цвет провода #1e1c18
     private static final float R = 0.1176f; // 30/255
@@ -34,12 +34,14 @@ public class ConnectorRenderer implements BlockEntityRenderer<ConnectorBlockEnti
 
     @Override
     public void render(ConnectorBlockEntity animatable, float partialTick, PoseStack poseStack,
-                       MultiBufferSource bufferSource, int packedLight, int packedOverlay) {
+            MultiBufferSource bufferSource, int packedLight, int packedOverlay) {
 
-        if (animatable.getConnections().isEmpty()) return;
+        if (animatable.getConnections().isEmpty())
+            return;
 
         Level level = animatable.getLevel();
-        if (level == null) return;
+        if (level == null)
+            return;
 
         Vec3 startWorld = animatable.getWireAttachmentPoint();
         Vec3 renderOrigin = Vec3.atLowerCornerOf(animatable.getBlockPos());
@@ -48,10 +50,12 @@ public class ConnectorRenderer implements BlockEntityRenderer<ConnectorBlockEnti
         poseStack.pushPose();
 
         for (BlockPos otherPos : animatable.getConnections()) {
-            if (animatable.getBlockPos().compareTo(otherPos) > 0) continue;
+            if (animatable.getBlockPos().compareTo(otherPos) > 0)
+                continue;
 
             BlockEntity otherBe = level.getBlockEntity(otherPos);
-            if (!(otherBe instanceof ConnectorBlockEntity otherConnector)) continue;
+            if (!(otherBe instanceof ConnectorBlockEntity otherConnector))
+                continue;
 
             Vec3 endWorld = otherConnector.getWireAttachmentPoint();
             Vec3 end = endWorld.subtract(renderOrigin);
@@ -77,7 +81,7 @@ public class ConnectorRenderer implements BlockEntityRenderer<ConnectorBlockEnti
     // ========== CATENARY (Формула провисания) ==========
 
     private record CatenaryData(boolean isVertical, double offsetX, double offsetY,
-                                double scale, Vec3 delta, double horLength, Vec3 vecA) {
+            double scale, Vec3 delta, double horLength, Vec3 vecA) {
         Vec3 getPoint(double t) {
             if (isVertical) {
                 return new Vec3(vecA.x + delta.x * t, vecA.y + delta.y * t, vecA.z + delta.z * t);
@@ -109,9 +113,12 @@ public class ConnectorRenderer implements BlockEntityRenderer<ConnectorBlockEnti
             for (int i = 0; i < 20; i++) {
                 double mid = (lower + upper) / 2.0;
                 double val = Math.sinh(mid) / mid;
-                if (val < goal) lower = mid;
-                else if (val > goal) upper = mid;
-                else break;
+                if (val < goal)
+                    lower = mid;
+                else if (val > goal)
+                    upper = mid;
+                else
+                    break;
             }
             l = (lower + upper) / 2.0;
         }
@@ -127,7 +134,7 @@ public class ConnectorRenderer implements BlockEntityRenderer<ConnectorBlockEnti
     // ========== НОВЫЙ РЕНДЕР ПРОВОДА (гладкая труба) ==========
 
     private void renderWire(PoseStack poseStack, MultiBufferSource bufferSource,
-                            Vec3 start, Vec3 end, int light, int overlay, float wireRadius) {
+            Vec3 start, Vec3 end, int light, int overlay, float wireRadius) {
 
         CatenaryData catenary = computeCatenary(start, end);
 
@@ -207,9 +214,7 @@ public class ConnectorRenderer implements BlockEntityRenderer<ConnectorBlockEnti
         // 4. Рисуем сегменты
         VertexConsumer consumer = bufferSource.getBuffer(
                 RenderType.entityCutoutNoCull(
-                        new ResourceLocation("minecraft", "textures/block/black_concrete.png")
-                )
-        );
+                        new ResourceLocation("minecraft", "textures/block/black_concrete.png")));
 
         Matrix4f matrix = poseStack.last().pose();
         Matrix3f normalMatrix = poseStack.last().normal();
@@ -245,14 +250,15 @@ public class ConnectorRenderer implements BlockEntityRenderer<ConnectorBlockEnti
 
     // Новая версия emitQuad, принимающая разные смещения для начала и конца
     private void emitQuad(Matrix4f mat, Matrix3f norm, VertexConsumer consumer,
-                          Vec3 p1, Vec3 p2, Vec3 offset1, Vec3 offset2,
-                          int light, int overlay) {
+            Vec3 p1, Vec3 p2, Vec3 offset1, Vec3 offset2,
+            int light, int overlay) {
         Vec3 a = p1.add(offset1);
         Vec3 b = p1.subtract(offset1);
         Vec3 c = p2.subtract(offset2);
         Vec3 d = p2.add(offset2);
 
-        // Нормаль берём как среднее направление offset (для простоты используем offset1)
+        // Нормаль берём как среднее направление offset (для простоты используем
+        // offset1)
         Vec3 n = offset1.normalize();
         float nx = (float) n.x, ny = (float) n.y, nz = (float) n.z;
 
@@ -263,8 +269,8 @@ public class ConnectorRenderer implements BlockEntityRenderer<ConnectorBlockEnti
     }
 
     private void vert(Matrix4f mat, Matrix3f norm, VertexConsumer consumer,
-                      Vec3 pos, float nx, float ny, float nz,
-                      float u, float v, int light, int overlay) {
+            Vec3 pos, float nx, float ny, float nz,
+            float u, float v, int light, int overlay) {
         consumer.vertex(mat, (float) pos.x, (float) pos.y, (float) pos.z)
                 .color(R, G, B, A)
                 .uv(u, v)

@@ -203,8 +203,10 @@ public class ConnectorBlockEntity extends BlockEntity implements IEnergyConnecto
     public void onLoad() {
         super.onLoad();
         if (level != null && !level.isClientSide) {
-            com.cim.api.energy.EnergyNetworkManager.get(
-                    (net.minecraft.server.level.ServerLevel) level).addNode(worldPosition);
+            com.cim.api.energy.EnergyNetworkManager manager = com.cim.api.energy.EnergyNetworkManager.get(
+                    (net.minecraft.server.level.ServerLevel) level);
+            manager.addNode(worldPosition);
+            manager.mergeP2PConnections(worldPosition, this.connections);
         }
     }
 
