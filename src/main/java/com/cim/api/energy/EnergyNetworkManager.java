@@ -212,14 +212,16 @@ public class EnergyNetworkManager extends SavedData {
             BlockEntity be = level.getBlockEntity(pos);
             if (be instanceof ConnectorBlockEntity connector) {
                 for (BlockPos linkedPos : connector.getConnections()) {
-                    if (linkedPos != null && level.isLoaded(linkedPos)) {
+                    if (linkedPos != null) {
                         long linkedLong = linkedPos.asLong();
                         EnergyNode linkedNeighbor = allNodes.get(linkedLong);
 
                         if (linkedNeighbor == null) {
-                            BlockEntity linkedBe = level.getBlockEntity(linkedPos);
-                            if (linkedBe instanceof ConnectorBlockEntity) {
-                                pendingNodes.add(new AddNodeRequest(linkedPos, null));
+                            if (level.isLoaded(linkedPos)) {
+                                BlockEntity linkedBe = level.getBlockEntity(linkedPos);
+                                if (linkedBe instanceof ConnectorBlockEntity) {
+                                    pendingNodes.add(new AddNodeRequest(linkedPos, null));
+                                }
                             }
                         } else if (linkedNeighbor.getNetwork() != null) {
                             if (linkedNeighbor.getNetwork() != networkToAvoid) {
@@ -309,5 +311,28 @@ public class EnergyNetworkManager extends SavedData {
     void removeNetwork(EnergyNetwork network) { networks.remove(network); }
     public ServerLevel getLevel() {
         return this.level;
+    }
+
+    // ==================== P2P ФИКС ====================
+    public void mergeP2PConnections(BlockPos pos, Set<BlockPos> connections) {
+        EnergyNode thisNode = allNodes.get(pos.asLong());
+        if (thisNode == null || thisNode.getNetwork() == null) return;
+
+        EnergyNetwork mainNetwork = thisNode.getNetwork();
+
+        for (BlockPos linkedPos : connections) {
+            EnergyNode linkedNode = allNodes.get(linkedPos.asLong());
+            if (linkedNode != null && linkedNode.getNetwork() != null) {
+                EnergyNetwork linkedNetwork = linkedNode.getNetwork();
+                if (mainNetwork != linkedNetwork) {
+                    if (linkedNetwork.getNodeCount() > mainNetwork.getNodeCount()) {
+                        linkedNetwork.merge(mainNetwork);
+                        mainNetwork = linkedNetwork;
+                    } else {
+                        mainNetwork.merge(linkedNetwork);
+                    }
+                }
+            }
+        }
     }
 }
