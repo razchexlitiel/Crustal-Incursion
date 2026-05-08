@@ -722,13 +722,18 @@ public class ShaftBlockEntity extends BlockEntity implements Rotational {
     @Override
     public net.minecraft.world.phys.AABB getRenderBoundingBox() {
         BlockPos connectedPos = getConnectedPulley();
-        if (connectedPos != null) {
-            // Добавляем .inflate(1.5), чтобы "надуть" коробку на 1.5 блока во все стороны
-            return new net.minecraft.world.phys.AABB(worldPosition)
-                    .minmax(new net.minecraft.world.phys.AABB(connectedPos))
-                    .inflate(1.5);
+        net.minecraft.world.phys.AABB box = super.getRenderBoundingBox();
+        
+        if (this.hasGear()) {
+            box = box.inflate(1.5D); 
+        } else {
+            box = box.inflate(0.5D);
         }
-        return super.getRenderBoundingBox();
+        
+        if (connectedPos != null) {
+            return box.minmax(new net.minecraft.world.phys.AABB(connectedPos)).inflate(1.5D);
+        }
+        return box;
     }
 
     @Override
