@@ -284,4 +284,14 @@ public class BeamCollisionBlockEntity extends BlockEntity {
             .with(MY_POS, this.getBlockPos())
             .build();
     }
+
+    @Override
+    public net.minecraftforge.client.model.data.ModelData getModelData() {
+        return net.minecraftforge.client.model.data.ModelData.builder()
+            .with(START_POS, startPos)
+            .with(END_POS, endPos)
+            .with(SEGMENTS, segmentsToRender)
+            .with(MY_POS, this.getBlockPos())
+            .build();
+    }
 }
