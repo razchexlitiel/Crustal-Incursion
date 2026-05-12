@@ -1,8 +1,10 @@
 package com.cim.multiblock.system;
 
+import com.cim.api.energy.EnergyNetworkManager;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
@@ -202,11 +204,16 @@ public class MultiblockStructureHelper {
 
             if (!isBlockReplaceable(existingState)) {
                 obstructions.add(worldPos);
+            } else if (level instanceof ServerLevel serverLevel && EnergyNetworkManager.get(serverLevel).isBlockObstructingAnyWire(worldPos)) {
+                // Также проверяем, не проходит ли сквозь это место провод
+                obstructions.add(worldPos);
             }
         }
 
         if (!obstructions.isEmpty()) {
-            player.displayClientMessage(Component.literal("§cCannot place multiblock here! Area is obstructed."), true);
+            if (player != null) {
+                player.displayClientMessage(Component.literal("§cCannot place multiblock here! Area is obstructed."), true);
+            }
             // TODO: Вы можете добавить пакет подсветки красным цветом (HighlightBlocksPacket) здесь
             return false;
         }

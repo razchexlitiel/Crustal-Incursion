@@ -12,6 +12,8 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.saveddata.SavedData;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
 import org.slf4j.Logger;
 
 import javax.annotation.Nullable;
@@ -388,5 +390,61 @@ public class EnergyNetworkManager extends SavedData {
                 }
             }
         }
+    }
+
+    // ==================== ПРОВЕРКА ПРЕПЯТСТВИЙ ПРИ УСТАНОВКЕ БЛОКОВ ====================
+
+    public boolean isBlockObstructingAnyWire(BlockPos placedPos) {
+        AABB blockBox = new AABB(placedPos);
+
+        for (EnergyNode node : allNodes.values()) {
+            BlockPos startPos = node.getPos();
+
+            // 1. Быстрая проверка расстояния
+            if (startPos.distSqr(placedPos) > 1024) continue;
+
+            if (!level.isLoaded(startPos)) continue;
+
+            BlockEntity be = level.getBlockEntity(startPos);
+            if (be instanceof ConnectorBlockEntity connector) {
+                for (BlockPos endPos : connector.getConnections()) {
+                    // 2. Проверяем каждый провод только один раз
+                    if (startPos.asLong() < endPos.asLong()) {
+                        // 3. Быстрая проверка через AABB провода
+                        AABB wireBox = new AABB(startPos).minmax(new AABB(endPos)).inflate(0.5);
+                        if (wireBox.intersects(blockBox)) {
+                            // 4. Детальная проверка по точкам провисания
+                            if (wireIntersectsBlock(connector, endPos, blockBox)) {
+                                return true;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    private boolean wireIntersectsBlock(ConnectorBlockEntity startBe, BlockPos endPos, AABB blockBox) {
+        if (!level.isLoaded(endPos)) return false;
+        BlockEntity be = level.getBlockEntity(endPos);
+        if (!(be instanceof ConnectorBlockEntity endBe)) return false;
+
+        Vec3 start = startBe.getWireAttachmentPoint();
+        Vec3 end = endBe.getWireAttachmentPoint();
+
+        com.cim.util.CatenaryHelper.CatenaryData data = com.cim.util.CatenaryHelper.compute(start, end);
+        int segments = 12;
+        Vec3 prev = start;
+
+        for (int i = 1; i <= segments; i++) {
+            Vec3 current = data.getPoint((double) i / segments);
+            // Если сегмент провода пересекает хитбокс блока
+            if (blockBox.clip(prev, current).isPresent()) {
+                return true;
+            }
+            prev = current;
+        }
+        return false;
     }
 }

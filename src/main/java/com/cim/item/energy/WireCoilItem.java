@@ -12,6 +12,13 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
+import com.cim.util.CatenaryHelper;
+import com.cim.multiblock.system.IMultiblockPart;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.ClipContext;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.HitResult;
+import net.minecraft.world.phys.Vec3;
 
 public class WireCoilItem extends Item {
     public WireCoilItem(Properties properties) {
@@ -102,18 +109,55 @@ public class WireCoilItem extends Item {
                 return InteractionResult.FAIL;
             }
 
+            // 5. Проверка на препятствия
+            if (isPathBlocked(level, firstConnector, currentConnector, player)) {
+                return InteractionResult.FAIL;
+            }
+
             // ================= УСПЕХ: СОЕДИНЯЕМ =================
             // Записываем друг друга в память
             firstConnector.connectTo(pos);
             currentConnector.connectTo(firstPos);
 
-            // Тратим 1 предмет из стака, если игрок не в креативе
-            if (player != null && !player.isCreative()) {
-                stack.shrink(1);
-            }
-
             if (player != null) player.displayClientMessage(Component.literal("§bСоединение успешно установлено!"), true);
             return InteractionResult.SUCCESS;
         }
+    }
+
+    private boolean isPathBlocked(Level level, ConnectorBlockEntity startBe, ConnectorBlockEntity endBe, Player player) {
+        Vec3 start = startBe.getWireAttachmentPoint();
+        Vec3 end = endBe.getWireAttachmentPoint();
+        BlockPos startPos = startBe.getBlockPos();
+        BlockPos endPos = endBe.getBlockPos();
+
+        CatenaryHelper.CatenaryData data = CatenaryHelper.compute(start, end);
+        int segments = 12; // Достаточно для проверки коллизий
+        Vec3 prev = start;
+
+        for (int i = 1; i <= segments; i++) {
+            Vec3 current = data.getPoint((double) i / segments);
+            BlockHitResult hit = level.clip(new ClipContext(prev, current, ClipContext.Block.OUTLINE, ClipContext.Fluid.NONE, player));
+
+            if (hit.getType() == HitResult.Type.BLOCK) {
+                BlockPos hitPos = hit.getBlockPos();
+                if (!hitPos.equals(startPos) && !hitPos.equals(endPos)) {
+                    if (player != null) {
+                        BlockState hitState = level.getBlockState(hitPos);
+                        String blockName = hitState.getBlock().getName().getString();
+
+                        // Если это часть мультиблока, показываем название всей машины
+                        BlockEntity be = level.getBlockEntity(hitPos);
+                        if (be instanceof IMultiblockPart part && part.getControllerPos() != null) {
+                            blockName = level.getBlockState(part.getControllerPos()).getBlock().getName().getString();
+                        }
+
+                        player.displayClientMessage(Component.literal("§cПуть заблокирован: " + blockName), true);
+                    }
+                    return true;
+                }
+            }
+            prev = current;
+        }
+        return false;
     }
 }
