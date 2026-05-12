@@ -20,7 +20,7 @@ public class KineticNetwork {
     private final Set<BlockPos> members = new HashSet<>();
     // Только источники энергии (моторы, ветряки)
     private final Set<BlockPos> generators = new HashSet<>();
-
+    // гомяк
     private long currentSpeed = 0;
     private long totalGeneratedTorque = 0;
     private long totalConsumedTorque = 0;
