@@ -27,7 +27,14 @@ public class KineticNetwork {
     private long totalInertia = 1; // Защита от деления на ноль
     private long totalFriction = 0;
     private long targetNetworkSpeed = 0;
-    private boolean needsRecalculation = true;// К чему стремится мотор
+    private boolean needsRecalculation = true;
+
+    /**
+     * Флаг перегрузки: true, если суммарное потребление CONSUMER-узлов
+     * превышает суммарный момент GENERATOR-узлов.
+     * В перегруженной сети targetNetworkSpeed принудительно обнуляется.
+     */
+    private boolean isOverloaded = false;
 
     public KineticNetwork() {
         this.networkId = UUID.randomUUID();
@@ -65,6 +72,15 @@ public class KineticNetwork {
                     networkId.toString().substring(0, 8),
                     this.currentSpeed, this.totalGeneratedTorque, this.totalFriction, this.totalInertia,
                     generators.size());
+        }
+
+        // OVERLOAD CHECK: если сеть перегружена — принудительно останавливаем
+        if (isOverloaded) {
+            if (this.targetNetworkSpeed != 0) {
+                LOGGER.debug("[Kinetic-OVERLOAD] Network {} overloaded! consumed={} > generated={}, forcing stop.",
+                        networkId.toString().substring(0, 8), totalConsumedTorque, totalGeneratedTorque);
+                this.targetNetworkSpeed = 0;
+            }
         }
 
         // 1. РАЗГОН (если генераторы работают)
@@ -231,6 +247,25 @@ public class KineticNetwork {
             }
         }
 
+        // 3. OVERLOAD CHECK
+        // Потребление CONSUMER-узлов уже суммируется в totalConsumedTorque (из цикла members выше).
+        // Перегрузка: суммарное потребление превышает то, что дают генераторы.
+        // Трение и инерция не считаются перегрузкой — это нормальная физика.
+        boolean wasOverloaded = this.isOverloaded;
+        this.isOverloaded = (totalConsumedTorque > totalGeneratedTorque) && (totalGeneratedTorque > 0);
+
+        if (this.isOverloaded) {
+            // Перегруз: цель — немедленная остановка
+            this.targetNetworkSpeed = 0;
+            if (!wasOverloaded) {
+                LOGGER.info("[Kinetic-OVERLOAD] Network {} OVERLOADED: consumed={} > generated={}",
+                        networkId.toString().substring(0, 8), totalConsumedTorque, totalGeneratedTorque);
+            }
+        } else if (wasOverloaded) {
+            LOGGER.info("[Kinetic-OVERLOAD] Network {} recovered: consumed={} <= generated={}",
+                    networkId.toString().substring(0, 8), totalConsumedTorque, totalGeneratedTorque);
+        }
+
         // Защита от нулевой инерции
         if (this.totalInertia <= 0)
             this.totalInertia = 1;
@@ -302,6 +337,7 @@ public class KineticNetwork {
         CompoundTag nbt = new CompoundTag();
         nbt.putUUID("Id", networkId);
         nbt.putLong("Speed", currentSpeed);
+        nbt.putBoolean("Overloaded", isOverloaded);
 
         ListTag membersTag = new ListTag();
         for (BlockPos pos : members) {
@@ -319,13 +355,12 @@ public class KineticNetwork {
     }
 
     public static KineticNetwork deserializeNBT(CompoundTag nbt) {
-        // Создаем сеть с сохраненным UUID
         KineticNetwork net = new KineticNetwork(nbt.getUUID("Id"));
         net.currentSpeed = nbt.getLong("Speed");
+        net.isOverloaded = nbt.getBoolean("Overloaded");
 
         ListTag membersTag = nbt.getList("Members", Tag.TAG_LONG);
         for (int i = 0; i < membersTag.size(); i++) {
-            // Берем тег из списка, кастуем его к LongTag и вытаскиваем long
             long posLong = ((net.minecraft.nbt.LongTag) membersTag.get(i)).getAsLong();
             net.members.add(BlockPos.of(posLong));
         }
@@ -389,6 +424,16 @@ public class KineticNetwork {
 
     public long getTotalFriction() {
         return totalFriction;
+    }
+
+    /** @return true, если в текущем тике потребление CONSUMER-узлов превышает пул генераторов. */
+    public boolean isOverloaded() {
+        return isOverloaded;
+    }
+
+    /** Суммарный момент потребляемый CONSUMER-узлами (без трения). */
+    public long getTotalConsumedTorque() {
+        return totalConsumedTorque;
     }
 
 }

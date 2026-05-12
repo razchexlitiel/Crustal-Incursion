@@ -12,11 +12,7 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
 
-public class ShaftBlockEntity extends BlockEntity implements Rotational {
-
-    private long speed = 0;
-    private long lastSyncedSpeed = 0;
-    private float networkScale = 1.0f;
+public class ShaftBlockEntity extends KineticNodeBlockEntity {
 
     private ItemStack attachedPulley = ItemStack.EMPTY;
     private BlockPos connectedPulley = null;
@@ -328,6 +324,26 @@ public class ShaftBlockEntity extends BlockEntity implements Rotational {
             }
         }
 
+        // 4. СТАТОРЫ: проверяем все 4 боковых стороны (перпендикулярно оси вала)
+        // Статор должен смотреть FACING прямо на вал, чтобы попасть в его сеть
+        for (Direction dir : Direction.values()) {
+            if (dir.getAxis() == axis) continue; // пропускаем вдоль оси — там уже добавлены
+            BlockPos sidePos = myPos.relative(dir);
+            if (level.isLoaded(sidePos)) {
+                BlockEntity be = level.getBlockEntity(sidePos);
+                if (be instanceof StatorBlockEntity stator) {
+                    // Статор смотрит на нас?
+                    BlockState statorState = stator.getBlockState();
+                    if (statorState.hasProperty(com.cim.block.basic.industrial.rotation.StatorBlock.FACING)) {
+                        Direction statorFacing = statorState.getValue(com.cim.block.basic.industrial.rotation.StatorBlock.FACING);
+                        if (sidePos.relative(statorFacing).equals(myPos)) {
+                            list.add(sidePos);
+                        }
+                    }
+                }
+            }
+        }
+
         return list;
     }
 
@@ -559,6 +575,10 @@ public class ShaftBlockEntity extends BlockEntity implements Rotational {
         if (neighbor instanceof MotorElectroBlockEntity) {
             return thisDiameter == ShaftDiameter.LIGHT;
         }
+        if (neighbor instanceof StatorBlockEntity stator) {
+            // Вал разрешает соединение со статором, если тот смотрит на вал
+            return stator.canConnectMechanically(neighborPos, myPos, this);
+        }
         return true;
     }
 
@@ -578,47 +598,11 @@ public class ShaftBlockEntity extends BlockEntity implements Rotational {
         };
     }
 
-    @Override
-    public void setNetworkScale(float scale) {
-        this.networkScale = scale;
-    }
-
-    @Override
-    public float getNetworkScale() {
-        return this.networkScale;
-    }
-
-    @Override
-    public void setSpeed(long speed) {
-        long actualSpeed = (long) (speed * this.networkScale);
-        if (this.speed != actualSpeed) {
-            this.speed = actualSpeed;
-            setChanged();
-            if (shouldSyncSpeed()) {
-                this.lastSyncedSpeed = this.speed;
-                if (level != null && !level.isClientSide) {
-                    level.sendBlockUpdated(getBlockPos(), getBlockState(), getBlockState(), 3);
-                }
-            }
-        }
-    }
-
-    private boolean shouldSyncSpeed() {
-        if (this.speed == 0 && this.lastSyncedSpeed != 0)
-            return true;
-        if (this.speed != 0 && this.lastSyncedSpeed == 0)
-            return true;
-        long diff = Math.abs(this.speed - this.lastSyncedSpeed);
-        long threshold = Math.max(2, Math.abs(this.lastSyncedSpeed) / 20);
-        return diff >= threshold;
-    }
+    // setSpeed, shouldSyncSpeed, setNetworkScale, getNetworkScale — унаследованы от KineticNodeBlockEntity
 
     @Override
     protected void saveAdditional(CompoundTag tag) {
-        super.saveAdditional(tag);
-        tag.putLong("Speed", this.speed);
-        tag.putLong("LastSyncedSpeed", this.lastSyncedSpeed);
-        tag.putFloat("NetworkScale", this.networkScale);
+        super.saveAdditional(tag); // speed, lastSyncedSpeed, networkScale
 
         if (!attachedGear.isEmpty())
             tag.put("AttachedGear", attachedGear.save(new CompoundTag()));
@@ -628,7 +612,6 @@ public class ShaftBlockEntity extends BlockEntity implements Rotational {
             tag.put("AttachedBevelEnd", attachedBevelEnd.save(new CompoundTag()));
         if (!attachedRotor.isEmpty())
             tag.put("AttachedRotor", attachedRotor.save(new CompoundTag()));
-        // Сохранение шкивов
         if (!attachedPulley.isEmpty())
             tag.put("AttachedPulley", attachedPulley.save(new CompoundTag()));
         if (connectedPulley != null)
@@ -637,10 +620,7 @@ public class ShaftBlockEntity extends BlockEntity implements Rotational {
 
     @Override
     public void load(CompoundTag tag) {
-        super.load(tag);
-        this.speed = tag.getLong("Speed");
-        this.lastSyncedSpeed = tag.getLong("LastSyncedSpeed");
-        this.networkScale = tag.contains("NetworkScale") ? tag.getFloat("NetworkScale") : 1.0f;
+        super.load(tag); // speed, lastSyncedSpeed, networkScale
 
         this.attachedGear = tag.contains("AttachedGear") ? ItemStack.of(tag.getCompound("AttachedGear"))
                 : ItemStack.EMPTY;
@@ -651,7 +631,6 @@ public class ShaftBlockEntity extends BlockEntity implements Rotational {
                 : ItemStack.EMPTY;
         this.attachedRotor = tag.contains("AttachedRotor") ? ItemStack.of(tag.getCompound("AttachedRotor"))
                 : ItemStack.EMPTY;
-        // Загрузка шкивов
         this.attachedPulley = tag.contains("AttachedPulley") ? ItemStack.of(tag.getCompound("AttachedPulley"))
                 : ItemStack.EMPTY;
         this.connectedPulley = tag.contains("ConnectedPulley")
@@ -659,56 +638,7 @@ public class ShaftBlockEntity extends BlockEntity implements Rotational {
                 : null;
     }
 
-    @Override
-    public CompoundTag getUpdateTag() {
-        CompoundTag tag = super.getUpdateTag();
-        tag.putLong("Speed", this.speed);
-        if (!attachedGear.isEmpty())
-            tag.put("AttachedGear", attachedGear.save(new CompoundTag()));
-        if (!attachedBevelStart.isEmpty())
-            tag.put("AttachedBevelStart", attachedBevelStart.save(new CompoundTag()));
-        if (!attachedBevelEnd.isEmpty())
-            tag.put("AttachedBevelEnd", attachedBevelEnd.save(new CompoundTag()));
-        if (!attachedRotor.isEmpty())
-            tag.put("AttachedRotor", attachedRotor.save(new CompoundTag()));
-        // Синхронизация на клиент
-        if (!attachedPulley.isEmpty())
-            tag.put("AttachedPulley", attachedPulley.save(new CompoundTag()));
-        if (connectedPulley != null)
-            tag.put("ConnectedPulley", net.minecraft.nbt.NbtUtils.writeBlockPos(connectedPulley));
-        return tag;
-    }
-
-    @Override
-    public ClientboundBlockEntityDataPacket getUpdatePacket() {
-        return ClientboundBlockEntityDataPacket.create(this);
-    }
-
-    @Override
-    public void onDataPacket(net.minecraft.network.Connection net, ClientboundBlockEntityDataPacket pkt) {
-        long oldSpeed = this.speed;
-        CompoundTag tag = pkt.getTag();
-        if (tag != null) {
-            load(tag);
-        }
-        com.cim.main.CrustalIncursionMod.LOGGER.info("[CLIENT-DIAG] onDataPacket at {} | oldSpeed={} -> newSpeed={}",
-                worldPosition.toShortString(), oldSpeed, this.speed);
-    }
-
-    @Override
-    public void onLoad() {
-        super.onLoad();
-        if (level != null && !level.isClientSide) {
-            var net = com.cim.api.rotation.KineticNetworkManager.get((net.minecraft.server.level.ServerLevel) level)
-                    .getNetworkFor(worldPosition);
-            if (net != null) {
-                // Применяем networkScale, чтобы восстановить правильную масштабированную скорость (Bug #1 fix)
-                this.speed = (long) (net.getSpeed() * this.networkScale);
-                this.lastSyncedSpeed = this.speed;
-                net.requestRecalculation();
-            }
-        }
-    }
+    // getUpdateTag, getUpdatePacket, onDataPacket, onLoad — унаследованы от KineticNodeBlockEntity
 
     @Override
     public long getVisualSpeed() {
@@ -741,10 +671,7 @@ public class ShaftBlockEntity extends BlockEntity implements Rotational {
         return box;
     }
 
-    @Override
-    public long getSpeed() {
-        return speed;
-    }
+    // getSpeed() — унаследован от KineticNodeBlockEntity
 
     @Override
     public long getTorque() {
@@ -785,37 +712,13 @@ public class ShaftBlockEntity extends BlockEntity implements Rotational {
         return hasRotor() ? 1.2f : 1.0f;
     }
 
+    /**
+     * Вал не потребляет момент напрямую — каждый статор сам декларирует своё потребление
+     * через NodeRole.CONSUMER и getConsumedTorque() в StatorBlockEntity.
+     */
     @Override
     public long getConsumedTorque() {
-        if (!hasRotor() || level == null) return 0;
-        
-        long consumed = 0;
-        Direction.Axis axis = getBlockState().getValue(ShaftBlock.FACING).getAxis();
-        Direction[] dirsToCheck;
-        
-        if (axis == Direction.Axis.X) {
-            dirsToCheck = new Direction[]{Direction.UP, Direction.DOWN, Direction.NORTH, Direction.SOUTH};
-        } else if (axis == Direction.Axis.Y) {
-            dirsToCheck = new Direction[]{Direction.EAST, Direction.WEST, Direction.NORTH, Direction.SOUTH};
-        } else {
-            dirsToCheck = new Direction[]{Direction.UP, Direction.DOWN, Direction.EAST, Direction.WEST};
-        }
-        
-        for (Direction dir : dirsToCheck) {
-            BlockPos checkPos = worldPosition.relative(dir);
-            if (level.isLoaded(checkPos)) {
-                BlockEntity be = level.getBlockEntity(checkPos);
-                if (be instanceof com.cim.block.entity.industrial.rotation.StatorBlockEntity stator) {
-                    BlockState statorState = level.getBlockState(checkPos);
-                    if (statorState.hasProperty(com.cim.block.basic.industrial.rotation.StatorBlock.FACING) && statorState.getValue(com.cim.block.basic.industrial.rotation.StatorBlock.FACING) == dir.getOpposite()) {
-                        if (stator.getEnergyStored() < stator.getMaxEnergyStored()) {
-                            consumed += 50;
-                        }
-                    }
-                }
-            }
-        }
-        return consumed;
+        return 0;
     }
 
     @Override

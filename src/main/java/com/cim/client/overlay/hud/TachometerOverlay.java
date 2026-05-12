@@ -53,7 +53,7 @@ public class TachometerOverlay {
             // Вал есть — отображаем параметры сети
             String header = "▶ Network Analyzer";
             String speedText = "Speed: " + Math.abs(tachometer.getNetworkSpeed()) + " RPM";
-            String torqueText = "Torque: " + tachometer.getNetworkTorque() + " Nm";
+            String torqueText = "Torque: " + tachometer.getNetworkConsumedTorque() + " / " + tachometer.getNetworkTorque() + " Nm";
             String inertiaText = "Inertia: " + tachometer.getNetworkInertia();
             String frictionText = "Friction: " + tachometer.getNetworkFriction();
 
@@ -75,7 +75,10 @@ public class TachometerOverlay {
 
             // Данные
             guiGraphics.drawString(mc.font, speedText, centerX, centerY + lineHeight, valueColor, true);
-            guiGraphics.drawString(mc.font, torqueText, centerX, centerY + lineHeight * 2, valueColor, true);
+            
+            int torqueColor = (tachometer.getNetworkConsumedTorque() > tachometer.getNetworkTorque() && tachometer.getNetworkTorque() > 0) ? noShaftColor : valueColor;
+            guiGraphics.drawString(mc.font, torqueText, centerX, centerY + lineHeight * 2, torqueColor, true);
+            
             guiGraphics.drawString(mc.font, inertiaText, centerX, centerY + lineHeight * 3, valueColor, true);
             guiGraphics.drawString(mc.font, frictionText, centerX, centerY + lineHeight * 4, valueColor, true);
         }

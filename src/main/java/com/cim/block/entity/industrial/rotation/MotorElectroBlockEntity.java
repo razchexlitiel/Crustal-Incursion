@@ -27,7 +27,7 @@ import net.minecraftforge.common.util.LazyOptional;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-public class MotorElectroBlockEntity extends BlockEntity implements Rotational, IEnergyReceiver {
+public class MotorElectroBlockEntity extends KineticNodeBlockEntity implements IEnergyReceiver {
 
     // ===================== КОНСТАНТЫ =====================
     public static final long MAX_ENERGY = 10_000L;
@@ -36,38 +36,28 @@ public class MotorElectroBlockEntity extends BlockEntity implements Rotational, 
     public static final int MAX_RPM = 1_000;
 
     // ===================== ПОЛЯ =====================
-    // Энергия
     private long energyStored = 0L;
-
-    // Параметры мотора
-    private int targetRpm = MAX_RPM; // 100–1000 RPM
+    private int targetRpm = MAX_RPM;
     private boolean reversed = false;
     private boolean hasEnergy = false;
 
-    // Кинетика (визуальная/сетевая скорость)
-    private long currentSpeed = 0;
-    private long lastSyncedSpeed = 0;
-
     /**
-     * Флаг фронта редстоун-сигнала — аналогично SwitchBlockEntity.isTriggered.
-     * Хранится в BlockEntity (а не в Block-синглтоне!), поэтому:
-     *  - персистентен между перезагрузками
-     *  - независим для каждого мотора в мире
+     * Флаг фронта редстоун-сигнала.
+     * Персистентен между перезагрузками, независим для каждого мотора.
      */
     public boolean isTriggered = false;
 
-    // Capability — предоставляем только со стороны задней грани
+    // Capability — принимает энергию только с задней грани
     private final LazyOptional<IEnergyReceiver> receiverCap = LazyOptional.of(() -> this);
     private final LazyOptional<IEnergyConnector> connectorCap = LazyOptional.of(() -> this);
 
-    // ContainerData для синхронизации GUI (4 int-слота)
-    // [0] targetRpm [1] energyStored/10 [2] JE/s [3] torque
+    // ContainerData для GUI: [0]=targetRpm [1]=energy/10 [2]=JE/s [3]=torque
     public final ContainerData dataAccess = new ContainerData() {
         @Override
         public int get(int index) {
             return switch (index) {
                 case 0 -> targetRpm;
-                case 1 -> (int) (energyStored / 10); // max 1000 — в int помещается
+                case 1 -> (int) (energyStored / 10);
                 case 2 -> getConsumptionPerSecond();
                 case 3 -> (int) getTorqueNm();
                 default -> 0;
@@ -76,14 +66,11 @@ public class MotorElectroBlockEntity extends BlockEntity implements Rotational, 
 
         @Override
         public void set(int index, int value) {
-            if (index == 0)
-                targetRpm = clampRpm(value);
+            if (index == 0) targetRpm = clampRpm(value);
         }
 
         @Override
-        public int getCount() {
-            return 4;
-        }
+        public int getCount() { return 4; }
     };
 
     // ===================== КОНСТРУКТОР =====================
@@ -96,10 +83,8 @@ public class MotorElectroBlockEntity extends BlockEntity implements Rotational, 
     public @NotNull <T> LazyOptional<T> getCapability(@NotNull Capability<T> cap, @Nullable Direction side) {
         Direction backSide = getBackSide();
         if (side == null || side == backSide) {
-            if (cap == ModCapabilities.ENERGY_RECEIVER)
-                return receiverCap.cast();
-            if (cap == ModCapabilities.ENERGY_CONNECTOR)
-                return connectorCap.cast();
+            if (cap == ModCapabilities.ENERGY_RECEIVER) return receiverCap.cast();
+            if (cap == ModCapabilities.ENERGY_CONNECTOR) return connectorCap.cast();
         }
         return super.getCapability(cap, side);
     }
@@ -111,30 +96,23 @@ public class MotorElectroBlockEntity extends BlockEntity implements Rotational, 
         connectorCap.invalidate();
     }
 
-    /** Сторона, с которой принимается энергия: противоположная FACING */
     private Direction getBackSide() {
         BlockState state = getBlockState();
-        if (!state.hasProperty(MotorElectroBlock.FACING))
-            return Direction.NORTH;
+        if (!state.hasProperty(MotorElectroBlock.FACING)) return Direction.NORTH;
         return state.getValue(MotorElectroBlock.FACING).getOpposite();
     }
 
     // ===================== IEnergyConnector =====================
-    @Override
     public boolean canConnectEnergy(Direction side) {
         return side == getBackSide();
     }
 
     // ===================== IEnergyReceiver =====================
     @Override
-    public long getEnergyStored() {
-        return energyStored;
-    }
+    public long getEnergyStored() { return energyStored; }
 
     @Override
-    public long getMaxEnergyStored() {
-        return MAX_ENERGY;
-    }
+    public long getMaxEnergyStored() { return MAX_ENERGY; }
 
     @Override
     public void setEnergyStored(long energy) {
@@ -142,14 +120,10 @@ public class MotorElectroBlockEntity extends BlockEntity implements Rotational, 
     }
 
     @Override
-    public long getReceiveSpeed() {
-        return RECEIVE_SPEED;
-    }
+    public long getReceiveSpeed() { return RECEIVE_SPEED; }
 
     @Override
-    public Priority getPriority() {
-        return Priority.NORMAL;
-    }
+    public Priority getPriority() { return Priority.NORMAL; }
 
     @Override
     public long receiveEnergy(long maxReceive, boolean simulate) {
@@ -162,33 +136,24 @@ public class MotorElectroBlockEntity extends BlockEntity implements Rotational, 
     }
 
     @Override
-    public boolean canReceive() {
-        return energyStored < MAX_ENERGY;
-    }
+    public boolean canReceive() { return energyStored < MAX_ENERGY; }
 
     // ===================== ПАРАМЕТРЫ МОТОРА =====================
 
     /** Крутящий момент в Нм: targetRpm / 5 */
-    public long getTorqueNm() {
-        return targetRpm / 5L;
-    }
+    public long getTorqueNm() { return targetRpm / 5L; }
 
     /** Потребление в JE/тик */
     public int getConsumptionPerTick() {
-        // При 1000 RPM = 25 JE/тик; линейно
         return Math.max(1, targetRpm * 25 / MAX_RPM);
     }
 
     /** Потребление в JE/сек (для GUI) */
-    public int getConsumptionPerSecond() {
-        return getConsumptionPerTick() * 20;
-    }
+    public int getConsumptionPerSecond() { return getConsumptionPerTick() * 20; }
 
     // ===================== GETTERS / SETTERS =====================
 
-    public int getTargetRpm() {
-        return targetRpm;
-    }
+    public int getTargetRpm() { return targetRpm; }
 
     public void setTargetRpm(int rpm) {
         int newRpm = clampRpm(rpm);
@@ -199,9 +164,7 @@ public class MotorElectroBlockEntity extends BlockEntity implements Rotational, 
         }
     }
 
-    public boolean isReversed() {
-        return reversed;
-    }
+    public boolean isReversed() { return reversed; }
 
     /**
      * Переключает направление вращения.
@@ -216,7 +179,6 @@ public class MotorElectroBlockEntity extends BlockEntity implements Rotational, 
         }
     }
 
-    /** Округление до десятков, зажим в [MIN_RPM, MAX_RPM] */
     private static int clampRpm(int rpm) {
         rpm = Math.round(rpm / 10.0f) * 10;
         return Math.max(MIN_RPM, Math.min(MAX_RPM, rpm));
@@ -224,7 +186,6 @@ public class MotorElectroBlockEntity extends BlockEntity implements Rotational, 
 
     // ===================== TICK =====================
 
-    /** Точка входа для тика — вызывается через Block.getTicker() */
     public static <T extends BlockEntity> BlockEntityTicker<T> createTicker() {
         return (level, pos, state, be) -> {
             if (!level.isClientSide && be instanceof MotorElectroBlockEntity motor) {
@@ -235,14 +196,12 @@ public class MotorElectroBlockEntity extends BlockEntity implements Rotational, 
 
     private void serverTick(ServerLevel serverLevel) {
         int consumption = getConsumptionPerTick();
-        boolean wasRunning = hasEnergy;
 
         if (energyStored >= consumption) {
             energyStored -= consumption;
             if (!hasEnergy) {
                 hasEnergy = true;
-                // Сброс накопленной скорости при включении — мотор стартует с нуля
-                this.currentSpeed = 0;
+                this.speed = 0;
                 this.lastSyncedSpeed = 0;
                 requestKineticRecalculation();
             }
@@ -250,14 +209,13 @@ public class MotorElectroBlockEntity extends BlockEntity implements Rotational, 
             energyStored = 0;
             if (hasEnergy) {
                 hasEnergy = false;
-                // Принудительно обнуляем скорость — вал должен остановиться
-                this.currentSpeed = 0;
+                this.speed = 0;
                 this.lastSyncedSpeed = 0;
                 requestKineticRecalculation();
             }
         }
 
-        // Всегда синхронизируем клиент каждый тик (для плавного HUD)
+        // Синхронизируем клиент каждый тик для плавного HUD
         serverLevel.sendBlockUpdated(getBlockPos(), getBlockState(), getBlockState(), 3);
         setChanged();
     }
@@ -265,9 +223,7 @@ public class MotorElectroBlockEntity extends BlockEntity implements Rotational, 
     private void requestKineticRecalculation() {
         if (level instanceof ServerLevel serverLevel) {
             KineticNetwork net = KineticNetworkManager.get(serverLevel).getNetworkFor(worldPosition);
-            if (net != null) {
-                net.requestRecalculation();
-            }
+            if (net != null) net.requestRecalculation();
         }
     }
 
@@ -275,92 +231,44 @@ public class MotorElectroBlockEntity extends BlockEntity implements Rotational, 
 
     @Override
     public long getGeneratedSpeed() {
-        if (!hasEnergy)
-            return 0;
+        if (!hasEnergy) return 0;
         return reversed ? -targetRpm : targetRpm;
     }
 
     @Override
-    public long getSpeed() {
-        return currentSpeed;
-    }
-
-    @Override
     public long getVisualSpeed() {
-        // Если нет энергии — Flywheel плавно остановит анимацию
-        if (!hasEnergy)
-            return 0;
-
+        if (!hasEnergy) return 0;
         BlockState state = getBlockState();
-        if (!state.hasProperty(MotorElectroBlock.FACING))
-            return 0;
+        if (!state.hasProperty(MotorElectroBlock.FACING)) return 0;
         Direction facing = state.getValue(MotorElectroBlock.FACING);
-        // Инвертируем направление в зависимости от ориентации блока
         if (facing == Direction.SOUTH || facing == Direction.EAST || facing == Direction.UP) {
-            return -this.currentSpeed;
+            return -this.speed;
         }
-        return this.currentSpeed;
+        return this.speed;
     }
 
     @Override
     public long getTorque() {
-        // Без энергии мотор не создаёт момент → сеть тормозит по инерции
         return hasEnergy ? getTorqueNm() : 0L;
     }
 
     @Override
-    public boolean isSource() {
-        return true;
-    }
+    public boolean isSource() { return true; }
 
     @Override
-    public long getInertiaContribution() {
-        return 50;
-    }
+    public long getInertiaContribution() { return 50; }
 
     @Override
-    public long getFrictionContribution() {
-        return 5;
-    }
+    public long getFrictionContribution() { return 5; }
 
     @Override
-    public long getMaxTorqueTolerance() {
-        return getMaxTorque();
-    }
+    public long getMaxTorqueTolerance() { return getMaxTorque(); }
 
     @Override
-    public long getMaxSpeed() {
-        return MAX_RPM;
-    }
+    public long getMaxSpeed() { return MAX_RPM; }
 
     @Override
-    public long getMaxTorque() {
-        return 1024;
-    }
-
-    @Override
-    public void setSpeed(long speed) {
-        if (this.currentSpeed != speed) {
-            this.currentSpeed = speed;
-            super.setChanged();
-            if (shouldSyncSpeed()) {
-                this.lastSyncedSpeed = this.currentSpeed;
-                if (level != null && !level.isClientSide) {
-                    level.sendBlockUpdated(getBlockPos(), getBlockState(), getBlockState(), 3);
-                }
-            }
-        }
-    }
-
-    private boolean shouldSyncSpeed() {
-        if (this.currentSpeed == 0 && this.lastSyncedSpeed != 0)
-            return true;
-        if (this.currentSpeed != 0 && this.lastSyncedSpeed == 0)
-            return true;
-        long diff = Math.abs(this.currentSpeed - this.lastSyncedSpeed);
-        long threshold = Math.max(2, Math.abs(this.lastSyncedSpeed) / 20);
-        return diff >= threshold;
-    }
+    public long getMaxTorque() { return 1024; }
 
     @Override
     public boolean canConnectMechanically(BlockPos myPos, BlockPos neighborPos, Rotational neighbor) {
@@ -375,31 +283,33 @@ public class MotorElectroBlockEntity extends BlockEntity implements Rotational, 
     @Override
     public Direction[] getPropagationDirections() {
         BlockState state = getBlockState();
-        if (!state.hasProperty(MotorElectroBlock.FACING))
-            return new Direction[0];
-        return new Direction[] { state.getValue(MotorElectroBlock.FACING) };
+        if (!state.hasProperty(MotorElectroBlock.FACING)) return new Direction[0];
+        return new Direction[]{state.getValue(MotorElectroBlock.FACING)};
     }
 
     @Override
     public java.util.List<BlockPos> getPotentialConnections(Level lvl, BlockPos myPos) {
         BlockState state = getBlockState();
-        if (!state.hasProperty(MotorElectroBlock.FACING))
-            return java.util.List.of();
+        if (!state.hasProperty(MotorElectroBlock.FACING)) return java.util.List.of();
         Direction facing = state.getValue(MotorElectroBlock.FACING);
         return java.util.List.of(myPos.relative(facing));
     }
 
     // ===================== LIFECYCLE =====================
 
+    /**
+     * Переопределяем onLoad — мотор не применяет networkScale к скорости сети,
+     * он сам определяет скорость через getGeneratedSpeed().
+     */
     @Override
     public void onLoad() {
-        super.onLoad();
         if (level != null && !level.isClientSide) {
-            KineticNetwork net = KineticNetworkManager.get((ServerLevel) level)
+            KineticNetwork net = KineticNetworkManager
+                    .get((ServerLevel) level)
                     .getNetworkFor(worldPosition);
             if (net != null) {
-                this.currentSpeed = net.getSpeed();
-                this.lastSyncedSpeed = this.currentSpeed;
+                this.speed = net.getSpeed(); // Мотор — источник, scale не применяем
+                this.lastSyncedSpeed = this.speed;
                 net.requestRecalculation();
             }
         }
@@ -409,48 +319,25 @@ public class MotorElectroBlockEntity extends BlockEntity implements Rotational, 
 
     @Override
     protected void saveAdditional(CompoundTag tag) {
-        super.saveAdditional(tag);
+        super.saveAdditional(tag); // speed, lastSyncedSpeed, networkScale
         tag.putLong("EnergyStored", energyStored);
         tag.putInt("TargetRpm", targetRpm);
         tag.putBoolean("Reversed", reversed);
         tag.putBoolean("HasEnergy", hasEnergy);
-        tag.putLong("CurrentSpeed", currentSpeed);
-        tag.putLong("LastSyncedSpeed", lastSyncedSpeed);
         tag.putBoolean("IsTriggered", isTriggered);
     }
 
     @Override
     public void load(CompoundTag tag) {
-        super.load(tag);
+        super.load(tag); // speed, lastSyncedSpeed, networkScale
         energyStored = tag.getLong("EnergyStored");
         targetRpm = clampRpm(tag.getInt("TargetRpm") == 0 ? MAX_RPM : tag.getInt("TargetRpm"));
         reversed = tag.getBoolean("Reversed");
         hasEnergy = tag.getBoolean("HasEnergy");
-        currentSpeed = tag.getLong("CurrentSpeed");
-        lastSyncedSpeed = tag.getLong("LastSyncedSpeed");
         isTriggered = tag.getBoolean("IsTriggered");
     }
 
-    @Override
-    public CompoundTag getUpdateTag() {
-        CompoundTag tag = super.getUpdateTag();
-        saveAdditional(tag);
-        return tag;
-    }
-
-    @Override
-    public ClientboundBlockEntityDataPacket getUpdatePacket() {
-        return ClientboundBlockEntityDataPacket.create(this);
-    }
-
-    @Override
-    public void onDataPacket(Connection net, ClientboundBlockEntityDataPacket pkt) {
-        CompoundTag tag = pkt.getTag();
-        if (tag != null)
-            load(tag);
-    }
-
-    // ===================== RENDER =====================
+    // ===================== РЕНДЕР =====================
 
     @Override
     public AABB getRenderBoundingBox() {
@@ -458,6 +345,6 @@ public class MotorElectroBlockEntity extends BlockEntity implements Rotational, 
     }
 
     public long getCurrentVisualSpeed() {
-        return this.currentSpeed;
+        return this.speed;
     }
 }

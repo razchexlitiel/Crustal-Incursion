@@ -7,6 +7,24 @@ import net.minecraft.core.Direction;
  * Используется KineticNetwork для управления скоростью.
  */
 public interface Rotational {
+
+    /**
+     * Роль блока в кинетической сети.
+     *
+     * PASSIVE   — валы, подшипники, тахометры: просто передают вращение, вклад в момент = 0.
+     * GENERATOR — моторы, ветряки: производят момент. Их getTorque() суммируется в пул сети.
+     * CONSUMER  — статоры, жернова: потребляют момент из пула сети через getConsumedTorque().
+     *             Если суммарное потребление превышает пул генераторов — сеть перегружается и останавливается.
+     */
+    enum NodeRole { PASSIVE, GENERATOR, CONSUMER }
+
+    /** Роль этого блока в кинетической сети. По умолчанию — пассивный узел. */
+    default NodeRole getNodeRole() {
+        // Обратная совместимость: если блок объявляет isSource(), используем его
+        if (isSource()) return NodeRole.GENERATOR;
+        if (getConsumedTorque() > 0) return NodeRole.CONSUMER;
+        return NodeRole.PASSIVE;
+    }
     // Получение текущих данных (для расчетов в сети)
     long getSpeed();
     long getTorque();
@@ -35,8 +53,9 @@ public interface Rotational {
     }
     /**
      * Возвращает true, если этот блок производит энергию (мотор, ветряк).
-     * Помогает сети быстро наполнять список generators[cite: 2].
+     * @deprecated Используй getNodeRole() == NodeRole.GENERATOR для явной типизации.
      */
+    @Deprecated
     default boolean isSource() {
         return false;
     }

@@ -63,14 +63,7 @@ public class StatorBlock extends BaseEntityBlock {
         super.onPlace(state, level, pos, oldState, isMoving);
         if (!level.isClientSide && state.getBlock() != oldState.getBlock()) {
             EnergyNetworkManager.get((ServerLevel) level).addNode(pos);
-            
-            // Request recalculation for the shaft in front of it
-            Direction facing = state.getValue(FACING);
-            BlockPos shaftPos = pos.relative(facing);
-            var net = KineticNetworkManager.get((ServerLevel) level).getNetworkFor(shaftPos);
-            if (net != null) {
-                net.requestRecalculation();
-            }
+            KineticNetworkManager.get((ServerLevel) level).updateNetworkAfterPlace(pos);
         }
     }
 
@@ -78,14 +71,7 @@ public class StatorBlock extends BaseEntityBlock {
     public void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean isMoving) {
         if (!level.isClientSide && state.getBlock() != newState.getBlock()) {
             EnergyNetworkManager.get((ServerLevel) level).removeNode(pos);
-            
-            // Request recalculation for the shaft in front of it
-            Direction facing = state.getValue(FACING);
-            BlockPos shaftPos = pos.relative(facing);
-            var net = KineticNetworkManager.get((ServerLevel) level).getNetworkFor(shaftPos);
-            if (net != null) {
-                net.requestRecalculation();
-            }
+            KineticNetworkManager.get((ServerLevel) level).updateNetworkAfterRemove(pos);
             
             super.onRemove(state, level, pos, newState, isMoving);
             return;
