@@ -30,6 +30,7 @@ public class ShaftVisual extends AbstractBlockEntityVisual<ShaftBlockEntity> imp
     @Nullable private TransformedInstance bevelStartInstance;
     @Nullable private TransformedInstance bevelEndInstance;
     @Nullable private TransformedInstance rotorInstance;
+    @Nullable private TransformedInstance flywheelInstance;
 
     private final Direction facing;
 
@@ -42,6 +43,7 @@ public class ShaftVisual extends AbstractBlockEntityVisual<ShaftBlockEntity> imp
     private net.minecraft.world.item.Item currentBevelStartItem;
     private net.minecraft.world.item.Item currentBevelEndItem;
     private net.minecraft.world.item.Item currentRotorItem;
+    private net.minecraft.world.item.Item currentFlywheelItem;
 
     private final float localX;
     private final float localY;
@@ -89,11 +91,13 @@ public class ShaftVisual extends AbstractBlockEntityVisual<ShaftBlockEntity> imp
         this.currentBevelStartItem = blockEntity.getAttachedBevelStart().getItem();
         this.currentBevelEndItem = blockEntity.getAttachedBevelEnd().getItem();
         this.currentRotorItem = blockEntity.getAttachedRotor().getItem();
+        this.currentFlywheelItem = blockEntity.getAttachedFlywheel().getItem();
 
         rebuildGear();
         rebuildPulley();
         rebuildBevelGears();
         rebuildRotor();
+        rebuildFlywheel();
 
         setupStatic(shaftInstance, 0);
         updateLight(partialTick);
@@ -194,6 +198,21 @@ public class ShaftVisual extends AbstractBlockEntityVisual<ShaftBlockEntity> imp
             if (rotorModel != null) {
                 this.rotorInstance = instancerProvider().instancer(InstanceTypes.TRANSFORMED, Models.partial(rotorModel)).createInstance();
                 setupStatic(this.rotorInstance, 0);
+            }
+        }
+    }
+
+    private void rebuildFlywheel() {
+        if (this.flywheelInstance != null) {
+            this.flywheelInstance.delete();
+            this.flywheelInstance = null;
+        }
+
+        if (blockEntity.hasFlywheel()) {
+            PartialModel flywheelModel = ModModels.FLYWHEEL;
+            if (flywheelModel != null) {
+                this.flywheelInstance = instancerProvider().instancer(InstanceTypes.TRANSFORMED, Models.partial(flywheelModel)).createInstance();
+                setupStatic(this.flywheelInstance, 0);
             }
         }
     }
@@ -299,6 +318,11 @@ public class ShaftVisual extends AbstractBlockEntityVisual<ShaftBlockEntity> imp
             rebuildRotor();
             updateLight(pt);
         }
+        if (blockEntity.getAttachedFlywheel().getItem() != this.currentFlywheelItem) {
+            this.currentFlywheelItem = blockEntity.getAttachedFlywheel().getItem();
+            rebuildFlywheel();
+            updateLight(pt);
+        }
     }
 
     private float smoothedSpeed = 0f;
@@ -329,6 +353,11 @@ public class ShaftVisual extends AbstractBlockEntityVisual<ShaftBlockEntity> imp
             this.currentRotorItem = blockEntity.getAttachedRotor().getItem();
             rebuildRotor();
             if (this.rotorInstance != null) relight(pos, this.rotorInstance);
+        }
+        if (blockEntity.getAttachedFlywheel().getItem() != this.currentFlywheelItem) {
+            this.currentFlywheelItem = blockEntity.getAttachedFlywheel().getItem();
+            rebuildFlywheel();
+            if (this.flywheelInstance != null) relight(pos, this.flywheelInstance);
         }
 
         BlockPos connectedPos = blockEntity.getConnectedPulley();
@@ -447,6 +476,7 @@ public class ShaftVisual extends AbstractBlockEntityVisual<ShaftBlockEntity> imp
         if (gearInstance != null) setupStatic(gearInstance, currentAngle + this.phaseOffset);
         if (pulleyInstance != null) setupStatic(pulleyInstance, currentAngle);
         if (rotorInstance != null) setupStatic(rotorInstance, currentAngle);
+        if (flywheelInstance != null) setupStatic(flywheelInstance, currentAngle);
         
         // Вращение конических шестерней (добавляем фазу для правильного сцепления)
         if (bevelStartInstance != null) setupStaticForBevel(bevelStartInstance, currentAngle, true);
@@ -586,6 +616,7 @@ public class ShaftVisual extends AbstractBlockEntityVisual<ShaftBlockEntity> imp
         if (bevelStartInstance != null) relight(pos, bevelStartInstance);
         if (bevelEndInstance != null) relight(pos, bevelEndInstance);
         if (rotorInstance != null) relight(pos, rotorInstance);
+        if (flywheelInstance != null) relight(pos, flywheelInstance);
         for (TransformedInstance track : beltTracks) {
             relight(pos, track);
         }
@@ -599,6 +630,7 @@ public class ShaftVisual extends AbstractBlockEntityVisual<ShaftBlockEntity> imp
         if (bevelStartInstance != null) bevelStartInstance.delete();
         if (bevelEndInstance != null) bevelEndInstance.delete();
         if (rotorInstance != null) rotorInstance.delete();
+        if (flywheelInstance != null) flywheelInstance.delete();
         beltTracks.forEach(Instance::delete);
         beltTracks.clear();
     }
@@ -611,6 +643,7 @@ public class ShaftVisual extends AbstractBlockEntityVisual<ShaftBlockEntity> imp
         if (bevelStartInstance != null) consumer.accept(bevelStartInstance);
         if (bevelEndInstance != null) consumer.accept(bevelEndInstance);
         if (rotorInstance != null) consumer.accept(rotorInstance);
+        if (flywheelInstance != null) consumer.accept(flywheelInstance);
         for (TransformedInstance track : beltTracks) {
             consumer.accept(track);
         }

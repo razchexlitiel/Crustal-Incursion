@@ -8,12 +8,16 @@ import com.trd.item.ModItems;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.ChatFormatting;
+import net.minecraft.network.chat.Component;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.Containers;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
@@ -32,12 +36,15 @@ import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.List;
+
 public class ShaftBlock extends BaseEntityBlock {
     public static final DirectionProperty FACING = BlockStateProperties.FACING;
     public static final IntegerProperty GEAR_SIZE = IntegerProperty.create("gear_size", 0, 3);
     public static final IntegerProperty PULLEY_SIZE = IntegerProperty.create("pulley_size", 0, 3);
     public static final net.minecraft.world.level.block.state.properties.BooleanProperty HAS_BEVEL_START = net.minecraft.world.level.block.state.properties.BooleanProperty.create("has_bevel_start");
     public static final net.minecraft.world.level.block.state.properties.BooleanProperty HAS_BEVEL_END = net.minecraft.world.level.block.state.properties.BooleanProperty.create("has_bevel_end");
+    public static final net.minecraft.world.level.block.state.properties.BooleanProperty HAS_FLYWHEEL = net.minecraft.world.level.block.state.properties.BooleanProperty.create("has_flywheel");
 
     // НОВЫЕ ПЕРЕМЕННЫЕ
     private final ShaftMaterial material;
@@ -53,7 +60,8 @@ public class ShaftBlock extends BaseEntityBlock {
                 .setValue(GEAR_SIZE, 0)
                 .setValue(PULLEY_SIZE, 0)
                 .setValue(HAS_BEVEL_START, false)
-                .setValue(HAS_BEVEL_END, false)); // По умолчанию вал пустой
+                .setValue(HAS_BEVEL_END, false)
+                .setValue(HAS_FLYWHEEL, false)); // По умолчанию вал пустой
     }
 
     // Геттеры для сущности (BlockEntity)
@@ -61,8 +69,21 @@ public class ShaftBlock extends BaseEntityBlock {
     public ShaftDiameter getDiameter() { return diameter; }
 
     @Override
+    public void appendHoverText(ItemStack stack, @Nullable BlockGetter level, List<Component> tooltip, TooltipFlag flag) {
+        tooltip.add(Component.translatable("tooltip.trd.shaft_material").append(": ").append(Component.translatable("metal.trd." + material.name())).withStyle(ChatFormatting.GRAY));
+
+        long maxSpeed = (long) (material.baseSpeed() * diameter.getSpeedMultiplier());
+        long maxTorque = (long) (material.baseTorque() * diameter.getTorqueMultiplier());
+        double inertia = material.baseInertia() * diameter.inertiaMod;
+
+        tooltip.add(Component.translatable("tooltip.trd.max_speed").append(": ").append(Component.literal(String.valueOf(maxSpeed))).append(" RPM").withStyle(ChatFormatting.GOLD));
+        tooltip.add(Component.translatable("tooltip.trd.max_torque").append(": ").append(Component.literal(String.valueOf(maxTorque))).append(" Nm").withStyle(ChatFormatting.AQUA));
+        tooltip.add(Component.translatable("tooltip.trd.inertia").append(": ").append(Component.literal(String.format("%.2f", inertia))).withStyle(ChatFormatting.DARK_PURPLE));
+    }
+
+    @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
-        builder.add(FACING, GEAR_SIZE, PULLEY_SIZE, HAS_BEVEL_START, HAS_BEVEL_END);
+        builder.add(FACING, GEAR_SIZE, PULLEY_SIZE, HAS_BEVEL_START, HAS_BEVEL_END, HAS_FLYWHEEL);
     }
 
     // ДИНАМИЧЕСКИЙ ХИТБОКС (зависит от диаметра)
@@ -136,6 +157,17 @@ public class ShaftBlock extends BaseEntityBlock {
             attachmentShape = Shapes.or(attachmentShape, endShape);
         }
 
+        // 4. Хитбокс маховика
+        if (state.getValue(HAS_FLYWHEEL)) {
+            double fMin = 0.0, fMax = 16.0;
+            VoxelShape flywheelShape = switch (state.getValue(FACING).getAxis()) {
+                case X -> Block.box(tMin, fMin, fMin, tMax, fMax, fMax);
+                case Y -> Block.box(fMin, tMin, fMin, fMax, tMax, fMax);
+                case Z -> Block.box(fMin, fMin, tMin, fMax, fMax, tMax);
+            };
+            attachmentShape = Shapes.or(attachmentShape, flywheelShape);
+        }
+
         return Shapes.or(shaftShape, attachmentShape);
     }
 
@@ -146,8 +178,9 @@ public class ShaftBlock extends BaseEntityBlock {
             boolean isPulley = state.getValue(PULLEY_SIZE) > 0;
             boolean isBevelStart = state.getValue(HAS_BEVEL_START);
             boolean isBevelEnd = state.getValue(HAS_BEVEL_END);
+            boolean isFlywheel = state.getValue(HAS_FLYWHEEL);
 
-            if (isGear || isPulley || isBevelStart || isBevelEnd) {
+            if (isGear || isPulley || isBevelStart || isBevelEnd || isFlywheel) {
                 if (!level.isClientSide) {
                     BlockEntity be = level.getBlockEntity(pos);
                     if (be instanceof ShaftBlockEntity shaftBE) {
@@ -179,6 +212,10 @@ public class ShaftBlock extends BaseEntityBlock {
                             com.trd.api.rotation.BeltConnectionHelper.breakBelt(level, pos);
                             shaftBE.setConnectedPulley(null);
                             level.setBlock(pos, state.setValue(PULLEY_SIZE, 0), 3);
+                        } else if (isFlywheel && shaftBE.hasFlywheel()) {
+                            Containers.dropItemStack(level, pos.getX(), pos.getY(), pos.getZ(), shaftBE.getAttachedFlywheel());
+                            shaftBE.setAttachedFlywheel(net.minecraft.world.item.ItemStack.EMPTY);
+                            level.setBlock(pos, state.setValue(HAS_FLYWHEEL, false), 3);
                         } else {
                             return InteractionResult.PASS; // Не попали ни по одной детали
                         }
@@ -253,7 +290,56 @@ public class ShaftBlock extends BaseEntityBlock {
             }
         }
 
+        // --- ПРОВЕРКА НА ПРОГИБ ---
+        if (!level.isClientSide) {
+            if (!canBeSupported(level, pos, placementFacing)) {
+                if (context.getPlayer() != null) {
+                    context.getPlayer().displayClientMessage(
+                            Component.translatable("message.trd.too_far_from_support", diameter.maxSupportDistance)
+                                    .withStyle(ChatFormatting.RED), true);
+                }
+                return null;
+            }
+        }
+
         return this.defaultBlockState().setValue(FACING, placementFacing);
+    }
+
+    private boolean canBeSupported(Level level, BlockPos pos, Direction facing) {
+        int maxDist = diameter.maxSupportDistance;
+
+        // Ищем опору в обе стороны по оси
+        if (hasSupportInRange(level, pos, facing, maxDist)) return true;
+        return hasSupportInRange(level, pos, facing.getOpposite(), maxDist);
+    }
+
+    private boolean hasSupportInRange(Level level, BlockPos startPos, Direction dir, int maxDist) {
+        BlockPos.MutableBlockPos current = startPos.mutable();
+        for (int i = 1; i <= maxDist; i++) {
+            current.move(dir);
+            BlockState state = level.getBlockState(current);
+
+            if (isSupport(level, current, dir)) return true;
+
+            // Если это такой же вал (того же диаметра) — идем дальше
+            if (state.getBlock() instanceof ShaftBlock otherShaft && otherShaft.getDiameter() == this.diameter) {
+                if (state.getValue(FACING).getAxis() == dir.getAxis()) {
+                    continue;
+                }
+            }
+
+            return false; // Любой другой блок прерывает линию
+        }
+        return false;
+    }
+
+    private boolean isSupport(Level level, BlockPos pos, Direction axisDir) {
+        BlockState state = level.getBlockState(pos);
+        if (state.getBlock() instanceof BearingBlock) return true;
+        if (state.getBlock() instanceof MotorElectroBlock) {
+            return state.getValue(MotorElectroBlock.FACING) == axisDir.getOpposite();
+        }
+        return false;
     }
 
     @Nullable
@@ -294,6 +380,9 @@ public class ShaftBlock extends BaseEntityBlock {
 
                     // ОБРЫВ РЕМНЯ при ломании блока киркой
                     com.trd.api.rotation.BeltConnectionHelper.breakBelt(level, pos);
+                }
+                if (shaftBE.hasFlywheel()) {
+                    Containers.dropItemStack(level, pos.getX(), pos.getY(), pos.getZ(), shaftBE.getAttachedFlywheel());
                 }
             }
             if (!level.isClientSide) {

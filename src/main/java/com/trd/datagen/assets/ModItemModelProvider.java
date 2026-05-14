@@ -118,6 +118,7 @@ public class ModItemModelProvider extends ItemModelProvider {
         simpleItem(ModFluids.FLUID_DROP_LAVA);
         generateAllGears();
         generateAllPulleys();
+        generateAllFlywheels();
         // Пример регистрации блоков как предметов (если это обычный куб)
         // complexBlockItem(ModBlocks.NECROTIC_ORE);
 
@@ -158,6 +159,26 @@ public class ModItemModelProvider extends ItemModelProvider {
                         .flipV(true)
                         .end()
                         // ВАЖНО: Имя "pulley_texture" должно быть в pulley.mtl!
+                        .texture("pulley_texture", texture)
+                        .texture("particle", texture);
+            }
+        }
+    }
+
+    public void generateAllFlywheels() {
+        for (RegistryObject<Item> itemObj : com.trd.item.ModItems.ITEMS.getEntries()) {
+            if (itemObj.get() instanceof com.trd.item.rotation.FlywheelItem flywheel) {
+                String name = itemObj.getId().getPath(); // например "flywheel_light"
+
+                ResourceLocation objModel = modLoc("models/block/" + name + ".obj");
+                ResourceLocation texture = modLoc("block/" + name);
+
+                getBuilder(name)
+                        .parent(new net.minecraftforge.client.model.generators.ModelFile.UncheckedModelFile(modLoc("item/pulley_template")))
+                        .customLoader(net.minecraftforge.client.model.generators.loaders.ObjModelBuilder::begin)
+                        .modelLocation(objModel)
+                        .flipV(true)
+                        .end()
                         .texture("pulley_texture", texture)
                         .texture("particle", texture);
             }

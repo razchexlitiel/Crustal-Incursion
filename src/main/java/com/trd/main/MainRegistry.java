@@ -235,6 +235,8 @@ public class MainRegistry {
             event.accept(ModItems.GEAR1_STEEL.get());
             event.accept(ModItems.GEAR2_STEEL.get());
 
+            event.accept(ModItems.FLYWHEEL_LIGHT.get());
+
             event.accept(ModBlocks.BEARING_BLOCK);
             event.accept(ModItems.BEVEL_GEAR.get());
             event.accept(ModItems.PULLEY.get());
@@ -245,8 +247,6 @@ public class MainRegistry {
             event.accept(ModItems.ROTOR.get());
 
             event.accept(ModItems.BELT.get());
-
-
 
             event.accept(ModItems.WIRE_COIL);
             event.accept(ModBlocks.CONNECTOR);
@@ -275,9 +275,6 @@ public class MainRegistry {
                 }
             }
 
-
-
-
             event.accept(ModItems.PROTECTOR_STEEL);
             event.accept(ModItems.PROTECTOR_LEAD);
             event.accept(ModItems.PROTECTOR_TUNGSTEN);
@@ -297,8 +294,6 @@ public class MainRegistry {
                 event.accept(entry.get());
             }
 
-
-
             event.accept(ModBlocks.JERNOVA);
             event.accept(ModBlocks.SMALL_SMELTER);
 
@@ -311,8 +306,6 @@ public class MainRegistry {
             event.accept(ModItems.MOLD_INGOT.get());
             event.accept(ModItems.MOLD_BLOCK.get());
             event.accept(ModItems.MOLD_PICKAXE.get());
-
-
 
             event.accept(ModItems.CAST_PICKAXE_IRON_BASE.get());
             event.accept(ModItems.CAST_PICKAXE_STEEL_BASE.get());

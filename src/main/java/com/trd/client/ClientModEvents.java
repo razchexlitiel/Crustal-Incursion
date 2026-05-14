@@ -146,6 +146,7 @@ public class ClientModEvents {
         event.register(new net.minecraft.resources.ResourceLocation("trd", "block/bearing_shaft"));
         event.register(new net.minecraft.resources.ResourceLocation("trd", "block/tachometr"));
         event.register(new ResourceLocation("trd", "block/fuel_tank_big"));
+        event.register(new ResourceLocation("trd", "block/flywheel_light"));
 
         // 3. Динамические модели
         for (String name : ModModels.GEAR_MODELS.keySet()) {
