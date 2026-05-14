@@ -169,6 +169,7 @@ public class ModBlockStateProvider extends BlockStateProvider {
         //генерация моделей для шестеренок
         generateGearBlockModels();
         generatePulleyBlockModels();
+        generateFlywheelBlockModels();
 
 
         stairsAndSlabs(ModBlocks.CONCRETE_TILE_ALT.get(), ModBlocks.CONCRETE_TILE_ALT_STAIRS.get(), ModBlocks.CONCRETE_TILE_ALT_SLAB.get());
@@ -192,6 +193,25 @@ public class ModBlockStateProvider extends BlockStateProvider {
     public void generatePulleyBlockModels() {
         for (RegistryObject<Item> itemObj : com.trd.item.ModItems.ITEMS.getEntries()) {
             if (itemObj.get() instanceof com.trd.item.rotation.PulleyItem pulley) {
+                String name = itemObj.getId().getPath();
+
+                ResourceLocation objModel = modLoc("models/block/" + name + ".obj");
+                ResourceLocation texture = modLoc("block/" + name);
+
+                // Создаем пустышку JSON, чтобы Flywheel мог на неё сослаться
+                models().getBuilder(name)
+                        .customLoader(net.minecraftforge.client.model.generators.loaders.ObjModelBuilder::begin)
+                        .modelLocation(objModel)
+                        .flipV(true)
+                        .end()
+                        .texture("pulley_texture", texture);
+            }
+        }
+    }
+
+    public void generateFlywheelBlockModels() {
+        for (RegistryObject<Item> itemObj : com.trd.item.ModItems.ITEMS.getEntries()) {
+            if (itemObj.get() instanceof com.trd.item.rotation.FlywheelItem flywheel) {
                 String name = itemObj.getId().getPath();
 
                 ResourceLocation objModel = modLoc("models/block/" + name + ".obj");

@@ -100,6 +100,11 @@ public class ModItems {
                     com.trd.api.rotation.ShaftDiameter.LIGHT,
                     com.trd.api.rotation.ShaftDiameter.MEDIUM));
 
+    public static final RegistryObject<Item> FLYWHEEL_LIGHT = ITEMS.register("flywheel_light",
+            () -> new com.trd.item.rotation.FlywheelItem(new Item.Properties(),
+                    com.trd.api.rotation.ShaftDiameter.LIGHT,
+                    com.trd.api.rotation.ShaftDiameter.MEDIUM));
+
     public static final RegistryObject<Item> SCREWDRIVER = ITEMS.register("screwdriver",
             () -> new ScrewdriverItem(new Item.Properties().stacksTo(1).durability(256)));
 

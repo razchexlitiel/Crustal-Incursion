@@ -44,6 +44,7 @@ public class ShaftBlock extends BaseEntityBlock {
     public static final IntegerProperty PULLEY_SIZE = IntegerProperty.create("pulley_size", 0, 3);
     public static final net.minecraft.world.level.block.state.properties.BooleanProperty HAS_BEVEL_START = net.minecraft.world.level.block.state.properties.BooleanProperty.create("has_bevel_start");
     public static final net.minecraft.world.level.block.state.properties.BooleanProperty HAS_BEVEL_END = net.minecraft.world.level.block.state.properties.BooleanProperty.create("has_bevel_end");
+    public static final net.minecraft.world.level.block.state.properties.BooleanProperty HAS_FLYWHEEL = net.minecraft.world.level.block.state.properties.BooleanProperty.create("has_flywheel");
 
     // НОВЫЕ ПЕРЕМЕННЫЕ
     private final ShaftMaterial material;
@@ -59,7 +60,8 @@ public class ShaftBlock extends BaseEntityBlock {
                 .setValue(GEAR_SIZE, 0)
                 .setValue(PULLEY_SIZE, 0)
                 .setValue(HAS_BEVEL_START, false)
-                .setValue(HAS_BEVEL_END, false)); // По умолчанию вал пустой
+                .setValue(HAS_BEVEL_END, false)
+                .setValue(HAS_FLYWHEEL, false)); // По умолчанию вал пустой
     }
 
     // Геттеры для сущности (BlockEntity)
@@ -81,7 +83,7 @@ public class ShaftBlock extends BaseEntityBlock {
 
     @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
-        builder.add(FACING, GEAR_SIZE, PULLEY_SIZE, HAS_BEVEL_START, HAS_BEVEL_END);
+        builder.add(FACING, GEAR_SIZE, PULLEY_SIZE, HAS_BEVEL_START, HAS_BEVEL_END, HAS_FLYWHEEL);
     }
 
     // ДИНАМИЧЕСКИЙ ХИТБОКС (зависит от диаметра)
@@ -155,6 +157,17 @@ public class ShaftBlock extends BaseEntityBlock {
             attachmentShape = Shapes.or(attachmentShape, endShape);
         }
 
+        // 4. Хитбокс маховика
+        if (state.getValue(HAS_FLYWHEEL)) {
+            double fMin = 0.0, fMax = 16.0;
+            VoxelShape flywheelShape = switch (state.getValue(FACING).getAxis()) {
+                case X -> Block.box(tMin, fMin, fMin, tMax, fMax, fMax);
+                case Y -> Block.box(fMin, tMin, fMin, fMax, tMax, fMax);
+                case Z -> Block.box(fMin, fMin, tMin, fMax, fMax, tMax);
+            };
+            attachmentShape = Shapes.or(attachmentShape, flywheelShape);
+        }
+
         return Shapes.or(shaftShape, attachmentShape);
     }
 
@@ -165,8 +178,9 @@ public class ShaftBlock extends BaseEntityBlock {
             boolean isPulley = state.getValue(PULLEY_SIZE) > 0;
             boolean isBevelStart = state.getValue(HAS_BEVEL_START);
             boolean isBevelEnd = state.getValue(HAS_BEVEL_END);
+            boolean isFlywheel = state.getValue(HAS_FLYWHEEL);
 
-            if (isGear || isPulley || isBevelStart || isBevelEnd) {
+            if (isGear || isPulley || isBevelStart || isBevelEnd || isFlywheel) {
                 if (!level.isClientSide) {
                     BlockEntity be = level.getBlockEntity(pos);
                     if (be instanceof ShaftBlockEntity shaftBE) {
@@ -198,6 +212,10 @@ public class ShaftBlock extends BaseEntityBlock {
                             com.trd.api.rotation.BeltConnectionHelper.breakBelt(level, pos);
                             shaftBE.setConnectedPulley(null);
                             level.setBlock(pos, state.setValue(PULLEY_SIZE, 0), 3);
+                        } else if (isFlywheel && shaftBE.hasFlywheel()) {
+                            Containers.dropItemStack(level, pos.getX(), pos.getY(), pos.getZ(), shaftBE.getAttachedFlywheel());
+                            shaftBE.setAttachedFlywheel(net.minecraft.world.item.ItemStack.EMPTY);
+                            level.setBlock(pos, state.setValue(HAS_FLYWHEEL, false), 3);
                         } else {
                             return InteractionResult.PASS; // Не попали ни по одной детали
                         }
@@ -362,6 +380,9 @@ public class ShaftBlock extends BaseEntityBlock {
 
                     // ОБРЫВ РЕМНЯ при ломании блока киркой
                     com.trd.api.rotation.BeltConnectionHelper.breakBelt(level, pos);
+                }
+                if (shaftBE.hasFlywheel()) {
+                    Containers.dropItemStack(level, pos.getX(), pos.getY(), pos.getZ(), shaftBE.getAttachedFlywheel());
                 }
             }
             if (!level.isClientSide) {

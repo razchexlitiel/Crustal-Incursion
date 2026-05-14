@@ -22,6 +22,7 @@ public class ShaftBlockEntity extends KineticNodeBlockEntity {
     private ItemStack attachedBevelStart = ItemStack.EMPTY;
     private ItemStack attachedBevelEnd = ItemStack.EMPTY;
     private ItemStack attachedRotor = ItemStack.EMPTY;
+    private ItemStack attachedFlywheel = ItemStack.EMPTY;
 
     public boolean hasRotor() {
         return !attachedRotor.isEmpty();
@@ -33,6 +34,22 @@ public class ShaftBlockEntity extends KineticNodeBlockEntity {
 
     public void setAttachedRotor(ItemStack rotor) {
         this.attachedRotor = rotor;
+        this.setChanged();
+        if (level != null && !level.isClientSide) {
+            level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), 2);
+        }
+    }
+
+    public boolean hasFlywheel() {
+        return !attachedFlywheel.isEmpty();
+    }
+
+    public ItemStack getAttachedFlywheel() {
+        return attachedFlywheel;
+    }
+
+    public void setAttachedFlywheel(ItemStack flywheel) {
+        this.attachedFlywheel = flywheel;
         this.setChanged();
         if (level != null && !level.isClientSide) {
             level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), 2);
@@ -609,6 +626,8 @@ public class ShaftBlockEntity extends KineticNodeBlockEntity {
             tag.put("AttachedBevelEnd", attachedBevelEnd.save(new CompoundTag()));
         if (!attachedRotor.isEmpty())
             tag.put("AttachedRotor", attachedRotor.save(new CompoundTag()));
+        if (!attachedFlywheel.isEmpty())
+            tag.put("AttachedFlywheel", attachedFlywheel.save(new CompoundTag()));
         if (!attachedPulley.isEmpty())
             tag.put("AttachedPulley", attachedPulley.save(new CompoundTag()));
         if (connectedPulley != null)
@@ -629,6 +648,8 @@ public class ShaftBlockEntity extends KineticNodeBlockEntity {
         this.attachedRotor = tag.contains("AttachedRotor") ? ItemStack.of(tag.getCompound("AttachedRotor"))
                 : ItemStack.EMPTY;
         this.attachedPulley = tag.contains("AttachedPulley") ? ItemStack.of(tag.getCompound("AttachedPulley"))
+                : ItemStack.EMPTY;
+        this.attachedFlywheel = tag.contains("AttachedFlywheel") ? ItemStack.of(tag.getCompound("AttachedFlywheel"))
                 : ItemStack.EMPTY;
         this.connectedPulley = tag.contains("ConnectedPulley")
                 ? net.minecraft.nbt.NbtUtils.readBlockPos(tag.getCompound("ConnectedPulley"))
@@ -693,10 +714,16 @@ public class ShaftBlockEntity extends KineticNodeBlockEntity {
 
     @Override
     public double getInertiaContribution() {
+        double inertia = 5.0;
         if (getBlockState().getBlock() instanceof ShaftBlock shaft) {
-            return (double) (shaft.getMaterial().baseInertia() * shaft.getDiameter().inertiaMod);
+            inertia = (double) (shaft.getMaterial().baseInertia() * shaft.getDiameter().inertiaMod);
         }
-        return 5.0;
+        
+        if (hasFlywheel()) {
+            inertia += 500.0;
+        }
+        
+        return inertia;
     }
 
     @Override
