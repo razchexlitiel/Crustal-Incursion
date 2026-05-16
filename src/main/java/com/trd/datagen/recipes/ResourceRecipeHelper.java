@@ -68,18 +68,7 @@ public class ResourceRecipeHelper {
                     .save(writer, getRecipeId(name, "block_to_main"));
         }
 
-        // 3. Если есть и мелкая единица, и блок - создаем прямой крафт блока из мелких (81:1)
-        if (resource.hasSmallUnit() && resource.hasBlock()) {
-            // 81 мелких = 1 блок (через слитки, но для удобства добавим прямой рецепт)
-            // Это опционально - можно убрать если избыточно
-            ShapedRecipeBuilder.shaped(RecipeCategory.BUILDING_BLOCKS, resource.block.get())
-                    .pattern("###")
-                    .pattern("###")
-                    .pattern("###")
-                    .define('#', resource.smallUnit.get())
-                    .unlockedBy("has_" + resource.getSmallUnitId(), has(resource.smallUnit.get()))
-                    .save(writer, getRecipeId(name, "small_to_block_direct"));
-        }
+
     }
 
     /**

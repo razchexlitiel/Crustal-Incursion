@@ -296,6 +296,7 @@ public class ModLangProvider extends LanguageProvider {
                 add("entity.trd.grenade_nuc_projectile", "Nuclear grenade");
 
                 add(ModItems.GRENADIER_GOGGLES.get(), "Grenadier Goggles");
+                add(ModItems.FLYWHEEL_LIGHT.get(), "Light Flywheel");
                 // Яйца призыва
                 add(ModItems.DEPTH_WORM_BRUTAL_SPAWN_EGG.get(), "Brutal Depth Worm Spawn Egg");
                 add(ModItems.GRENADIER_ZOMBIE_SPAWN_EGG.get(), "Grenadier Zombie Spawn Egg");
@@ -314,6 +315,7 @@ public class ModLangProvider extends LanguageProvider {
                 add("item.trd.cast_pickaxe.desc.vein_miner_info", "Жилковый майнер: %s");
 
                 add(ModItems.GRENADIER_GOGGLES.get(), "Очки гренадёра");
+                add(ModItems.FLYWHEEL_LIGHT.get(), "Легкий маховик");
                 add("item.trd.grenadier_goggles.desc.explosion_resist", "Защита от взрывов: +%s%%");
 
                 // Протекторы
@@ -825,6 +827,7 @@ public class ModLangProvider extends LanguageProvider {
                 add(ModItems.DEPTH_WORM_SPAWN_EGG.get(), "Яйце призову глибинного черв'яка");
                 add(ModItems.DEPTH_WORM_BRUTAL_SPAWN_EGG.get(), "Яйце призову жорстокого глибинного черв'яка");
                 add(ModItems.GRENADIER_ZOMBIE_SPAWN_EGG.get(), "Яйце призову зомбі-гренадера");
+                add(ModItems.FLYWHEEL_LIGHT.get(), "Легкий маховик");
 
                 // Сутності
                 add("entity.trd.turret_light", "Легка турель");

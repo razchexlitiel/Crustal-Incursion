@@ -69,7 +69,7 @@ public class ModBlockLootTableProvider extends BlockLootSubProvider {
     protected Iterable<Block> getKnownBlocks() {
         return ModBlocks.BLOCKS.getEntries().stream()
                 .map(RegistryObject::get)
-                .filter(block -> block != ModBlocks.BEAM_COLLISION.get() && block != ModBlocks.MULTIBLOCK_PART.get())
+                .filter(block -> block != ModBlocks.BEAM_COLLISION.get() && block != ModBlocks.MULTIBLOCK_PART.get() && block != ModBlocks.PIPE_SPOTS.get())
                 .collect(Collectors.toList());
     }
 }

@@ -132,6 +132,31 @@ public class ResourceDatagenHelper {
                 if (resource.smallUnit != null) provider.add(resource.smallUnit.get(), "Алюмінієвий " + getUkrainianUnitName(type.smallUnit, false));
                 if (resource.block != null) provider.add(resource.block.get(), "Алюмінієвий блок");
             }
+            case "bronze" -> {
+                provider.add(resource.mainUnit.get(), "Бронзовий " + getUkrainianUnitName(type.mainUnit, false));
+                if (resource.smallUnit != null) provider.add(resource.smallUnit.get(), "Бронзовий " + getUkrainianUnitName(type.smallUnit, false));
+                if (resource.block != null) provider.add(resource.block.get(), "Бронзовий блок");
+            }
+            case "zinc" -> {
+                provider.add(resource.mainUnit.get(), "Цинковий " + getUkrainianUnitName(type.mainUnit, false));
+                if (resource.smallUnit != null) provider.add(resource.smallUnit.get(), "Цинковий " + getUkrainianUnitName(type.smallUnit, false));
+                if (resource.block != null) provider.add(resource.block.get(), "Цинковий блок");
+            }
+            case "tin" -> {
+                provider.add(resource.mainUnit.get(), "Олов'яний " + getUkrainianUnitName(type.mainUnit, false));
+                if (resource.smallUnit != null) provider.add(resource.smallUnit.get(), "Олов'яний " + getUkrainianUnitName(type.smallUnit, false));
+                if (resource.block != null) provider.add(resource.block.get(), "Олов'яний блок");
+            }
+            case "industrial_copper" -> {
+                provider.add(resource.mainUnit.get(), "Промисловомедний " + getUkrainianUnitName(type.mainUnit, false));
+                if (resource.smallUnit != null) provider.add(resource.smallUnit.get(), "Промисловомедний " + getUkrainianUnitName(type.smallUnit, false));
+                if (resource.block != null) provider.add(resource.block.get(), "Промисловомедний блок");
+            }
+            case "titanium" -> {
+                provider.add(resource.mainUnit.get(), "Титановий " + getUkrainianUnitName(type.mainUnit, false));
+                if (resource.smallUnit != null) provider.add(resource.smallUnit.get(), "Титановий " + getUkrainianUnitName(type.smallUnit, false));
+                if (resource.block != null) provider.add(resource.block.get(), "Титановий блок");
+            }
             default -> {
                 String adj = capitalize(name);
                 provider.add(resource.mainUnit.get(), adj + " " + getUkrainianUnitName(type.mainUnit, false));
