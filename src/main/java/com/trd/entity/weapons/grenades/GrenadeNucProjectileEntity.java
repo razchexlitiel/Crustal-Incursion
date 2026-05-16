@@ -1,11 +1,10 @@
 package com.trd.entity.weapons.grenades;
 
-import com.trd.block.basic.ModBlocks;
 import com.trd.block.basic.weapons.explosives.IDetonatable;
 import com.trd.item.ModItems;
 import com.trd.sound.ModSounds;
 
-import com.trd.util.explosions.ExplosionHydrogen;
+import com.trd.explosion.logic.ExplosionHydrogen;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.syncher.EntityDataAccessor;
@@ -21,7 +20,6 @@ import net.minecraft.world.entity.projectile.ThrowableItemProjectile;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
@@ -128,16 +126,14 @@ public class GrenadeNucProjectileEntity extends ThrowableItemProjectile {
 
         this.discard();
 
-        // Водородный рейкаст-взрыв
+        // Водородный рейкаст-взрыв (теперь включает центральный и лучи)
         ExplosionHydrogen.explode(serverLevel, new Vec3(x, y, z), this.getOwner());
 
-        // Дополнительный стандартный взрыв для эффекта
-        serverLevel.explode(this, x, y, z, 9.0F, true, Level.ExplosionInteraction.NONE);
+        // Убираем лишний стандартный взрыв – он уже внутри
+        // triggerNearbyDetonations и dealExplosionDamage оставляем (они кастомные)
         triggerNearbyDetonations(serverLevel, pos, null);
         dealExplosionDamage(serverLevel, x, y, z);
-
         playRandomDetonationSound(level(), pos);
-
     }
 
     private void dealExplosionDamage(ServerLevel serverLevel, double x, double y, double z) {

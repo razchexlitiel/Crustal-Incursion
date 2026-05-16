@@ -1,4 +1,4 @@
-package com.trd.util.explosions;
+package com.trd.explosion.logic;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;

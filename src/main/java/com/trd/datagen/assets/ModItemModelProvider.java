@@ -65,6 +65,7 @@ public class ModItemModelProvider extends ItemModelProvider {
         simpleItem(ModItems.CONGLOMERATE_CHUNK);
         simpleItem(ModItems.CREATIVE_BATTERY);
         simpleItem(ModItems.BATTERY);
+        simpleItem(ModItems.TEXTURE_TEST);
         simpleItem(ModItems.POKER);
         simpleItem(ModItems.BATTERY_ADVANCED);
         simpleItem(ModItems.BATTERY_LITHIUM);
