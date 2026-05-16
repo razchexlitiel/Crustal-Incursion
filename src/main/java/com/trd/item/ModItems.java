@@ -307,7 +307,8 @@ public class ModItems {
     public static final RegistryObject<Item> MORY_LAH = ITEMS.register("mory_lah",
             () -> new MoryLahItem(new Item.Properties()));
 
-
+    public static final RegistryObject<Item> TEXTURE_TEST = ITEMS.register("texture_test",
+            () -> new Item(new Item.Properties()));
 
 
     //ЕДА
