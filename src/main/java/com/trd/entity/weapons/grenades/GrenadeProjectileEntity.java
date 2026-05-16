@@ -1,9 +1,9 @@
 package com.trd.entity.weapons.grenades;
 
 import com.trd.sound.ModSounds;
-import com.trd.util.explosions.ExplosionFireRaycast;
-import com.trd.util.explosions.ExplosionHE;
-import com.trd.util.explosions.ExplosionStandard;
+import com.trd.explosion.logic.ExplosionFireRaycast;
+import com.trd.explosion.logic.ExplosionHE;
+import com.trd.explosion.logic.ExplosionStandard;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.syncher.EntityDataAccessor;

@@ -1,9 +1,8 @@
 package com.trd.entity.weapons.grenades;
 
-import com.trd.util.explosions.ExplosionFireHeavy;
-import com.trd.util.explosions.ExplosionFireRaycast;
-import com.trd.util.explosions.ExplosionHE;
-import com.trd.util.explosions.ExplosionStandard;
+import com.trd.explosion.logic.ExplosionFireRaycast;
+import com.trd.explosion.logic.ExplosionHE;
+import com.trd.explosion.logic.ExplosionStandard;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.syncher.EntityDataAccessor;
@@ -19,7 +18,6 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.EntityHitResult;
-import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 
 public class GrenadeIfProjectileEntity extends ThrowableItemProjectile {

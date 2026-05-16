@@ -1,11 +1,10 @@
 package com.trd.entity.weapons.grenades;
 
-import com.trd.block.basic.ModBlocks;
 import com.trd.block.basic.weapons.explosives.IDetonatable;
 import com.trd.item.ModItems;
 import com.trd.sound.ModSounds;
 
-import com.trd.util.explosions.ExplosionHydrogen;
+import com.trd.explosion.logic.ExplosionHydrogen;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.syncher.EntityDataAccessor;
@@ -21,7 +20,6 @@ import net.minecraft.world.entity.projectile.ThrowableItemProjectile;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;

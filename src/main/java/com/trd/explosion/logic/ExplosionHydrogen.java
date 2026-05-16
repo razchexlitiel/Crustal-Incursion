@@ -1,4 +1,4 @@
-package com.trd.util.explosions;
+package com.trd.explosion.logic;
 
 import com.trd.block.basic.ModBlocks;
 import net.minecraft.core.BlockPos;
