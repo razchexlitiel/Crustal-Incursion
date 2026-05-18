@@ -34,6 +34,8 @@ public class ModMetallurgy {
         MetallurgyRegistry.addSmeltRecipe(Items.GOLDEN_CHESTPLATE, gold, 45, 1064, 0.7f, 120);
         MetallurgyRegistry.addSmeltRecipe(Items.GOLDEN_LEGGINGS, gold, 36, 1064, 0.6f, 110);
         MetallurgyRegistry.addSmeltRecipe(Items.GOLDEN_BOOTS, gold, 18, 1064, 0.5f, 80);
+        MetallurgyRegistry.addSmeltRecipe(ModItems.GOLD_PLATE.get(), gold, 9, 1064, 0.5f, 60);
+
 
         // === ЖЕЛЕЗО ===
         Metal iron = registerMetalWithItems("iron", 0xba826c, 958, 0.8f,
@@ -52,6 +54,9 @@ public class ModMetallurgy {
         MetallurgyRegistry.addSmeltRecipe(Items.IRON_LEGGINGS, iron, 63, 958, 0.9f, 160);
         MetallurgyRegistry.addSmeltRecipe(Items.IRON_BOOTS, iron, 36, 958, 0.7f, 100);
         MetallurgyRegistry.addSmeltRecipe(ModItems.CAST_PICKAXE_IRON_BASE.get(), iron, 45, 958, 0.8f, 180);
+        MetallurgyRegistry.addSmeltRecipe(ModItems.IRON_PLATE.get(), iron, 9, 958, 0.7f, 60);
+
+
         // === МЕДЬ ===
         Metal copper = registerMetalWithItems("copper", 0xc15a36, 1085, 0.6f,
                 Items.COPPER_INGOT, null, Blocks.COPPER_BLOCK);
@@ -96,12 +101,14 @@ public class ModMetallurgy {
         );
         MetallurgyRegistry.addAlloyRecipe(steelAlloy);
         MetallurgyRegistry.addSmeltRecipe(ModItems.CAST_PICKAXE_STEEL_BASE.get(), steel, 45, 1440, 1.2f, 180);
+        MetallurgyRegistry.addSmeltRecipe(ModItems.STEEL_PLATE.get(), steel, 9, 1440, 1.2f, 60);
 
         // === АЛЮМИНИЙ ===
         Metal aluminum = registerMetalWithItems("aluminum", 0x8ebcd4, 660, 0.4f,
                 ResourceRegistry.getMainUnit("aluminum"),
                 ResourceRegistry.getSmallUnit("aluminum"),
                 ResourceRegistry.getBlock("aluminum"));
+        MetallurgyRegistry.addSmeltRecipe(ModItems.ALUMINUM_PLATE.get(), aluminum, 9, 660, 0.4f, 60);
 
         // === БРОНЗА ===
         Metal bronze = registerMetalWithItems("bronze", 0xcb9a3e, 930, 0.6f,
@@ -126,18 +133,23 @@ public class ModMetallurgy {
                 ResourceRegistry.getMainUnit("industrial_copper"),
                 ResourceRegistry.getSmallUnit("industrial_copper"),
                 ResourceRegistry.getBlock("industrial_copper"));
+        MetallurgyRegistry.addSmeltRecipe(ModItems.INDUSTRIAL_COPPER_PLATE.get(), industrial_copper, 9, 1084, 0.8f, 60);
+
 
         // === ТИТАН ===
         Metal titanium = registerMetalWithItems("titanium", 0x767676, 1570, 1.5f,
                 ResourceRegistry.getMainUnit("titanium"),
                 ResourceRegistry.getSmallUnit("titanium"),
                 ResourceRegistry.getBlock("titanium"));
+        MetallurgyRegistry.addSmeltRecipe(ModItems.TITANIUM_PLATE.get(), titanium, 9, 1570, 1.5f, 60);
 
         // === СВИНец ===
         Metal lead = registerMetalWithItems("lead", 0x686d79, 327, 0.3f,
                 ResourceRegistry.getMainUnit("lead"),
                 ResourceRegistry.getSmallUnit("lead"),
                 ResourceRegistry.getBlock("lead"));
+        MetallurgyRegistry.addSmeltRecipe(ModItems.LEAD_PLATE.get(), lead, 9, 327, 0.3f, 60);
+
 
         // === БЕРИЛЛИЙ ===
         Metal beryllium = registerMetalWithItems("beryllium", 0x47675b, 1287, 1.1f,
@@ -150,6 +162,7 @@ public class ModMetallurgy {
                 ResourceRegistry.getMainUnit("tungsten"),
                 ResourceRegistry.getSmallUnit("tungsten"),
                 ResourceRegistry.getBlock("tungsten"));
+        MetallurgyRegistry.addSmeltRecipe(ModItems.TUNGSTEN_PLATE.get(), tungsten, 9, 3422, 3f, 60);
 
         // === НЕОДИМ ===
         Metal neodymium = registerMetalWithItems("neodymium", 0x696bb3, 1016, 1f,
@@ -182,7 +195,34 @@ public class ModMetallurgy {
             return ItemStack.EMPTY;
         });
 
-
+        MoldRecipeRegistry.register(ModItems.MOLD_PLATE.get(), 9, metal -> {
+            String path = metal.getId().getPath();
+            if (path.equals("iron")) {
+                return new ItemStack(ModItems.IRON_PLATE.get());
+            }
+            if (path.equals("steel")) {
+                return new ItemStack(ModItems.STEEL_PLATE.get());
+            }
+            if (path.equals("gold")) {
+                return new ItemStack(ModItems.GOLD_PLATE.get());
+            }
+            if (path.equals("lead")) {
+                return new ItemStack(ModItems.LEAD_PLATE.get());
+            }
+            if (path.equals("tungsten")) {
+                return new ItemStack(ModItems.TUNGSTEN_PLATE.get());
+            }
+            if (path.equals("titanium")) {
+                return new ItemStack(ModItems.TITANIUM_PLATE.get());
+            }
+            if (path.equals("industrial_copper")) {
+                return new ItemStack(ModItems.INDUSTRIAL_COPPER_PLATE.get());
+            }
+            if (path.equals("aluminum")) {
+                return new ItemStack(ModItems.ALUMINUM_PLATE.get());
+            }
+            return ItemStack.EMPTY;
+        });
 
         MetallurgyRegistry.generateStandardRecipes();
     }

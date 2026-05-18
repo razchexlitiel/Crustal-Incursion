@@ -234,11 +234,10 @@ public class MainRegistry {
             event.accept(ModItems.GEAR1_STEEL.get());
             event.accept(ModItems.GEAR2_STEEL.get());
 
-            event.accept(ModItems.FLYWHEEL_LIGHT.get());
-
             event.accept(ModBlocks.BEARING_BLOCK);
             event.accept(ModItems.BEVEL_GEAR.get());
             event.accept(ModItems.PULLEY.get());
+            event.accept(ModItems.FLYWHEEL_LIGHT.get());
 
             event.accept(ModBlocks.MOTOR_ELECTRO);
             event.accept(ModBlocks.TACHOMETER);
@@ -302,6 +301,7 @@ public class MainRegistry {
             event.accept(ModBlocks.CASTING_DESCENT);
             event.accept(ModItems.MOLD_EMPTY.get());
             event.accept(ModItems.MOLD_NUGGET.get());
+            event.accept(ModItems.MOLD_PLATE.get());
             event.accept(ModItems.MOLD_INGOT.get());
             event.accept(ModItems.MOLD_BLOCK.get());
             event.accept(ModItems.MOLD_PICKAXE.get());
@@ -347,6 +347,16 @@ public class MainRegistry {
         }
 
         if (event.getTab() == ModCreativeTabs.trd_RECOURSES_TAB.get()) {
+
+            event.accept(ModItems.IRON_PLATE.get());
+            event.accept(ModItems.TITANIUM_PLATE.get());
+            event.accept(ModItems.STEEL_PLATE.get());
+            event.accept(ModItems.TUNGSTEN_PLATE.get());
+            event.accept(ModItems.LEAD_PLATE.get());
+            event.accept(ModItems.ALUMINUM_PLATE.get());
+            event.accept(ModItems.INDUSTRIAL_COPPER_PLATE.get());
+            event.accept(ModItems.GOLD_PLATE.get());
+
             for (Metal metal : MetallurgyRegistry.getAllMetals()) {
                 ItemStack slagStack = SlagItem.createSlag(metal, MetalUnits2.UNITS_PER_INGOT);
                 event.accept(slagStack);
