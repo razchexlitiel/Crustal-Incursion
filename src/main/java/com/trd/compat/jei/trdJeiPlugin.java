@@ -136,9 +136,13 @@ public class trdJeiPlugin implements IModPlugin {
         // === ЖЕРНОВА ===
         List<MillstoneWrapper> millstoneRecipes = new ArrayList<>();
         for (Map.Entry<Item, MillstoneBlockEntity.GrindRecipe> entry : MillstoneBlockEntity.RECIPES.entrySet()) {
+            // Копируем стаки, чтобы JEI не мог их испортить при индексации
+            List<ItemStack> outputs = entry.getValue().outputs().stream()
+                    .map(ItemStack::copy)
+                    .toList();
             millstoneRecipes.add(new MillstoneWrapper(
                     entry.getKey(),
-                    entry.getValue().outputs(),
+                    outputs,
                     entry.getValue().grindsRequired()
             ));
         }
@@ -188,19 +192,11 @@ public class trdJeiPlugin implements IModPlugin {
 
         @Override
         public void setRecipe(IRecipeLayoutBuilder builder, MillstoneWrapper recipe, IFocusGroup focuses) {
-            // Левая группа 3×3: входной предмет в ЛЕВОМ ВЕРХНЕМ слоте (5,5)
-            int[][] leftSlots = {
-                    {5, 5}, {23, 5}, {41, 5},
-                    {5, 23}, {23, 23}, {41, 23},
-                    {5, 41}, {23, 41}, {41, 41}
-            };
-            for (int[] pos : leftSlots) {
-                builder.addSlot(RecipeIngredientRole.INPUT, pos[0], pos[1]);
-            }
+            // Только реальный входной слот (без пустых заглушек слева)
             builder.addSlot(RecipeIngredientRole.INPUT, 5, 5)
                     .addItemStack(new ItemStack(recipe.input()));
 
-            // Правая группа 3×3: выходы заполняем последовательно начиная с (83,5)
+            // Выходные слоты 3×3 справа — только реальные предметы, без пустых заглушек
             int[][] rightSlots = {
                     {83, 5}, {101, 5}, {119, 5},
                     {83, 23}, {101, 23}, {119, 23},
@@ -208,12 +204,11 @@ public class trdJeiPlugin implements IModPlugin {
             };
             List<ItemStack> outputs = recipe.outputs();
             for (int i = 0; i < outputs.size() && i < rightSlots.length; i++) {
-                builder.addSlot(RecipeIngredientRole.OUTPUT, rightSlots[i][0], rightSlots[i][1])
-                        .addItemStack(outputs.get(i));
-            }
-            // Оставшиеся слоты пустые (для визуальной консистентности)
-            for (int i = outputs.size(); i < rightSlots.length; i++) {
-                builder.addSlot(RecipeIngredientRole.OUTPUT, rightSlots[i][0], rightSlots[i][1]);
+                ItemStack stack = outputs.get(i);
+                if (!stack.isEmpty()) {
+                    builder.addSlot(RecipeIngredientRole.OUTPUT, rightSlots[i][0], rightSlots[i][1])
+                            .addItemStack(stack.copy());
+                }
             }
         }
 

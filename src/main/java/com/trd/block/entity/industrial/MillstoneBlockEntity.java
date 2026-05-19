@@ -12,6 +12,7 @@ import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
 import net.minecraft.world.Containers;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntity;
@@ -31,13 +32,13 @@ import java.util.Map;
 
 public class MillstoneBlockEntity extends BlockEntity {
 
-    public static final int GRIND_COOLDOWN = 20; // 1 секунда = 20 тиков
-    public static final float ROTATION_SPEED = 360.0f / GRIND_COOLDOWN; // Градусов за тик
+    public static final int GRIND_COOLDOWN = 20;
+    public static final float ROTATION_SPEED = 360.0f / GRIND_COOLDOWN;
 
     public static final Map<Item, GrindRecipe> RECIPES = new HashMap<>();
 
     static {
-        // --- Предметы (старые рецепты) ---
+        // --- Предметы ---
         RECIPES.put(ModItems.LIMESTONE_CHUNK.get(), new GrindRecipe(
                 List.of(new ItemStack(ModItems.LIMESTONE_POWDER.get(), 1)), 2
         ));
@@ -81,14 +82,12 @@ public class MillstoneBlockEntity extends BlockEntity {
 
         @Override
         public boolean isItemValid(int slot, @Nonnull ItemStack stack) {
-            // Вставлять можно только во входной слот (0)
             return slot == 0;
         }
 
         @Nonnull
         @Override
         public ItemStack extractItem(int slot, int amount, boolean simulate) {
-            // Автоматика не забирает из входного слота (0)
             if (slot == 0) return ItemStack.EMPTY;
             return super.extractItem(slot, amount, simulate);
         }
@@ -98,16 +97,14 @@ public class MillstoneBlockEntity extends BlockEntity {
     private int requiredGrinds = 0;
     private boolean isProcessing = false;
 
-    // Кулдаун и вращение
     private int cooldownTicks = 0;
     private float rotationAngle = 0.0f;
-    private boolean isGrinding = false; // Активно ли вращение прямо сейчас
+    private boolean isGrinding = false;
 
     public MillstoneBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.MILLSTONE.get(), pos, state);
     }
 
-    // === Геттеры ===
     public ItemStack getInputStack() { return itemHandler.getStackInSlot(0); }
 
     public List<ItemStack> getResultStacks() {
@@ -132,7 +129,6 @@ public class MillstoneBlockEntity extends BlockEntity {
     public int getRemainingGrinds() { return Math.max(0, requiredGrinds - currentGrinds); }
     public boolean canGrind() { return isProcessing && getRemainingGrinds() > 0 && cooldownTicks <= 0; }
 
-    // === Для рендера ===
     public float getRotationAngle() { return rotationAngle; }
     public boolean isGrinding() { return isGrinding; }
     public int getCooldownProgress() {
@@ -149,7 +145,6 @@ public class MillstoneBlockEntity extends BlockEntity {
         return 0;
     }
 
-    // === Логика ===
     public ItemStack insertItem(ItemStack stack) {
         GrindRecipe recipe = RECIPES.get(stack.getItem());
         if (recipe == null) return stack;
@@ -175,10 +170,8 @@ public class MillstoneBlockEntity extends BlockEntity {
     public boolean doGrind() {
         if (!canGrind()) return false;
 
-        // Запускаем кулдаун и вращение
         cooldownTicks = GRIND_COOLDOWN;
         isGrinding = true;
-
         currentGrinds++;
 
         if (currentGrinds >= requiredGrinds) {
@@ -209,7 +202,6 @@ public class MillstoneBlockEntity extends BlockEntity {
         cooldownTicks = 0;
     }
 
-    // Для автоматики (воронки) — забирает по одному из первого непустого выходного слота
     public ItemStack extractResult() {
         for (int i = 1; i < itemHandler.getSlots(); i++) {
             ItemStack result = itemHandler.getStackInSlot(i);
@@ -223,7 +215,6 @@ public class MillstoneBlockEntity extends BlockEntity {
         return ItemStack.EMPTY;
     }
 
-    // Для игрока — забирает всё из выходных слотов сразу
     public List<ItemStack> extractAllResults() {
         List<ItemStack> results = new ArrayList<>();
         for (int i = 1; i < itemHandler.getSlots(); i++) {
@@ -240,10 +231,8 @@ public class MillstoneBlockEntity extends BlockEntity {
         return results;
     }
 
-    // === Тик ===
     public static void tick(Level level, BlockPos pos, BlockState state, MillstoneBlockEntity be) {
         if (!level.isClientSide) {
-            // Автостарт если предмет положен через автоматику (воронка и т.д.)
             if (!be.isProcessing && !be.itemHandler.getStackInSlot(0).isEmpty() && be.isOutputEmpty()) {
                 ItemStack input = be.itemHandler.getStackInSlot(0);
                 GrindRecipe recipe = RECIPES.get(input.getItem());
@@ -261,26 +250,19 @@ public class MillstoneBlockEntity extends BlockEntity {
 
         if (be.cooldownTicks > 0) {
             be.cooldownTicks--;
-
-            // Вращаем пока есть кулдаун
             if (be.isGrinding) {
                 be.rotationAngle += ROTATION_SPEED;
                 if (be.rotationAngle >= 360.0f) {
                     be.rotationAngle -= 360.0f;
                 }
             }
-
-            // Конец вращения
             if (be.cooldownTicks <= 0) {
                 be.isGrinding = false;
             }
-
             be.setChanged();
-            // Не шлём обновление блока каждый тик для плавности - рендер сам интерполирует
         }
     }
 
-    // === Сериализация ===
     @Override
     public void load(CompoundTag tag) {
         super.load(tag);
@@ -318,7 +300,6 @@ public class MillstoneBlockEntity extends BlockEntity {
         return ClientboundBlockEntityDataPacket.create(this);
     }
 
-    // === Капабилити ===
     @Override
     public void invalidateCaps() {
         super.invalidateCaps();
